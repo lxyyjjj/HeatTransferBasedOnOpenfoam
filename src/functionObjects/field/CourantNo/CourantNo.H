@@ -86,8 +86,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef functionObjects_CourantNo_H
-#define functionObjects_CourantNo_H
+#ifndef Foam_functionObjects_CourantNo_H
+#define Foam_functionObjects_CourantNo_H
 
 #include "fieldExpression.H"
 #include "volFields.H"
@@ -114,12 +114,6 @@ class CourantNo
 
 
     // Private Member Functions
-
-        //- Divide the Courant number by rho if required
-        tmp<volScalarField::Internal> byRho
-        (
-            const tmp<volScalarField::Internal>& Co
-        ) const;
 
         //- Calculate the Courant number field and return true if successful
         virtual bool calc();
