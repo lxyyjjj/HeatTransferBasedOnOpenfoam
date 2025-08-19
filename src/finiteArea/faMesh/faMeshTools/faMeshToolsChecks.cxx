@@ -43,7 +43,7 @@ void Foam::faMeshTools::printMeshChecks
     const label nPatches = patches.size();
 
     label nLocalProcEdges = 0;
-    if (Pstream::parRun())
+    if (UPstream::parRun())
     {
         for (const faPatch& fap : patches)
         {
@@ -95,7 +95,7 @@ void Foam::faMeshTools::printMeshChecks
         [&,verbose](const char* tag, const labelList& list)
         {
             Info<< "  Number of " << tag << ": " << sum(list) << nl;
-            if (Pstream::parRun() && verbose)
+            if (UPstream::parRun() && verbose)
             {
                 int padding = static_cast<int>
                 (
@@ -124,7 +124,7 @@ void Foam::faMeshTools::printMeshChecks
         reporter("internal edges", nIntEdges);
         reporter("boundary edges", nBndEdges);
 
-        if (Pstream::parRun())
+        if (UPstream::parRun())
         {
             reporter("processor edges", nProcEdges);
         }

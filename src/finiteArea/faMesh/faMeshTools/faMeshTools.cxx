@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2012-2016 OpenFOAM Foundation
-    Copyright (C) 2015-2024 OpenCFD Ltd.
+    Copyright (C) 2015-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,6 +32,7 @@ License
 #include "edgeFields.H"
 #include "fileOperation.H"
 #include "BitOps.H"
+#include "ListOps.H"
 #include "polyMesh.H"
 #include "processorFaPatch.H"
 
@@ -71,16 +72,17 @@ void Foam::faMeshTools::forceDemandDriven(faMesh& mesh)
 Foam::autoPtr<Foam::faMesh>
 Foam::faMeshTools::newMesh
 (
+    const word& areaName,
     const IOobject& io,
     const polyMesh& pMesh,
     const bool masterOnlyReading,
     const bool verbose
 )
 {
-    // The mesh directory (assuming single area region), relative to Time
+    // The mesh directory, relative to Time
     const fileName meshSubDir
     (
-        faMesh::meshDir(pMesh, word::null)
+        faMesh::meshDir(pMesh, areaName)
     );
 
 
@@ -88,7 +90,7 @@ Foam::faMeshTools::newMesh
 
     // Patch types
     // ~~~~~~~~~~~
-    // Read and scatter master patches (without reading master mesh!)
+    // Read and broadcast master patches (without reading master mesh!)
 
     PtrList<entry> patchEntries;
     if (UPstream::master())
@@ -102,7 +104,7 @@ Foam::faMeshTools::newMesh
             IOobject::MUST_READ
         );
 
-        patchEntries = faBoundaryMeshEntries
+        patchEntries = faBoundaryMeshEntries::readContents
         (
             IOobject
             (
@@ -110,11 +112,12 @@ Foam::faMeshTools::newMesh
                 facesInstance,
                 meshSubDir,
                 io.time(),
-                IOobject::MUST_READ,
-                IOobject::NO_WRITE,
-                IOobject::NO_REGISTER
+                IOobject::MUST_READ
             )
         );
+
+        // No processor patches (remove here or later)
+        // faBoundaryMeshEntries::removeProcPatches(patchEntries);
 
         UPstream::parRun(oldParRun);
     }
@@ -148,7 +151,7 @@ Foam::faMeshTools::newMesh
     // Check who has a mesh
 
     const fileName meshDir = io.time().path()/facesInstance/meshSubDir;
-    bool haveMesh = isDir(meshDir);
+    bool haveMesh = Foam::isDir(meshDir);
     if (masterOnlyReading && !UPstream::master())
     {
         haveMesh = false;
@@ -179,6 +182,7 @@ Foam::faMeshTools::newMesh
 
     auto meshPtr = autoPtr<faMesh>::New
     (
+        areaName,
         pMesh,
         std::move(faceLabels),
         meshIO
@@ -214,27 +218,26 @@ Foam::faMeshTools::newMesh
                 // - logic will not work with inter-mixed proc-patches anyhow
                 break;
             }
-            else
+
+
+            dictionary patchDict(e.dict());
+
+            if (isEmptyMesh)
             {
-                dictionary patchDict(e.dict());
-
-                if (isEmptyMesh)
-                {
-                    patchDict.set("edgeLabels", labelList());
-                }
-
-                patches.set
-                (
-                    patchi,
-                    faPatch::New
-                    (
-                        name,
-                        patchDict,
-                        nPatches++,
-                        mesh.boundary()
-                    )
-                );
+                patchDict.set("edgeLabels", labelList());
             }
+
+            patches.set
+            (
+                patchi,
+                faPatch::New
+                (
+                    name,
+                    patchDict,
+                    nPatches++,
+                    mesh.boundary()
+                )
+            );
         }
 
         patches.resize(nPatches);
@@ -250,8 +253,9 @@ Foam::faMeshTools::newMesh
 
 
 Foam::autoPtr<Foam::faMesh>
-Foam::faMeshTools::loadOrCreateMeshImpl
+Foam::faMeshTools::loadOrCreateMesh_impl
 (
+    const word& areaName,
     const IOobject& io,
     refPtr<fileOperation>* readHandlerPtr,  // Can be nullptr
     const polyMesh& pMesh,
@@ -259,16 +263,16 @@ Foam::faMeshTools::loadOrCreateMeshImpl
     const bool verbose
 )
 {
-    // The mesh directory (assuming single area region), relative to Time
+    // The mesh directory, relative to Time
     const fileName meshSubDir
     (
-        faMesh::meshDir(pMesh, word::null)
+        faMesh::meshDir(pMesh, areaName)
     );
 
 
     // Patch types
     // ~~~~~~~~~~~
-    // Read and scatter master patches (without reading master mesh!)
+    // Read and broadcast master patches (without reading master mesh!)
 
     PtrList<entry> patchEntries;
     if (UPstream::master())
@@ -277,7 +281,7 @@ Foam::faMeshTools::loadOrCreateMeshImpl
         const label oldNumProcs = fileHandler().nProcs();
         const int oldCache = fileOperation::cacheLevel(0);
 
-        patchEntries = faBoundaryMeshEntries
+        patchEntries = faBoundaryMeshEntries::readContents
         (
             IOobject
             (
@@ -285,11 +289,12 @@ Foam::faMeshTools::loadOrCreateMeshImpl
                 io.instance(),
                 meshSubDir,
                 io.time(),
-                IOobject::MUST_READ,
-                IOobject::NO_WRITE,
-                IOobject::NO_REGISTER
+                IOobject::MUST_READ
             )
         );
+
+        // No processor patches (remove here or later)
+        // faBoundaryMeshEntries::removeProcPatches(patchEntries);
 
         fileOperation::cacheLevel(oldCache);
         if (oldParRun)
@@ -354,8 +359,9 @@ Foam::faMeshTools::loadOrCreateMeshImpl
         (
             new faMesh
             (
+                areaName,
                 pMesh,
-                labelList(),  // Similar to Foam::zero{}
+                labelList(),  // Like Foam::zero - create with no face labels
                 IOobject(io, IOobject::NO_READ, IOobject::AUTO_WRITE)
             )
         );
@@ -380,23 +386,21 @@ Foam::faMeshTools::loadOrCreateMeshImpl
                 // - logic will not work with inter-mixed proc-patches anyhow
                 break;
             }
-            else
-            {
-                dictionary patchDict(e.dict());
-                patchDict.set("edgeLabels", labelList());
 
-                patches.set
+            dictionary patchDict(e.dict());
+            patchDict.set("edgeLabels", labelList());
+
+            patches.set
+            (
+                patchi,
+                faPatch::New
                 (
-                    patchi,
-                    faPatch::New
-                    (
-                        name,
-                        patchDict,
-                        nPatches++,
-                        mesh.boundary()
-                    )
-                );
-            }
+                    name,
+                    patchDict,
+                    nPatches++,
+                    mesh.boundary()
+                )
+            );
         }
         patches.resize(nPatches);
         mesh.addFaPatches(patches, false);  // No parallel comms
@@ -428,6 +432,8 @@ Foam::faMeshTools::loadOrCreateMeshImpl
     }
     else if (readHandlerPtr && haveLocalMesh)
     {
+        const label numProcs = UPstream::nProcs(UPstream::worldComm);
+
         const labelList meshProcIds(BitOps::sortedToc(haveMesh));
 
         UPstream::communicator newCommunicator;
@@ -440,30 +446,14 @@ Foam::faMeshTools::loadOrCreateMeshImpl
         // only include the ranks for the current IO rank.
         // Instead allocate a new communicator for everyone with a mesh
 
-        const auto& handlerProcIds = UPstream::procID(fileHandler().comm());
-
         // Comparing global ranks in the communicator.
-        // Use std::equal for the List<label> vs List<int> comparison
 
-        if
-        (
-            meshProcIds.size() == handlerProcIds.size()
-         && std::equal
-            (
-                meshProcIds.cbegin(),
-                meshProcIds.cend(),
-                handlerProcIds.cbegin()
-            )
-        )
+        if (ListOps::equal(meshProcIds, UPstream::procID(fileHandler().comm())))
         {
             // Can use the handler communicator as is.
             UPstream::commWorld(fileHandler().comm());
         }
-        else if
-        (
-            UPstream::nProcs(fileHandler().comm())
-         != UPstream::nProcs(UPstream::worldComm)
-        )
+        else if (UPstream::nProcs(fileHandler().comm()) != numProcs)
         {
             // Need a new communicator for the fileHandler.
 
@@ -475,7 +465,7 @@ Foam::faMeshTools::loadOrCreateMeshImpl
         }
 
         // Load but do not initialise
-        meshPtr = autoPtr<faMesh>::New(pMesh, false);
+        meshPtr = autoPtr<faMesh>::New(areaName, pMesh, false);
 
         readHandler = fileOperation::fileHandler(oldHandler);
         UPstream::commWorld(oldWorldComm);
@@ -496,7 +486,7 @@ Foam::faMeshTools::loadOrCreateMeshImpl
 
         /// Pout<< "Reading area mesh from " << io.objectRelPath() << endl;
         // Load but do not initialise
-        meshPtr = autoPtr<faMesh>::New(pMesh, false);
+        meshPtr = autoPtr<faMesh>::New(areaName, pMesh, false);
     }
 
     faMesh& mesh = meshPtr();
@@ -581,14 +571,16 @@ Foam::faMeshTools::loadOrCreateMeshImpl
 Foam::autoPtr<Foam::faMesh>
 Foam::faMeshTools::loadOrCreateMesh
 (
+    const word& areaName,
     const IOobject& io,
     const polyMesh& pMesh,
     const bool decompose,
     const bool verbose
 )
 {
-    return faMeshTools::loadOrCreateMeshImpl
+    return faMeshTools::loadOrCreateMesh_impl
     (
+        areaName,
         io,
         nullptr,  // fileOperation (ignore)
         pMesh,
@@ -601,14 +593,16 @@ Foam::faMeshTools::loadOrCreateMesh
 Foam::autoPtr<Foam::faMesh>
 Foam::faMeshTools::loadOrCreateMesh
 (
+    const word& areaName,
     const IOobject& io,
     const polyMesh& pMesh,
     refPtr<fileOperation>& readHandler,
     const bool verbose
 )
 {
-    return faMeshTools::loadOrCreateMeshImpl
+    return faMeshTools::loadOrCreateMesh_impl
     (
+        areaName,
         io,
        &readHandler,
         pMesh,

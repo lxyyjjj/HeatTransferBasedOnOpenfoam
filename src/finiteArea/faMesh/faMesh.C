@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2016-2017 Wikki Ltd
-    Copyright (C) 2020-2024 OpenCFD Ltd.
+    Copyright (C) 2020-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -449,12 +449,12 @@ bool Foam::faMesh::init(const bool doInit)
 
 Foam::faMesh::faMesh
 (
-    const word& meshName,
+    const word& areaName,
     const polyMesh& pMesh,
     Foam::zero
 )
 :
-    faMesh(meshName, pMesh, labelList())
+    faMesh(areaName, pMesh, labelList())
 {}
 
 
@@ -476,12 +476,12 @@ Foam::faMesh::faMesh(const polyMesh& pMesh, const bool doInit)
 
 Foam::faMesh::faMesh
 (
-    const word& meshName,
+    const word& areaName,
     const faMesh& baseMesh,
     Foam::zero
 )
 :
-    faMesh(meshName, baseMesh, labelList())
+    faMesh(areaName, baseMesh, labelList())
 {}
 
 
@@ -497,14 +497,14 @@ Foam::faMesh::faMesh
 
 Foam::faMesh::faMesh
 (
-    const word& meshName,
+    const word& areaName,
     const faMesh& baseMesh,
     labelList&& faceLabels
 )
 :
     faMesh
     (
-        meshName,
+        areaName,
         baseMesh,
         std::move(faceLabels),
         static_cast<IOobjectOption>(baseMesh.thisDb())
@@ -586,12 +586,12 @@ Foam::faMesh::faMesh
 
 Foam::faMesh::faMesh
 (
-    const word& meshName,
+    const word& areaName,
     const polyMesh& pMesh,
     const bool doInit
 )
 :
-    faMeshRegistry(meshName, pMesh),
+    faMeshRegistry(areaName, pMesh),
     faSchemes
     (
         faMesh::thisDb(),
@@ -680,12 +680,12 @@ Foam::faMesh::faMesh
 
 Foam::faMesh::faMesh
 (
-    const word& meshName,
+    const word& areaName,
     const polyMesh& pMesh,
     labelList&& faceLabels
 )
 :
-    faMeshRegistry(meshName, pMesh),
+    faMeshRegistry(areaName, pMesh),
     faSchemes
     (
         faMesh::thisDb(),
@@ -739,13 +739,13 @@ Foam::faMesh::faMesh
 
 Foam::faMesh::faMesh
 (
-    const word& meshName,
+    const word& areaName,
     const polyMesh& pMesh,
     labelList&& faceLabels,
     IOobjectOption ioOpt
 )
 :
-    faMeshRegistry(meshName, pMesh),
+    faMeshRegistry(areaName, pMesh),
     faSchemes
     (
         faMesh::thisDb(),
@@ -802,13 +802,13 @@ Foam::faMesh::faMesh
 
 Foam::faMesh::faMesh
 (
-    const word& meshName,
+    const word& areaName,
     const faMesh& baseMesh,
     labelList&& faceLabels,
     IOobjectOption ioOpt
 )
 :
-    faMeshRegistry(meshName, baseMesh.mesh()),
+    faMeshRegistry(areaName, baseMesh.mesh()),
     faSchemes
     (
         faMesh::thisDb(),
@@ -863,14 +863,14 @@ Foam::faMesh::faMesh
 
 Foam::faMesh::faMesh
 (
-    const word& meshName,
+    const word& areaName,
     const polyPatch& pp,
     const bool doInit
 )
 :
     faMesh
     (
-        meshName,
+        areaName,
         pp.boundaryMesh().mesh(),
         identity(pp.range())
     )
@@ -896,7 +896,7 @@ Foam::faMesh::faMesh
 
 Foam::faMesh::faMesh
 (
-    const word& meshName,
+    const word& areaName,
     const polyMesh& pMesh,
     const dictionary& faMeshDefinition,
     const bool doInit
@@ -904,7 +904,7 @@ Foam::faMesh::faMesh
 :
     faMesh
     (
-        meshName,
+        areaName,
         pMesh,
         selectPatchFaces
         (

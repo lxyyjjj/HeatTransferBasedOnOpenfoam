@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2022 OpenCFD Ltd.
+    Copyright (C) 2022-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -99,7 +99,13 @@ Foam::faMeshDistributor::distribute
 
         newMeshPtr.reset
         (
-            new faMesh(tgtPolyMesh, std::move(newFaceLabels), io)
+            new faMesh
+            (
+                oldMesh.name(),  // preserve the area-region
+                tgtPolyMesh,
+                std::move(newFaceLabels),
+                io
+            )
         );
     }
 

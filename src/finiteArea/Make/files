@@ -13,10 +13,10 @@ faMesh/faBoundaryMesh/faBoundaryMeshEntries.C
 
 faceZone = faMesh/zones/faceZone/faFaceZone.cxx
 
-faMesh/faMeshSubset/faMeshSubset.C
-faMesh/faMeshTools/faMeshTools.C
-faMesh/faMeshTools/faMeshToolsChecks.C
-faMesh/faMeshTools/faMeshToolsProcAddr.C
+faMesh/faMeshSubset/faMeshSubset.cxx
+faMesh/faMeshTools/faMeshTools.cxx
+faMesh/faMeshTools/faMeshToolsChecks.cxx
+faMesh/faMeshTools/faMeshToolsProcAddr.cxx
 
 faPatches = faMesh/faPatches
 $(faPatches)/faPatch/faPatch.C
@@ -30,8 +30,8 @@ $(faPatches)/constraint/cyclic/cyclicFaPatch.C
 $(faPatches)/constraint/symmetry/symmetryFaPatch.C
 $(faPatches)/other/ignore/ignoreFaPatch.C
 
-distributed/faMeshDistributor.C
-distributed/faMeshDistributorNew.C
+distributed/faMeshDistributor.cxx
+distributed/faMeshDistributorNew.cxx
 
 ensight = output/ensight
 $(ensight)/ensightFaMesh.C

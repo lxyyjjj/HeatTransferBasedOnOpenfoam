@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2022 OpenCFD Ltd.
+    Copyright (C) 2022-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,7 +42,7 @@ namespace Foam
 static mapDistributePolyMesh createReconstructMap
 (
     const faMesh& mesh,
-    const autoPtr<faMesh>& baseMeshPtr,
+    const faMesh* baseMeshPtr,
     const labelUList& faceProcAddr,
     const labelUList& edgeProcAddr,
     const labelUList& pointProcAddr,
@@ -104,7 +104,7 @@ static mapDistributePolyMesh createReconstructMap
 
 
     // NB: can only have a reconstruct on master!
-    if (Pstream::master() && baseMeshPtr && baseMeshPtr->nFaces())
+    if (UPstream::master() && baseMeshPtr && baseMeshPtr->nFaces())
     {
         const faMesh& baseMesh = *baseMeshPtr;
 
@@ -227,7 +227,7 @@ Foam::mapDistributePolyMesh
 Foam::faMeshTools::readProcAddressing
 (
     const faMesh& mesh,
-    const autoPtr<faMesh>& baseMeshPtr
+    const faMesh* baseMeshPtr
 )
 {
     IOobject ioAddr
@@ -398,8 +398,8 @@ void Foam::faMeshTools::writeProcAddressing
         );
     }
 
-    auto oldHandler = fileOperation::fileHandler(writeHandler);
 
+    auto oldHandler = fileOperation::fileHandler(writeHandler);
 
     // If we want procAddressing, need to manually write it ourselves
     // since it was not registered anywhere
@@ -444,6 +444,7 @@ void Foam::faMeshTools::writeProcAddressing
     const bool pointOk = pointMap.write();
     const bool patchOk = patchMap.write();
 
+    // Restore the handler
     writeHandler = fileOperation::fileHandler(oldHandler);
 
     if (!edgeOk || !faceOk || !pointOk || !patchOk)
@@ -455,6 +456,19 @@ void Foam::faMeshTools::writeProcAddressing
             << pointMap.objectRelPath() << ", "
             << patchMap.objectRelPath() << endl;
     }
+}
+
+
+// * * * * * * * * * * * * * * * Housekeeping  * * * * * * * * * * * * * * * //
+
+Foam::mapDistributePolyMesh
+Foam::faMeshTools::readProcAddressing
+(
+    const faMesh& procMesh,
+    const autoPtr<faMesh>& baseMeshPtr
+)
+{
+    return readProcAddressing(procMesh, baseMeshPtr.get());
 }
 
 
