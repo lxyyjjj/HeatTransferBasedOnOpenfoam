@@ -7,7 +7,7 @@
 #    \\/     M anipulation  |
 #------------------------------------------------------------------------------
 #     Copyright (C) 2011-2016 OpenFOAM Foundation
-#     Copyright (C) 2017-2023 OpenCFD Ltd.
+#     Copyright (C) 2017-2025 OpenCFD Ltd.
 #------------------------------------------------------------------------------
 # License
 #     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
@@ -70,6 +70,7 @@ HELP_HEAD
 if [ -n "$1" ]
 then
 cat<<HELP_FULL
+  -all=FILE         Runs specified file (in pwd) instead of Allwmake
   -debug            Add '-g -DFULLDEBUG' flags
   -debug-O[g0123]   Add '-g -DFULLDEBUG' flags and optimization level
   -strict           More deprecation warnings ('+strict' WM_COMPILE_CONTROL)
@@ -210,7 +211,7 @@ allCores()
 #------------------------------------------------------------------------------
 
 # Default to compiling the local target only
-unset opt_all opt_update opt_quiet opt_show opt_pwd
+unset opt_all opt_allwmake opt_update opt_quiet opt_show opt_pwd
 unset opt_debug opt_openmp opt_openfoam opt_strict
 
 # Consistency with inherited values
@@ -229,10 +230,13 @@ do
         ('') ;;
         (- | --) shift; break ;;  # Stop option parsing
 
+        # Ignore any leftover options from AllwmakeParseArguments
+        (-no-recurs* | -fromWmake) ;;
+
         -help-f*)   # Full help
             printHelp -full
             ;;
-        -h | -help*) # Short help
+        -h | -help* | --help*)  # Short help
             printHelp
             ;;
 
@@ -298,12 +302,22 @@ do
 
         # Recursive build all targets
         -a | -all | all)
-            opt_all=all
+            opt_all='-all'
+            ;;
+
+        # Build with alternative 'Allwmake' script in pwd
+        -all=*)
+            opt_all='-all'
+            opt_allwmake="${1##*=}"
+            if [ -z "$opt_allwmake" ]
+            then
+                echo "ignoring -all=... (missing filename)" 1>&2
+            fi
             ;;
 
         # Recursive build all with scheduled queuing
         -q | -queue | queue)
-            opt_all=queue
+            opt_all='-queue'
             ;;
 
         # Parallel compilation on all cores (or specified number of cores)
@@ -357,7 +371,7 @@ do
         #   and respective binaries.
         -update)
             opt_update=true
-            : "${opt_all:=all}"  # implies 'all', unless previously set
+            : "${opt_all:=-all}"  # implies '-all', unless previously set
             ;;
 
         -show-api | -version | --version)
@@ -556,7 +570,7 @@ fi
 
 # Extract ccache controls from WM_COMPILE_CONTROL if possible
 # and when queuing is not active
-if [ "$opt_all" != queue ]
+if [ "$opt_all" != '-queue' ]
 then
     unset opt_ccache
 
@@ -619,11 +633,21 @@ fi
 # Recurse the source tree to compile "all" targets
 #------------------------------------------------------------------------------
 
-if [ "$opt_all" = all ]
+if [ "$opt_all" = '-all' ]
 then
     unset exitCode
 
-    if [ -e Allwmake.override ]
+    if [ -n "$opt_allwmake" ]
+    then
+        if [ -x "./$opt_allwmake" ]
+        then
+            ./"$opt_allwmake" -fromWmake $targetType
+            exitCode="$?"
+        else
+            echo "Non-executable file: ./$opt_allwmake" 1>&2
+            exitCode=1
+        fi
+    elif [ -e Allwmake.override ]
     then
         if [ -x Allwmake.override ]
         then
@@ -679,7 +703,7 @@ fi
 # Recurse source tree to compile "all" targets using wmakeCollect
 #------------------------------------------------------------------------------
 
-if [ "$opt_all" = queue ]
+if [ "$opt_all" = '-queue' ]
 then
     [ "$opt_update" = true ] || wmakeLnIncludeAll $parOpt
 
@@ -700,15 +724,18 @@ then
         collectName="${collectName////_}"  # Path as unique name
     fi
 
+    # Forward with -all or -all=FILE
+    opt_all="-all${opt_allwmake:+=}${opt_allwmake}"
+
     ## echo "collect: $buildRoot/$collectName" 1>&2
     (
         export WM_COLLECT_DIR="$buildRoot/$collectName"
         export WM_SCHEDULER="$WM_DIR/wmakeCollect"
         trap '$WM_SCHEDULER -kill' TERM INT
         "$WM_SCHEDULER" -clean \
-     && wmake -all objects \
+     && wmake "$opt_all" objects \
      && "$WM_SCHEDULER"  # Make with assembled makefile
-    ) && wmake -all
+    ) && wmake "$opt_all"
     exit $?
 fi
 

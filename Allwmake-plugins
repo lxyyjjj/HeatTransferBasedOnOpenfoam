@@ -1,6 +1,6 @@
 #!/bin/sh
 cd "${0%/*}" || exit            # Run from this directory
-set -- -no-recursion "$@"       # Parse arguments only
+set -- -all="${0##*/}" "$@"     # Execute this instead of ./Allwmake
 
 # Run from OPENFOAM top-level directory only
 wmake -check-dir "$WM_PROJECT_DIR" 2>/dev/null || {
@@ -33,7 +33,7 @@ case "$FOAM_MODULE_PREFIX" in
     ;;
 (*)
     # Use wmake -all instead of Allwmake to allow for overrides
-    ( cd "$WM_PROJECT_DIR/plugins" 2>/dev/null && wmake -all )
+    ( cd "$WM_PROJECT_DIR/plugins" 2>/dev/null && wmake -all $* )
 esac
 
 #------------------------------------------------------------------------------
