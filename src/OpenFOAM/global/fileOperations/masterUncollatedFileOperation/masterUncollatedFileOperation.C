@@ -586,7 +586,7 @@ Foam::fileOperations::masterUncollatedFileOperation::read
         }
         else
         {
-            isPtr.reset(new dummyISstream());
+            return dummyISstream::New();
         }
     }
 

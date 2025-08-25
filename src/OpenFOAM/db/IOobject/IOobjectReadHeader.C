@@ -215,17 +215,13 @@ bool Foam::IOobject::readAndCheckHeader
             ok = handler.readHeader(*this, fName, typeName);
             UPstream::parRun(oldParRun);
 
-            if
-            (
-                ok && checkType
-             && !typeName.empty() && headerClassName_ != typeName
-            )
+            if (ok && checkType && !isHeaderClass(typeName))
             {
                 ok = false;
                 if (verbose)
                 {
                     WarningInFunction
-                        << "Unexpected class name \"" << headerClassName_
+                        << "Unexpected class name \"" << headerClassName()
                         << "\" expected \"" << typeName
                         << "\" when reading " << fName << endl;
                 }
@@ -251,17 +247,13 @@ bool Foam::IOobject::readAndCheckHeader
         );
         ok = handler.readHeader(*this, fName, typeName);
 
-        if
-        (
-            ok && checkType
-         && !typeName.empty() && headerClassName_ != typeName
-        )
+        if (ok && checkType && !isHeaderClass(typeName))
         {
             ok = false;
             if (verbose)
             {
                 WarningInFunction
-                    << "Unexpected class name \"" << headerClassName_
+                    << "Unexpected class name \"" << headerClassName()
                     << "\" expected \"" << typeName
                     << "\" when reading " << fName << endl;
             }

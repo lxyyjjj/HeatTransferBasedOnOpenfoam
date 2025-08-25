@@ -27,12 +27,12 @@ Typedef
     Foam::faceZoneMesh
 
 Description
-    A ZoneMesh with the type faceZone
+    A ZoneMesh with faceZone content on a polyMesh
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef faceZoneMeshFwd_H
-#define faceZoneMeshFwd_H
+#ifndef Foam_faceZoneMeshFwd_H
+#define Foam_faceZoneMeshFwd_H
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

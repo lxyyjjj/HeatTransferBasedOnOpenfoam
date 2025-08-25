@@ -28,8 +28,8 @@ Description
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef pointZoneMesh_H
-#define pointZoneMesh_H
+#ifndef Foam_pointZoneMesh_H
+#define Foam_pointZoneMesh_H
 
 #include "ZoneMesh.H"
 #include "pointZone.H"

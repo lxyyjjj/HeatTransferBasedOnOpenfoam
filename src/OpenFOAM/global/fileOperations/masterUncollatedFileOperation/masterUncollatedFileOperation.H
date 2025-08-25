@@ -411,20 +411,20 @@ protected:
 
         //- Search (locally!) for object; return info on how it was found.
         //  Does not do any parallel communication.
-        //    checkGlobal : also check undecomposed case
-        //    isFile      : true:check for file  false:check for directory
-        // searchType    : how was found
-        // processorsDir : name of processor directory
-        // instance      : instance
         virtual fileName filePathInfo
         (
+            //! also check undecomposed case
             const bool checkGlobal,
+            //! True (check for file), False (check for directory)
             const bool isFile,
             const IOobject& io,
             const dirIndexList& pDirs,
             const bool search,
+            //! [out] how was found
             pathType& searchType,
+            //! [out] name of processor directory
             word& processorsDir,
+            //! [out] instance
             word& instance
         ) const;
 
@@ -623,19 +623,20 @@ public:
 
         // (reg)IOobject functinality
 
-            //- Search for an object. checkGlobal : also check undecomposed case
+            //- Search for an object
             virtual fileName filePath
             (
+                //! also check undecomposed case
                 const bool checkGlobal,
                 const IOobject& io,
-                const word& typeName,
+                const word& typeName,  //!< currently unused
                 const bool search
             ) const;
 
-            //- Search for a directory. checkGlobal : also check undecomposed
-            //  case
+            //- Search for a directory
             virtual fileName dirPath
             (
+                //! also check undecomposed case
                 const bool checkGlobal,
                 const IOobject& io,
                 const bool search
@@ -655,7 +656,7 @@ public:
             (
                 IOobject&,
                 const fileName&,
-                const word& typeName
+                const word& typeName  //!< currently unused
             ) const;
 
             //- Reads header for regIOobject and returns an ISstream
@@ -664,7 +665,7 @@ public:
             (
                 regIOobject&,
                 const fileName&,
-                const word& typeName,
+                const word& typeName,  //!< currently unused
                 const bool readOnProc = true
             ) const;
 
@@ -673,7 +674,9 @@ public:
             (
                 regIOobject&,
                 const bool masterOnly,
+                //! The format for parallel send/recv
                 const IOstreamOption::streamFormat format,
+                //! forwards to regIOobject
                 const word& typeName
             ) const;
 

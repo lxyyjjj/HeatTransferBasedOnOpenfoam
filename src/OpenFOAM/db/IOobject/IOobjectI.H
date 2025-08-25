@@ -261,10 +261,23 @@ inline bool Foam::IOobject::hasHeaderClass() const noexcept
 }
 
 
+inline bool Foam::IOobject::isHeaderClass(const word& expectedType) const
+{
+    return (expectedType.empty() || (expectedType == headerClassName_));
+}
+
+
 template<class Type>
 inline bool Foam::IOobject::isHeaderClass() const
 {
-    return (Type::typeName == headerClassName_);
+    if constexpr (std::is_void_v<Type>)
+    {
+        return true;
+    }
+    else
+    {
+        return (Type::typeName == headerClassName_);
+    }
 }
 
 

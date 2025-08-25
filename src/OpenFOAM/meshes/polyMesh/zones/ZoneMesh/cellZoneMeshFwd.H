@@ -27,12 +27,12 @@ Typedef
     Foam::cellZoneMesh
 
 Description
-    A ZoneMesh with the type cellZone
+    A ZoneMesh with cellZone content on a polyMesh
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef cellZoneMeshFwd_H
-#define cellZoneMeshFwd_H
+#ifndef Foam_cellZoneMeshFwd_H
+#define Foam_cellZoneMeshFwd_H
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

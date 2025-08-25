@@ -621,7 +621,7 @@ Foam::fileOperations::uncollatedFileOperation::readStream
 {
     if (!readOnProc)
     {
-        return autoPtr<ISstream>(new dummyISstream());
+        return dummyISstream::New();
     }
 
     if (fName.empty())

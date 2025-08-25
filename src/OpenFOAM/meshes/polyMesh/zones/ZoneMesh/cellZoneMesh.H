@@ -28,8 +28,8 @@ Description
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef cellZoneMesh_H
-#define cellZoneMesh_H
+#ifndef Foam_cellZoneMesh_H
+#define Foam_cellZoneMesh_H
 
 #include "ZoneMesh.H"
 #include "cellZone.H"

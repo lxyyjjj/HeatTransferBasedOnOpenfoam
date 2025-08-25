@@ -42,14 +42,35 @@ bool Foam::IOobject::typeHeaderOk
     const bool verbose
 )
 {
-    return readAndCheckHeader
-    (
-        is_globalIOobject<Type>::value,
-        Type::typeName,
-        checkType,
-        search,
-        verbose
-    );
+    if constexpr (std::is_void_v<Type>)
+    {
+        return readAndCheckHeader
+        (
+            false,      // isGlobal (false)
+            word::null, // typeName (n/a)
+            false,      // checkType (false)
+            search,
+            verbose
+        );
+    }
+    else
+    {
+        return readAndCheckHeader
+        (
+            is_globalIOobject<Type>::value,
+            Type::typeName,
+            checkType,
+            search,
+            verbose
+        );
+    }
+}
+
+
+template<class Type, bool Searching>
+bool Foam::IOobject::typeHeaderOk(const bool checkType, const bool verbose)
+{
+    return typeHeaderOk<Type>(checkType, Searching, verbose);
 }
 
 
