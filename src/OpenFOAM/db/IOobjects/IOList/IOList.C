@@ -44,6 +44,38 @@ bool Foam::IOList<T>::readIOcontents()
 }
 
 
+template<class T>
+Foam::label Foam::IOList<T>::readIOsize()
+{
+    label count(-1);
+
+    if (isReadRequired() || (isReadOptional() && headerOk()))
+    {
+        Istream& is = readStream(typeName);
+
+        token tok(is);
+
+        const bool quick = tok.isLabel();
+
+        if (quick)
+        {
+            // The majority of files will have lists with sizing info
+            count = tok.labelToken();
+        }
+        is.putBack(tok);
+
+        if (!quick)
+        {
+            List<T> list(is);
+            close();
+            count = list.size();
+        }
+    }
+
+    return count;
+}
+
+
 // * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * //
 
 template<class T>
@@ -129,6 +161,26 @@ Foam::IOListRef<T>::IOListRef
 // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
 template<class T>
+Foam::label Foam::IOList<T>::readContentsSize(const IOobject& io)
+{
+    IOobject rio(io, IOobjectOption::NO_REGISTER);
+    if (rio.readOpt() == IOobjectOption::READ_MODIFIED)
+    {
+        rio.readOpt(IOobjectOption::MUST_READ);
+    }
+    rio.resetHeader();
+
+    // Construct NO_READ, changing after construction
+    const auto rOpt = rio.readOpt(IOobjectOption::NO_READ);
+
+    IOList<T> reader(rio);
+    reader.readOpt(rOpt);
+
+    return reader.readIOsize();
+}
+
+
+template<class T>
 Foam::List<T> Foam::IOList<T>::readContents(const IOobject& io)
 {
     IOobject rio(io, IOobjectOption::NO_REGISTER);
@@ -136,6 +188,7 @@ Foam::List<T> Foam::IOList<T>::readContents(const IOobject& io)
     {
         rio.readOpt(IOobjectOption::MUST_READ);
     }
+    rio.resetHeader();
 
     IOList<T> reader(rio);
 
@@ -175,15 +228,6 @@ bool Foam::IOListRef<T>::writeData(Ostream& os) const
 {
     os << contentRef_;
     return os.good();
-}
-
-
-// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-template<class T>
-void Foam::IOList<T>::operator=(const IOList<T>& rhs)
-{
-    List<T>::operator=(rhs);
 }
 
 

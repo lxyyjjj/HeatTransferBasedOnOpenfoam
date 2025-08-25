@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2017 OpenFOAM Foundation
-    Copyright (C) 2018-2024 OpenCFD Ltd.
+    Copyright (C) 2018-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,44 +27,136 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "CompactIOField.H"
-#include "labelList.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 template<class T, class BaseType>
 bool Foam::CompactIOField<T, BaseType>::readIOcontents(bool readOnProc)
 {
+    typedef IOField<T> plain_type;
+
     if (isReadRequired() || (isReadOptional() && headerOk()))
     {
-        // Do reading
         Istream& is = readStream(word::null, readOnProc);
 
-        if (readOnProc)
+        if (!readOnProc)
         {
-            if (headerClassName() == IOField<T>::typeName)
-            {
-                is >> static_cast<Field<T>&>(*this);
-                close();
-            }
-            else if (headerClassName() == typeName)
-            {
-                is >> *this;
-                close();
-            }
-            else
-            {
-                FatalIOErrorInFunction(is)
-                    << "Unexpected class name " << headerClassName()
-                    << " expected " << typeName
-                    << " or " << IOField<T>::typeName << nl
-                    << "    while reading object " << name()
-                    << exit(FatalIOError);
-            }
+            // no-op
+        }
+        else if (isHeaderClass(typeName))
+        {
+            // Compact form
+            is >> *this;  // or: this->readCompact(is);
+        }
+        else if (isHeaderClass<plain_type>())
+        {
+            // Non-compact form
+            is >> static_cast<content_type&>(*this);
+        }
+        else
+        {
+            FatalIOErrorInFunction(is)
+                << "Unexpected class name " << headerClassName()
+                << " expected " << typeName
+                << " or " << plain_type::typeName << nl
+                << "    while reading object " << name()
+                << exit(FatalIOError);
         }
 
+        close();
         return true;
     }
 
+    return false;
+}
+
+
+template<class T, class BaseType>
+Foam::label Foam::CompactIOField<T, BaseType>::readIOsize(bool readOnProc)
+{
+    typedef IOField<T> plain_type;
+
+    label count(-1);
+
+    if (isReadRequired() || (isReadOptional() && headerOk()))
+    {
+        Istream& is = readStream(word::null, readOnProc);
+
+        if (!readOnProc)
+        {
+            // no-op
+        }
+        else
+        {
+            token tok(is);
+
+            if (tok.isLabel())
+            {
+                // The majority of files will have lists with sizing prefix
+                count = tok.labelToken();
+
+                if (isHeaderClass(typeName))
+                {
+                    // Compact form: read offsets, not content
+                    if (--count < 0)
+                    {
+                        count = 0;
+                    }
+                }
+            }
+            else
+            {
+                is.putBack(tok);
+
+                if (isHeaderClass(typeName))
+                {
+                    // Compact form: can just read the offsets
+                    labelList offsets(is);
+                    count = Foam::max(0, (offsets.size()-1));
+                }
+                else if (isHeaderClass<plain_type>())
+                {
+                    // Non-compact form: need to read everything
+                    Field<T> list(is);
+                    count = list.size();
+                }
+                else
+                {
+                    FatalIOErrorInFunction(is)
+                        << "Unexpected class name " << headerClassName()
+                        << " expected " << typeName
+                        << " or " << plain_type::typeName << endl
+                        << "    while reading object " << name()
+                        << exit(FatalIOError);
+                }
+            }
+        }
+        close();
+    }
+
+    return count;
+}
+
+
+template<class T, class BaseType>
+bool Foam::CompactIOField<T, BaseType>::overflows() const
+{
+    // Can safely assume that int64 will not overflow
+    if constexpr (sizeof(label) < sizeof(int64_t))
+    {
+        const UList<T>& lists = *this;
+
+        label total = 0;
+        for (const auto& sublist : lists)
+        {
+            const label prev = total;
+            total += sublist.size();
+            if (total < prev)
+            {
+                return true;
+            }
+        }
+    }
     return false;
 }
 
@@ -153,6 +245,46 @@ Foam::CompactIOField<T, BaseType>::CompactIOField
 }
 
 
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+template<class T, class BaseType>
+Foam::label
+Foam::CompactIOField<T, BaseType>::readContentsSize(const IOobject& io)
+{
+    IOobject rio(io, IOobjectOption::NO_REGISTER);
+    if (rio.readOpt() == IOobjectOption::READ_MODIFIED)
+    {
+        rio.readOpt(IOobjectOption::MUST_READ);
+    }
+    rio.resetHeader();
+
+    // Construct NO_READ, changing after construction
+    const auto rOpt = rio.readOpt(IOobjectOption::NO_READ);
+
+    CompactIOField<T, BaseType> reader(rio);
+    reader.readOpt(rOpt);
+
+    return reader.readIOsize();
+}
+
+
+template<class T, class BaseType>
+Foam::Field<T>
+Foam::CompactIOField<T, BaseType>::readContents(const IOobject& io)
+{
+    IOobject rio(io, IOobjectOption::NO_REGISTER);
+    if (rio.readOpt() == IOobjectOption::READ_MODIFIED)
+    {
+        rio.readOpt(IOobjectOption::MUST_READ);
+    }
+    rio.resetHeader();
+
+    CompactIOField<T, BaseType> reader(rio);
+
+    return Field<T>(std::move(static_cast<Field<T>&>(reader)));
+}
+
+
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 template<class T, class BaseType>
@@ -162,7 +294,22 @@ bool Foam::CompactIOField<T, BaseType>::writeObject
     const bool writeOnProc
 ) const
 {
-    if (streamOpt.format() == IOstreamOption::ASCII)
+    if
+    (
+        streamOpt.format() == IOstreamOption::BINARY
+     && overflows()
+    )
+    {
+        streamOpt.format(IOstreamOption::ASCII);
+
+        WarningInFunction
+            << "Overall number of elements of CompactIOField (size:"
+            << this->size() << ") overflows a label (int"
+            << (8*sizeof(label)) << ')' << nl
+            << "    Switching to ascii writing" << endl;
+    }
+
+    if (streamOpt.format() != IOstreamOption::BINARY)
     {
         // Change type to be non-compact format type
         const word oldTypeName(typeName);
@@ -188,20 +335,98 @@ bool Foam::CompactIOField<T, BaseType>::writeData(Ostream& os) const
 }
 
 
-// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 template<class T, class BaseType>
-void Foam::CompactIOField<T, BaseType>::operator=
-(
-    const CompactIOField<T, BaseType>& rhs
-)
+Foam::Istream& Foam::CompactIOField<T,BaseType>::readCompact(Istream& is)
 {
-    if (this == &rhs)
+    Field<T>& lists = *this;
+
+    // The base type for packed values
+    typedef typename T::value_type base_type;
+
+    // Read compact: offsets + packed values
+    const labelList offsets(is);
+    Field<base_type> values(is);
+
+    // Transcribe
+    const label len = Foam::max(0, (offsets.size()-1));
+    lists.resize_nocopy(len);
+
+    auto iter = values.begin();
+
+    for (label i = 0; i < len; ++i)
     {
-        return;  // Self-assigment is a no-op
+        auto& list = lists[i];
+        const label count = (offsets[i+1] - offsets[i]);
+
+        list.resize_nocopy(count);
+
+        std::move(iter, iter + count, list.begin());
+
+        iter += count;
     }
 
-    Field<T>::operator=(rhs);
+    return is;
+}
+
+
+template<class T, class BaseType>
+Foam::Ostream& Foam::CompactIOField<T,BaseType>::writeCompact(Ostream& os) const
+{
+    const Field<T>& lists = *this;
+
+    // The base type for packed values
+    typedef typename T::value_type base_type;
+
+    // Convert to compact format
+    label total = 0;
+    const label len = lists.size();
+
+    // offsets
+    {
+        labelList offsets(len+1);
+
+        for (label i = 0; i < len; ++i)
+        {
+            offsets[i] = total;
+            total += lists[i].size();
+
+            if (total < offsets[i])
+            {
+                FatalIOErrorInFunction(os)
+                    << "Overall number of elements of CompactIOField (size:"
+                    << len
+                    << ") overflows the representation of a label" << nl
+                    << "Please recompile with a larger representation"
+                    << " for label" << exit(FatalIOError);
+            }
+        }
+        offsets[len] = total;
+        os << offsets;
+    }
+
+    // packed values: make deepCopy for writing
+    {
+        Field<base_type> values(total);
+
+        auto iter = values.begin();
+
+        for (const auto& list : lists)
+        {
+            iter = std::copy_n(list.begin(), list.size(), iter);
+
+            // With IndirectList? [unlikely]
+            // const label count = list.size();
+            // for (label i = 0; i < count; (void)++i, (void)++iter)
+            // {
+            //     *iter = list[i];
+            // }
+        }
+        os << values;
+    }
+
+    return os;
 }
 
 
@@ -211,30 +436,10 @@ template<class T, class BaseType>
 Foam::Istream& Foam::operator>>
 (
     Foam::Istream& is,
-    Foam::CompactIOField<T, BaseType>& L
+    Foam::CompactIOField<T, BaseType>& lists
 )
 {
-    // Read compact
-    const labelList start(is);
-    const Field<BaseType> elems(is);
-
-    // Convert
-    L.setSize(start.size()-1);
-
-    forAll(L, i)
-    {
-        T& subField = L[i];
-
-        label index = start[i];
-        subField.setSize(start[i+1] - index);
-
-        forAll(subField, j)
-        {
-            subField[j] = elems[index++];
-        }
-    }
-
-    return is;
+    return lists.readCompact(is);
 }
 
 
@@ -242,38 +447,17 @@ template<class T, class BaseType>
 Foam::Ostream& Foam::operator<<
 (
     Foam::Ostream& os,
-    const Foam::CompactIOField<T, BaseType>& L
+    const Foam::CompactIOField<T, BaseType>& lists
 )
 {
     // Keep ASCII writing same
-    if (os.format() == IOstreamOption::ASCII)
+    if (os.format() != IOstreamOption::BINARY)
     {
-        os << static_cast<const Field<T>&>(L);
+        os << static_cast<const Field<T>&>(lists);
     }
     else
     {
-        // Convert to compact format
-        labelList start(L.size()+1);
-
-        start[0] = 0;
-        for (label i = 1; i < start.size(); i++)
-        {
-            start[i] = start[i-1]+L[i-1].size();
-        }
-
-        Field<BaseType> elems(start[start.size()-1]);
-
-        label elemI = 0;
-        forAll(L, i)
-        {
-            const T& subField = L[i];
-
-            forAll(subField, j)
-            {
-                elems[elemI++] = subField[j];
-            }
-        }
-        os << start << elems;
+        lists.writeCompact(os);
     }
 
     return os;

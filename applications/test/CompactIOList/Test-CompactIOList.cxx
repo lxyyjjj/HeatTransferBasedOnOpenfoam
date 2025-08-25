@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2017 OpenFOAM Foundation
-    Copyright (C) 2020-2022 OpenCFD Ltd.
+    Copyright (C) 2020-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +25,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Application
-    testCompactIOList
+    Test-CompactIOList
 
 Description
     Simple demonstration and test application for the CompactIOList container
@@ -46,13 +46,20 @@ using namespace Foam;
 
 int main(int argc, char *argv[])
 {
+    argList::addBoolOption("ascii", "use ascii format");
+    argList::addOption("count", "number of faces");
+
     #include "setRootCase.H"
     #include "createTime.H"
 
     IOstreamOption streamOpt(IOstreamOption::BINARY);
-    // IOstreamOption streamOpt(IOstreamOption::ASCII);
 
-    const label size = 20000000;
+    if (args.found("ascii"))
+    {
+        streamOpt.format(IOstreamOption::ASCII);
+    }
+
+    const label size = args.getOrDefault<label>("count", 20000000);
 
     // Old format
     // ~~~~~~~~~~
@@ -63,39 +70,50 @@ int main(int argc, char *argv[])
         (
             IOobject
             (
-                "faces2",
+                "faces2-plain",
                 runTime.constant(),
                 polyMesh::meshSubDir,
                 runTime,
                 IOobject::NO_READ,
                 IOobject::NO_WRITE,
                 IOobject::NO_REGISTER
-            ),
-            size
+            )
         );
 
-        const face f(identity(4));
+        faces2.resize(size, face(identity(4)));
 
-        forAll(faces2, i)
-        {
-            faces2[i] = f;
-        }
-
-        Info<< "Constructed faceList in = "
-            << runTime.cpuTimeIncrement() << " s" << nl << endl;
+        Info<< "Plain format faceList " << faces2.objectRelPath() << nl;
+        Info<< "    constructed in = " << runTime.cpuTimeIncrement()
+            << " s" << endl;
 
 
         faces2.writeObject(streamOpt, true);
 
-        Info<< "Written old format faceList in = "
-            << runTime.cpuTimeIncrement() << " s" << nl << endl;
+        Info<< "    wrote in = "
+            << runTime.cpuTimeIncrement() << " s" << endl;
 
-        // Read
-        faceIOList faces3
+        // Read (size only)
+        label count = faceIOList::readContentsSize
         (
             IOobject
             (
-                "faces2",
+                "faces2-plain",
+                runTime.constant(),
+                polyMesh::meshSubDir,
+                runTime,
+                IOobject::MUST_READ
+            )
+        );
+
+        Info<< "    counted " << count << " faces on disk in = "
+            << runTime.cpuTimeIncrement() << " s" << endl;
+
+        // Read
+        faceIOList faces2b
+        (
+            IOobject
+            (
+                "faces2-plain",
                 runTime.constant(),
                 polyMesh::meshSubDir,
                 runTime,
@@ -105,7 +123,7 @@ int main(int argc, char *argv[])
             )
         );
 
-        Info<< "Read old format " << faces3.size() << " faceList in = "
+        Info<< "    read " << faces2b.size() << " faces in = "
             << runTime.cpuTimeIncrement() << " s" << nl << endl;
     }
 
@@ -114,44 +132,54 @@ int main(int argc, char *argv[])
     // ~~~~~~~~~~
 
     {
-        // Construct big faceList in new format
+        // Construct big faceList in compact format
         faceCompactIOList faces2
         (
             IOobject
             (
-                "faces2",
+                "faces2-compact",
                 runTime.constant(),
                 polyMesh::meshSubDir,
                 runTime,
                 IOobject::NO_READ,
                 IOobject::NO_WRITE,
                 IOobject::NO_REGISTER
-            ),
-            size
+            )
         );
 
-        const face f(identity(4));
+        faces2.resize(size, face(identity(4)));
 
-        forAll(faces2, i)
-        {
-            faces2[i] = f;
-        }
-
-        Info<< "Constructed new format faceList in = "
-            << runTime.cpuTimeIncrement() << " s" << nl << endl;
+        Info<< "Compact format faceList" << faces2.objectRelPath() << nl;
+        Info<< "    constructed in = "
+            << runTime.cpuTimeIncrement() << " s" << endl;
 
 
         faces2.writeObject(streamOpt, true);
 
-        Info<< "Written new format faceList in = "
-            << runTime.cpuTimeIncrement() << " s" << nl << endl;
+        Info<< "    wrote in = "
+            << runTime.cpuTimeIncrement() << " s" << endl;
 
-        // Read
-        faceCompactIOList faces3
+        // Read (size only)
+        label count = faceCompactIOList::readContentsSize
         (
             IOobject
             (
-                "faces2",
+                "faces2-compact",
+                runTime.constant(),
+                polyMesh::meshSubDir,
+                runTime,
+                IOobject::MUST_READ
+            )
+        );
+        Info<< "    counted " << count << " faces on disk in = "
+            << runTime.cpuTimeIncrement() << " s" << endl;
+
+        // Read
+        faceCompactIOList faces2b
+        (
+            IOobject
+            (
+                "faces2-compact",
                 runTime.constant(),
                 polyMesh::meshSubDir,
                 runTime,
@@ -161,7 +189,7 @@ int main(int argc, char *argv[])
             )
         );
 
-        Info<< "Read new format " << faces3.size() << " faceList in = "
+        Info<< "    read " << faces2b.size() << " faces in = "
             << runTime.cpuTimeIncrement() << " s" << nl << endl;
     }
 
