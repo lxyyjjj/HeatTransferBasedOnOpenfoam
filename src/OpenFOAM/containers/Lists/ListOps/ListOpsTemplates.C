@@ -1154,6 +1154,33 @@ bool Foam::ListOps::equal
 }
 
 
+template<class ListType>
+Foam::label Foam::ListOps::count
+(
+    const ListType& input,
+    typename ListType::const_reference val,
+    const label start
+)
+{
+    label num = 0;
+
+    const label len = input.size();
+
+    if (start >= 0)
+    {
+        for (label i = start; i < len; ++i)
+        {
+            if (val == input[i])
+            {
+                ++num;
+            }
+        }
+    }
+
+    return num;
+}
+
+
 template<class ListType, class UnaryPredicate>
 Foam::label Foam::ListOps::count_if
 (

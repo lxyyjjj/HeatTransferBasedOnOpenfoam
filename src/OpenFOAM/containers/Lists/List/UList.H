@@ -565,11 +565,38 @@ public:
 
     // Special Methods
 
+        //- True if all entries are 'true' or if the list is empty.
+        //  \note Method name compatibility with bitSet
+        template<class TypeT = T>
+        std::enable_if_t<std::is_same_v<bool, std::remove_cv_t<TypeT>>, bool>
+        inline all() const
+        {
+            return !contains(false);
+        }
+
+        //- True if any entries are 'true'.
+        //  \note Method name compatibility with bitSet
+        template<class TypeT = T>
+        std::enable_if_t<std::is_same_v<bool, std::remove_cv_t<TypeT>>, bool>
+        inline any() const
+        {
+            return contains(true);
+        }
+
+        //- True if no entries are 'true'.
+        //  \note Method name compatibility with bitSet
+        template<class TypeT = T>
+        std::enable_if_t<std::is_same_v<bool, std::remove_cv_t<TypeT>>, bool>
+        inline none() const
+        {
+            return !contains(true);
+        }
+
         //- Test \c bool value at specified position,
         //- always false for out-of-range access.
         //  \note Method name compatibility with bitSet, HashSet
         template<class TypeT = T>
-        std::enable_if_t<std::is_same_v<bool, TypeT>, bool>
+        std::enable_if_t<std::is_same_v<bool, std::remove_cv_t<TypeT>>, bool>
         inline test(const label i) const
         {
             return (i >= 0 && i < size_ && v_[i]);
@@ -579,7 +606,7 @@ public:
         //- always false for out-of-range access.
         //  \note Method name compatibility with bitSet
         template<class TypeT = T>
-        std::enable_if_t<std::is_same_v<bool, TypeT>, bool>
+        std::enable_if_t<std::is_same_v<bool, std::remove_cv_t<TypeT>>, bool>
         inline get(const label i) const
         {
             return (i >= 0 && i < size_ && v_[i]);

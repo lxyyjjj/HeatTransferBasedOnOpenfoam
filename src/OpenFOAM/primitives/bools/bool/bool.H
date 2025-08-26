@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2016 OpenFOAM Foundation
-    Copyright (C) 2019-2021 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -97,6 +97,10 @@ public:
         static const char* const componentNames[];
         static const bool zero;
         static const bool one;
+        static bool dummy;  //!< Dummy for return reference
+
+        //- Return reference to a (false) dummy value
+        static const bool& null() noexcept;
 
 
     // Constructors

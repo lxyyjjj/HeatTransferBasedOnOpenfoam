@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2020-2022 OpenCFD Ltd.
+    Copyright (C) 2020-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -71,9 +71,9 @@ inline Ostream& info(const UList<bool>& bools)
     Info<< "size=" << bools.size()
         << " count=" << BitOps::count(bools)
         << " !count=" << BitOps::count(bools, false)
-        << " all:" << BitOps::all(bools)
-        << " any:" << BitOps::any(bools)
-        << " none:" << BitOps::none(bools) << nl;
+        << " all:" << bools.all()
+        << " any:" << bools.any()
+        << " none:" << bools.none() << nl;
 
     return Info;
 }

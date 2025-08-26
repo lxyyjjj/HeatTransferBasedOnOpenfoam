@@ -348,29 +348,25 @@ inline void Foam::UList<T>::operator=(const T& val)
 }
 
 
-namespace Foam
-{
-    // Template specialization for bool
-    template<>
-    inline const bool& Foam::UList<bool>::operator[](const label i) const
-    {
-        // Lazy evaluation - return false for out-of-range
-        if (i >= 0 && i < size_)
-        {
-            return v_[i];
-        }
-
-        return Foam::pTraits<bool>::zero;
-    }
-} // End namespace Foam
-
-
 template<class T>
 inline T& Foam::UList<T>::operator[](const label i)
 {
-    #ifdef FULLDEBUG
-    checkIndex(i);
-    #endif
+    if constexpr (std::is_same_v<bool, std::remove_cv_t<T>>)
+    {
+        // Lazy evaluation - return false for out-of-range
+        // Note: strictly speaking should not be modifiable but we cannot
+        // alway control which signature (const or non-const) is called
+        if (i < 0 || i >= size_)
+        {
+            return const_cast<bool&>(Foam::pTraits<bool>::null());
+        }
+    }
+    else
+    {
+        #ifdef FULLDEBUG
+        checkIndex(i);
+        #endif
+    }
     return v_[i];
 }
 
@@ -378,9 +374,20 @@ inline T& Foam::UList<T>::operator[](const label i)
 template<class T>
 inline const T& Foam::UList<T>::operator[](const label i) const
 {
-    #ifdef FULLDEBUG
-    checkIndex(i);
-    #endif
+    if constexpr (std::is_same_v<bool, std::remove_cv_t<T>>)
+    {
+        // Lazy evaluation - return false for out-of-range
+        if (i < 0 || i >= size_)
+        {
+            return Foam::pTraits<bool>::null();
+        }
+    }
+    else
+    {
+        #ifdef FULLDEBUG
+        checkIndex(i);
+        #endif
+    }
     return v_[i];
 }
 
