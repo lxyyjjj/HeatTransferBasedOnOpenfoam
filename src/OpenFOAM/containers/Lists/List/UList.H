@@ -435,7 +435,7 @@ public:
         inline void operator=(const T& val);
 
         //- Assignment of all entries to zero
-        void operator=(Foam::zero);
+        inline void operator=(Foam::zero);
 
 
     // Random access iterator (non-const)
@@ -689,17 +689,6 @@ public:
             return this->contains(val, pos);
         }
 };
-
-
-// * * * * * * * * * * * * Template Specializations  * * * * * * * * * * * * //
-
-//- Character list writeEntry
-template<>
-void UList<char>::writeEntry(Ostream& os) const;
-
-//- Character list assign zero - avoids Foam::zero casting ambiguities
-template<>
-void UList<char>::operator=(Foam::zero);
 
 
 // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //

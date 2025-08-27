@@ -113,8 +113,8 @@ void Foam::UList<T>::deepCopy(const UList<T>& list)
     else if (this->size_ > 0)
     {
         // Can dispatch with
-        // - std::execution::parallel_unsequenced_policy
-        // - std::execution::unsequenced_policy
+        // - std::execution::par_unseq
+        // - std::execution::unseq
         std::copy(list.cbegin(), list.cend(), this->v_);
     }
 }
@@ -147,16 +147,6 @@ void Foam::UList<T>::deepCopy(const IndirectListBase<T, Addr>& list)
             *iter = list[i];
         }
     }
-}
-
-
-// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-// This is non-inlined to allow template specializations
-template<class T>
-void Foam::UList<T>::operator=(Foam::zero)
-{
-    this->fill_uniform(Foam::zero{});
 }
 
 
@@ -244,8 +234,8 @@ template<class T>
 bool Foam::UList<T>::operator==(const UList<T>& list) const
 {
     // Can dispatch with
-    // - std::execution::parallel_unsequenced_policy
-    // - std::execution::unsequenced_policy
+    // - std::execution::par_unseq
+    // - std::execution::unseq
     return
     (
         (this->size_ == list.size_)
@@ -265,8 +255,8 @@ template<class T>
 bool Foam::UList<T>::operator<(const UList<T>& list) const
 {
     // Can dispatch with
-    // - std::execution::parallel_unsequenced_policy
-    // - std::execution::unsequenced_policy
+    // - std::execution::par_unseq
+    // - std::execution::unseq
     return std::lexicographical_compare
     (
         this->cbegin(), this->cend(),

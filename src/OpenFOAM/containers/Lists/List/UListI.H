@@ -53,8 +53,8 @@ template<class T>
 inline void Foam::UList<T>::fill_uniform(const T& val)
 {
     // Can dispatch with
-    // - std::execution::parallel_unsequenced_policy
-    // - std::execution::unsequenced_policy
+    // - std::execution::par_unseq
+    // - std::execution::unseq
     std::fill_n
     (
         this->v_, this->size_, val
@@ -65,15 +65,21 @@ inline void Foam::UList<T>::fill_uniform(const T& val)
 template<class T>
 inline void Foam::UList<T>::fill_uniform(Foam::zero)
 {
-    // Note: ambiguous conversions for char can still cause compilation
-    // issues.
-    // May also have special triggers when assigning non-contiguous from zero...
-
-    if constexpr (is_contiguous_v<T>)
+    if constexpr (std::is_arithmetic_v<T>)
     {
         // Can dispatch with
-        // - std::execution::parallel_unsequenced_policy
-        // - std::execution::unsequenced_policy
+        // - std::execution::par_unseq
+        // - std::execution::unseq
+        std::fill_n
+        (
+            this->v_, this->size_, T(0)
+        );
+    }
+    else if constexpr (is_contiguous_v<T>)
+    {
+        // Can dispatch with
+        // - std::execution::par_unseq
+        // - std::execution::unseq
         std::fill_n
         (
             this->data_bytes(), this->size_bytes(), char(0)
@@ -81,6 +87,9 @@ inline void Foam::UList<T>::fill_uniform(Foam::zero)
     }
     else
     {
+        // May also have special triggers when assigning non-contiguous
+        // from zero...
+
         const auto last = (this->v_ + this->size_);
 
         for (auto first = this->v_; (first != last); (void)++first)
@@ -345,6 +354,15 @@ template<class T>
 inline void Foam::UList<T>::operator=(const T& val)
 {
     this->fill_uniform(val);
+}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+template<class T>
+inline void Foam::UList<T>::operator=(Foam::zero)
+{
+    this->fill_uniform(Foam::zero{});
 }
 
 

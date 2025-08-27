@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2016 OpenFOAM Foundation
-    Copyright (C) 2017-2023 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -356,12 +356,17 @@ inline void Foam::FixedList<T, N>::fill(const T& val)
 template<class T, unsigned N>
 inline void Foam::FixedList<T, N>::fill(Foam::zero)
 {
-    // Usually small enough that parallel execution is pointless...
-    // Cannot use std::fill (ambiguous conversions for bool, char, etc)
-
-    for (unsigned i = 0; i < N; ++i)
+    if constexpr (std::is_arithmetic_v<T>)
     {
-        v_[i] = Zero;
+        // Usually small enough that parallel execution is pointless...
+        std::fill_n(v_, N, T(0));
+    }
+    else
+    {
+        for (unsigned i = 0; i < N; ++i)
+        {
+            v_[i] = Foam::zero{};
+        }
     }
 }
 
