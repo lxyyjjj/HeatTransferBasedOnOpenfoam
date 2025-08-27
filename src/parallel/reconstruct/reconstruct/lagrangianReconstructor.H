@@ -116,7 +116,7 @@ public:
 
         //- Reconstruct a single field-field for given cloud
         template<class Type>
-        tmp<CompactIOField<Field<Type>, Type>>
+        tmp<CompactIOField<Field<Type>>>
         reconstructFieldField
         (
             const word& cloudName,

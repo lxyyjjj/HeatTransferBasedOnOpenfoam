@@ -50,19 +50,16 @@ namespace Foam
 {
 
 // Forward Declarations
-template<class T, class BaseType> class CompactIOField;
+template<class T> class CompactIOField;
 
-template<class T, class BaseType>
-Istream& operator>>(Istream&, CompactIOField<T, BaseType>&);
-
-template<class T, class BaseType>
-Ostream& operator<<(Ostream&, const CompactIOField<T, BaseType>&);
+template<class T> Istream& operator>>(Istream&, CompactIOField<T>&);
+template<class T> Ostream& operator<<(Ostream&, const CompactIOField<T>&);
 
 /*---------------------------------------------------------------------------*\
                         Class CompactIOField Declaration
 \*---------------------------------------------------------------------------*/
 
-template<class T, class BaseType>
+template<class T>
 class CompactIOField
 :
     public regIOobject,
@@ -154,13 +151,13 @@ public:
         using Field<T>::operator=;
 
         //- Copy assignment of entries
-        void operator=(const CompactIOField<T, BaseType>& rhs)
+        void operator=(const CompactIOField<T>& rhs)
         {
             Field<T>::operator=(rhs);
         }
 
         //- Move assignment of entries
-        void operator=(CompactIOField<T, BaseType>&& rhs)
+        void operator=(CompactIOField<T>&& rhs)
         {
             Field<T>::operator=(std::move(static_cast<Field<T>&>(rhs)));
         }

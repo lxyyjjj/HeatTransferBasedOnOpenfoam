@@ -59,15 +59,15 @@ Foam::lagrangianFieldDecomposer::decomposeField
 
 
 template<class Type>
-Foam::tmp<Foam::CompactIOField<Foam::Field<Type>, Type>>
+Foam::tmp<Foam::CompactIOField<Foam::Field<Type>>>
 Foam::lagrangianFieldDecomposer::decomposeFieldField
 (
     const word& cloudName,
-    const CompactIOField<Field<Type>, Type>& field
+    const CompactIOField<Field<Type>>& field
 ) const
 {
     // Create the field for the processor
-    return tmp<CompactIOField<Field<Type>, Type>>::New
+    return tmp<CompactIOField<Field<Type>>>::New
     (
         IOobject
         (

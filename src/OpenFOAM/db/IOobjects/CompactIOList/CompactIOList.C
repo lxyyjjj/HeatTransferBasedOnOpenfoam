@@ -30,8 +30,8 @@ License
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-template<class T, class BaseType>
-bool Foam::CompactIOList<T, BaseType>::readIOcontents()
+template<class T>
+bool Foam::CompactIOList<T>::readIOcontents()
 {
     typedef IOList<T> plain_type;
 
@@ -67,8 +67,8 @@ bool Foam::CompactIOList<T, BaseType>::readIOcontents()
 }
 
 
-template<class T, class BaseType>
-Foam::label Foam::CompactIOList<T, BaseType>::readIOsize()
+template<class T>
+Foam::label Foam::CompactIOList<T>::readIOsize()
 {
     typedef IOList<T> plain_type;
 
@@ -127,8 +127,8 @@ Foam::label Foam::CompactIOList<T, BaseType>::readIOsize()
 }
 
 
-template<class T, class BaseType>
-bool Foam::CompactIOList<T, BaseType>::overflows() const
+template<class T>
+bool Foam::CompactIOList<T>::overflows() const
 {
     // Can safely assume that int64 will not overflow
     if constexpr (sizeof(label) < sizeof(int64_t))
@@ -152,8 +152,8 @@ bool Foam::CompactIOList<T, BaseType>::overflows() const
 
 // * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * //
 
-template<class T, class BaseType>
-Foam::CompactIOList<T, BaseType>::CompactIOList(const IOobject& io)
+template<class T>
+Foam::CompactIOList<T>::CompactIOList(const IOobject& io)
 :
     regIOobject(io)
 {
@@ -161,8 +161,8 @@ Foam::CompactIOList<T, BaseType>::CompactIOList(const IOobject& io)
 }
 
 
-template<class T, class BaseType>
-Foam::CompactIOList<T, BaseType>::CompactIOList
+template<class T>
+Foam::CompactIOList<T>::CompactIOList
 (
     const IOobject& io,
     Foam::zero
@@ -174,8 +174,8 @@ Foam::CompactIOList<T, BaseType>::CompactIOList
 }
 
 
-template<class T, class BaseType>
-Foam::CompactIOList<T, BaseType>::CompactIOList
+template<class T>
+Foam::CompactIOList<T>::CompactIOList
 (
     const IOobject& io,
     const label len
@@ -190,8 +190,8 @@ Foam::CompactIOList<T, BaseType>::CompactIOList
 }
 
 
-template<class T, class BaseType>
-Foam::CompactIOList<T, BaseType>::CompactIOList
+template<class T>
+Foam::CompactIOList<T>::CompactIOList
 (
     const IOobject& io,
     const UList<T>& content
@@ -206,8 +206,8 @@ Foam::CompactIOList<T, BaseType>::CompactIOList
 }
 
 
-template<class T, class BaseType>
-Foam::CompactIOList<T, BaseType>::CompactIOList
+template<class T>
+Foam::CompactIOList<T>::CompactIOList
 (
     const IOobject& io,
     List<T>&& content
@@ -223,9 +223,8 @@ Foam::CompactIOList<T, BaseType>::CompactIOList
 
 // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
-template<class T, class BaseType>
-Foam::label
-Foam::CompactIOList<T, BaseType>::readContentsSize(const IOobject& io)
+template<class T>
+Foam::label Foam::CompactIOList<T>::readContentsSize(const IOobject& io)
 {
     IOobject rio(io, IOobjectOption::NO_REGISTER);
     if (rio.readOpt() == IOobjectOption::READ_MODIFIED)
@@ -237,16 +236,15 @@ Foam::CompactIOList<T, BaseType>::readContentsSize(const IOobject& io)
     // Construct NO_READ, changing after construction
     const auto rOpt = rio.readOpt(IOobjectOption::NO_READ);
 
-    CompactIOList<T, BaseType> reader(rio);
+    CompactIOList<T> reader(rio);
     reader.readOpt(rOpt);
 
     return reader.readIOsize();
 }
 
 
-template<class T, class BaseType>
-Foam::List<T>
-Foam::CompactIOList<T, BaseType>::readContents(const IOobject& io)
+template<class T>
+Foam::List<T> Foam::CompactIOList<T>::readContents(const IOobject& io)
 {
     IOobject rio(io, IOobjectOption::NO_REGISTER);
     if (rio.readOpt() == IOobjectOption::READ_MODIFIED)
@@ -255,7 +253,7 @@ Foam::CompactIOList<T, BaseType>::readContents(const IOobject& io)
     }
     rio.resetHeader();
 
-    CompactIOList<T, BaseType> reader(rio);
+    CompactIOList<T> reader(rio);
 
     return List<T>(std::move(static_cast<List<T>&>(reader)));
 }
@@ -263,8 +261,8 @@ Foam::CompactIOList<T, BaseType>::readContents(const IOobject& io)
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-template<class T, class BaseType>
-bool Foam::CompactIOList<T, BaseType>::writeObject
+template<class T>
+bool Foam::CompactIOList<T>::writeObject
 (
     IOstreamOption streamOpt,
     const bool writeOnProc
@@ -304,8 +302,8 @@ bool Foam::CompactIOList<T, BaseType>::writeObject
 }
 
 
-template<class T, class BaseType>
-bool Foam::CompactIOList<T, BaseType>::writeData(Ostream& os) const
+template<class T>
+bool Foam::CompactIOList<T>::writeData(Ostream& os) const
 {
     return (os << *this).good();
 }
@@ -313,8 +311,8 @@ bool Foam::CompactIOList<T, BaseType>::writeData(Ostream& os) const
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-template<class T, class BaseType>
-Foam::Istream& Foam::CompactIOList<T,BaseType>::readCompact(Istream& is)
+template<class T>
+Foam::Istream& Foam::CompactIOList<T>::readCompact(Istream& is)
 {
     List<T>& lists = *this;
 
@@ -347,8 +345,8 @@ Foam::Istream& Foam::CompactIOList<T,BaseType>::readCompact(Istream& is)
 }
 
 
-template<class T, class BaseType>
-Foam::Ostream& Foam::CompactIOList<T,BaseType>::writeCompact(Ostream& os) const
+template<class T>
+Foam::Ostream& Foam::CompactIOList<T>::writeCompact(Ostream& os) const
 {
     const List<T>& lists = *this;
 
@@ -408,22 +406,22 @@ Foam::Ostream& Foam::CompactIOList<T,BaseType>::writeCompact(Ostream& os) const
 
 // * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
 
-template<class T, class BaseType>
+template<class T>
 Foam::Istream& Foam::operator>>
 (
     Foam::Istream& is,
-    Foam::CompactIOList<T, BaseType>& lists
+    Foam::CompactIOList<T>& lists
 )
 {
     return lists.readCompact(is);
 }
 
 
-template<class T, class BaseType>
+template<class T>
 Foam::Ostream& Foam::operator<<
 (
     Foam::Ostream& os,
-    const Foam::CompactIOList<T, BaseType>& lists
+    const Foam::CompactIOList<T>& lists
 )
 {
     // Keep ASCII writing same

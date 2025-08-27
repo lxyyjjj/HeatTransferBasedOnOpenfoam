@@ -60,7 +60,7 @@ void Foam::lagrangianFieldDecomposer::readFieldFields
 (
     const label cloudi,
     const IOobjectList& lagrangianObjects,
-    PtrList<PtrList<CompactIOField<Field<Type>, Type>>>& lagrangianFields
+    PtrList<PtrList<CompactIOField<Field<Type>>>>& lagrangianFields
 )
 {
     // List of lagrangian field objects
@@ -71,7 +71,7 @@ void Foam::lagrangianFieldDecomposer::readFieldFields
 
     fieldObjects.push_back
     (
-        lagrangianObjects.cobjects<CompactIOField<Field<Type>, Type>>()
+        lagrangianObjects.cobjects<CompactIOField<Field<Type>>>()
     );
 
     Foam::sort(fieldObjects, nameOp<IOobject>());

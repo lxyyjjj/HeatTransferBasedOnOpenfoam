@@ -50,19 +50,16 @@ namespace Foam
 {
 
 // Forward Declarations
-template<class T, class BaseType> class CompactIOList;
+template<class T> class CompactIOList;
 
-template<class T, class BaseType>
-Istream& operator>>(Istream&, CompactIOList<T, BaseType>&);
-
-template<class T, class BaseType>
-Ostream& operator<<(Ostream&, const CompactIOList<T, BaseType>&);
+template<class T> Istream& operator>>(Istream&, CompactIOList<T>&);
+template<class T> Ostream& operator<<(Ostream&, const CompactIOList<T>&);
 
 /*---------------------------------------------------------------------------*\
                         Class CompactIOList Declaration
 \*---------------------------------------------------------------------------*/
 
-template<class T, class BaseType>
+template<class T>
 class CompactIOList
 :
     public regIOobject,
@@ -152,13 +149,13 @@ public:
         using List<T>::operator=;
 
         //- Copy assignment of entries
-        void operator=(const CompactIOList<T, BaseType>& rhs)
+        void operator=(const CompactIOList<T>& rhs)
         {
             List<T>::operator=(rhs);
         }
 
         //- Move assignment of entries
-        void operator=(CompactIOList<T, BaseType>&& rhs)
+        void operator=(CompactIOList<T>&& rhs)
         {
             List<T>::operator=(std::move(static_cast<List<T>&>(rhs)));
         }
