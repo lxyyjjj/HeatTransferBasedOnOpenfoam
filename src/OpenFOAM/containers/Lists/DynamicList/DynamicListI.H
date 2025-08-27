@@ -445,6 +445,8 @@ inline void Foam::DynamicList<T, SizeMin>::clear() noexcept
 template<class T, int SizeMin>
 inline void Foam::DynamicList<T, SizeMin>::clearStorage()
 {
+    // Consistent allocated sizing
+    List<T>::setAddressableSize(capacity_);
     List<T>::clear();
     capacity_ = 0;
 }
@@ -465,12 +467,15 @@ inline void Foam::DynamicList<T, SizeMin>::shrink_to_fit()
 
 template<class T, int SizeMin>
 inline void
-Foam::DynamicList<T, SizeMin>::swap(List<T>& list)
+Foam::DynamicList<T, SizeMin>::swap(List<T>& other)
 {
     if
     (
-        static_cast<const List<T>*>(this)
-     == static_cast<const List<T>*>(&list)
+        FOAM_UNLIKELY
+        (
+            static_cast<const List<T>*>(this)
+         == static_cast<const List<T>*>(&other)
+        )
     )
     {
         return;  // Self-swap is a no-op
@@ -480,7 +485,7 @@ Foam::DynamicList<T, SizeMin>::swap(List<T>& list)
     this->shrink_to_fit();
 
     // Swap storage and addressable size
-    UList<T>::swap(list);
+    UList<T>::swap(other);
 
     // Update capacity
     capacity_ = List<T>::size();
@@ -496,8 +501,11 @@ inline void Foam::DynamicList<T, SizeMin>::swap
 {
     if
     (
-        static_cast<const List<T>*>(this)
-     == static_cast<const List<T>*>(&other)
+        FOAM_UNLIKELY
+        (
+            static_cast<const List<T>*>(this)
+         == static_cast<const List<T>*>(&other)
+        )
     )
     {
         return;  // Self-swap is a no-op
@@ -515,6 +523,10 @@ template<class T, int SizeMin>
 inline void
 Foam::DynamicList<T, SizeMin>::transfer(List<T>& list)
 {
+    // No check for self-assignment (different types)
+
+    // Consistent allocated sizing
+    List<T>::setAddressableSize(capacity_);
     List<T>::transfer(list);
     capacity_ = List<T>::size();
 }
@@ -530,18 +542,22 @@ Foam::DynamicList<T, SizeMin>::transfer
 {
     if
     (
-        static_cast<const List<T>*>(this)
-     == static_cast<const List<T>*>(&list)
+        FOAM_UNLIKELY
+        (
+            static_cast<const List<T>*>(this)
+         == static_cast<const List<T>*>(&list)
+        )
     )
     {
         return;  // Self-assignment is a no-op
     }
 
-    // Take over storage as-is (without shrink)
-    capacity_ = list.capacity();
-
+    // Consistent allocated sizing
+    List<T>::setAddressableSize(capacity_);
     List<T>::transfer(static_cast<List<T>&>(list));
-    list.clearStorage();  // capacity=0 etc.
+
+    capacity_ = list.capacity();
+    list.setCapacity_unsafe(0);  // All contents moved
 }
 
 
@@ -594,7 +610,14 @@ inline void Foam::DynamicList<T, SizeMin>::push_back
     const UList<T>& list
 )
 {
-    if (FOAM_UNLIKELY(this == &list))
+    if
+    (
+        FOAM_UNLIKELY
+        (
+            static_cast<const List<T>*>(this)
+         == static_cast<const List<T>*>(&list)
+        )
+    )
     {
         FatalErrorInFunction
             << "Attempted push_back to self"
@@ -665,7 +688,14 @@ inline void Foam::DynamicList<T, SizeMin>::push_back
     List<T>&& list
 )
 {
-    if (FOAM_UNLIKELY(this == &list))
+    if
+    (
+        FOAM_UNLIKELY
+        (
+            static_cast<const List<T>*>(this)
+         == static_cast<const List<T>*>(&list)
+        )
+    )
     {
         FatalErrorInFunction
             << "Attempted push_back to self"
@@ -675,6 +705,7 @@ inline void Foam::DynamicList<T, SizeMin>::push_back
     const label idx = List<T>::size();
     resize(idx + list.size());
 
+    // Move the elements
     std::move(list.begin(), list.end(), this->begin(idx));
 
     list.clear();
@@ -688,7 +719,26 @@ inline void Foam::DynamicList<T, SizeMin>::push_back
     DynamicList<T, AnySizeMin>&& list
 )
 {
-    push_back(std::move(static_cast<List<T>&>(list)));
+    if
+    (
+        FOAM_UNLIKELY
+        (
+            static_cast<const List<T>*>(this)
+         == static_cast<const List<T>*>(&list)
+        )
+    )
+    {
+        FatalErrorInFunction
+            << "Attempted push_back to self"
+            << abort(FatalError);
+    }
+
+    const label idx = List<T>::size();
+    resize(idx + list.size());
+
+    // Move the elements
+    std::move(list.begin(), list.end(), this->begin(idx));
+
     list.clearStorage();  // Deletion, capacity=0 etc.
 }
 
@@ -866,15 +916,22 @@ inline void Foam::DynamicList<T, SizeMin>::operator=
 template<class T, int SizeMin>
 inline void Foam::DynamicList<T, SizeMin>::operator=
 (
-    const DynamicList<T, SizeMin>& lst
+    const DynamicList<T, SizeMin>& list
 )
 {
-    if (this == &lst)
+    if
+    (
+        FOAM_UNLIKELY
+        (
+            static_cast<const List<T>*>(this)
+         == static_cast<const List<T>*>(&list)
+        )
+    )
     {
         return;  // Self-assignment is a no-op
     }
 
-    doAssignDynList(lst);
+    doAssignDynList(list);
 }
 
 
@@ -887,8 +944,11 @@ inline void Foam::DynamicList<T, SizeMin>::operator=
 {
     if
     (
-        static_cast<const List<T>*>(this)
-     == static_cast<const List<T>*>(&list)
+        FOAM_UNLIKELY
+        (
+            static_cast<const List<T>*>(this)
+         == static_cast<const List<T>*>(&list)
+        )
     )
     {
         return;  // Self-assignment is a no-op
@@ -912,44 +972,41 @@ template<class T, int SizeMin>
 template<class Addr>
 inline void Foam::DynamicList<T, SizeMin>::operator=
 (
-    const IndirectListBase<T, Addr>& lst
+    const IndirectListBase<T, Addr>& list
 )
 {
     // NOTE: Self-assignment needs special handling
-    /// if
-    /// (
-    ///     static_cast<const UList<T>*>(this)
-    ///  == static_cast<const UList<T>*>(&list.values())
-    /// )
+    // if
+    // (
+    //     FOAM_UNLIKELY
+    //     (
+    //         static_cast<const UList<T>*>(this)
+    //      == static_cast<const UList<T>*>(&list.values())
+    //     )
+    // )
+    // { ... }
 
-    doAssignDynList(lst);
+    doAssignDynList(list);
 }
 
 
 template<class T, int SizeMin>
 inline void Foam::DynamicList<T, SizeMin>::operator=
 (
-    List<T>&& lst
+    List<T>&& list
 )
 {
-    clear();
-    transfer(lst);
+    this->transfer(list);
 }
 
 
 template<class T, int SizeMin>
 inline void Foam::DynamicList<T, SizeMin>::operator=
 (
-    DynamicList<T, SizeMin>&& lst
+    DynamicList<T, SizeMin>&& list
 )
 {
-    if (this == &lst)
-    {
-        return;  // Self-assignment is a no-op
-    }
-
-    clear();
-    transfer(lst);
+    this->transfer(list);
 }
 
 
@@ -960,17 +1017,7 @@ inline void Foam::DynamicList<T, SizeMin>::operator=
     DynamicList<T, AnySizeMin>&& list
 )
 {
-    if
-    (
-        static_cast<const List<T>*>(this)
-     == static_cast<const List<T>*>(&list)
-    )
-    {
-        return;  // Self-assignment is a no-op
-    }
-
-    clear();
-    transfer(list);
+    this->transfer(list);
 }
 
 

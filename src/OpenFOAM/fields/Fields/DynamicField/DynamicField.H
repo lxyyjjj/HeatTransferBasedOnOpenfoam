@@ -269,7 +269,7 @@ public:
     // Edit
 
         //- Swap with plain List content. Implies shrink_to_fit().
-        inline void swap(List<T>& list);
+        inline void swap(List<T>& other);
 
         //- Swap content, independent of sizing parameter
         template<int AnySizeMin>
