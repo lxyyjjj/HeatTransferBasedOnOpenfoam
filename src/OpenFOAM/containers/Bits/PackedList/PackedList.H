@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2016 OpenFOAM Foundation
-    Copyright (C) 2017-2023 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -422,20 +422,20 @@ public:
     // Low-level access
 
         //- The number of internal storage blocks
-        inline label nBlocks() const;
+        inline label num_blocks() const noexcept;
 
         //- Return the underlying storage blocks
-        inline const List<unsigned int>& storage() const;
+        const List<block_type>& storage() const noexcept { return blocks_; }
 
         //- Return the underlying storage blocks
         //  Manipulate with utmost caution
-        inline List<unsigned int>& storage();
+        List<block_type>& storage() noexcept { return blocks_; }
 
         //- A const pointer to the raw storage
-        inline const unsigned int* cdata() const noexcept;
+        const block_type* cdata() const noexcept { return blocks_.cdata(); }
 
         //- A pointer to the raw storage
-        inline unsigned int* data() noexcept;
+        block_type* data() noexcept { return blocks_.data(); }
 
         //- A const pointer to the raw storage, reinterpreted as byte data
         inline const char* cdata_bytes() const noexcept;
@@ -443,15 +443,15 @@ public:
         //- A pointer to the raw storage, reinterpreted as byte data
         inline char* data_bytes() noexcept;
 
-        //- The number of integer blocks addressed in the raw storage
+        //- The number of integer blocks addressed in the raw storage.
+        //- Same as num_blocks().
         inline std::streamsize size_data() const noexcept;
 
-        //- The number of bytes used in the raw storage
-        //- including any unused padding.
+        //- The number of bytes addressed in the raw storage
+        //- including any padding.
         inline std::streamsize size_bytes() const noexcept;
 
-        //- The number of bytes used in the raw storage
-        //- including any unused padding.
+        //- Same as size_bytes()
         inline std::streamsize byteSize() const noexcept;
 
 
@@ -465,7 +465,7 @@ public:
 
         //- Write List, with line-breaks in ASCII when length exceeds shortLen.
         //  Using '0' suppresses line-breaks entirely.
-        Ostream& writeList(Ostream& os, const label shortLen=0) const;
+        Ostream& writeList(Ostream& os, label shortLen=0) const;
 
         //- Write as a dictionary entry with keyword
         void writeEntry(const word& keyword, Ostream& os) const;
@@ -529,10 +529,10 @@ public:
         public:
 
             //- Copy construct
-            reference(const reference&) = default;
+            reference(const reference&) noexcept = default;
 
             //- Move construct
-            reference(reference&&) = default;
+            reference(reference&&) noexcept = default;
 
             //- Value assignment
             inline void operator=(const reference& other);

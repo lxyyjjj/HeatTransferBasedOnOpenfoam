@@ -149,6 +149,11 @@ void Foam::Pstream::broadcastList
     {
         return;
     }
+    else if constexpr (std::is_same_v<bitSet, ListType>)
+    {
+        // Specialized handling implemented within bitSet itself
+        list.broadcast(communicator);
+    }
     else if constexpr (is_contiguous_v<typename ListType::value_type>)
     {
         // List data are contiguous
@@ -165,6 +170,11 @@ void Foam::Pstream::broadcastList
             UPstream::dataTypes::type_byte,
             communicator
         );
+
+        if (UPstream::is_subrank(communicator))
+        {
+            list.resize_nocopy(len);
+        }
 
         if (len)
         {

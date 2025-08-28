@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
 
     #include "setRootCase.H"
 
-    if (!Pstream::parRun())
+    if (!UPstream::parRun())
     {
         Info<< "\nWarning: not parallel - skipping further tests\n" << endl;
         return 0;
@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
     // Map request indices to procs
     Map<label> recvFromProc(20);
 
-    if (!Pstream::master())
+    if (UPstream::is_subrank())
     {
         // Send some random length to master
 

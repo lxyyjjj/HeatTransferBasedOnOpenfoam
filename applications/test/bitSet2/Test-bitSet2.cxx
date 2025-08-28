@@ -137,11 +137,11 @@ inline bool compare
     const std::string& expected
 )
 {
-    const List<unsigned int>& store = bitset.storage();
+    const auto& store = bitset.storage();
 
     std::string has;
 
-    for (label blocki=0; blocki < bitset.nBlocks(); ++blocki)
+    for (label blocki=0; blocki < bitset.num_blocks(); ++blocki)
     {
         has += toString(store[blocki]);
     }

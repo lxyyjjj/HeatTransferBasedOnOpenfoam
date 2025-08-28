@@ -609,37 +609,9 @@ inline void Foam::PackedList<Width>::shrink_to_fit()
 
 
 template<unsigned Width>
-inline Foam::List<unsigned int>& Foam::PackedList<Width>::storage()
-{
-    return blocks_;
-}
-
-
-template<unsigned Width>
-inline const Foam::List<unsigned int>& Foam::PackedList<Width>::storage() const
-{
-    return blocks_;
-}
-
-
-template<unsigned Width>
-inline Foam::label Foam::PackedList<Width>::nBlocks() const
+inline Foam::label Foam::PackedList<Width>::num_blocks() const noexcept
 {
     return num_blocks(size());
-}
-
-
-template<unsigned Width>
-inline const unsigned int* Foam::PackedList<Width>::cdata() const noexcept
-{
-    return blocks_.cdata();
-}
-
-
-template<unsigned Width>
-inline unsigned int* Foam::PackedList<Width>::data() noexcept
-{
-    return blocks_.data();
 }
 
 
@@ -667,7 +639,7 @@ inline std::streamsize Foam::PackedList<Width>::size_data() const noexcept
 template<unsigned Width>
 inline std::streamsize Foam::PackedList<Width>::size_bytes() const noexcept
 {
-    return size_data() * sizeof(block_type);
+    return num_blocks(size()) * sizeof(block_type);
 }
 
 

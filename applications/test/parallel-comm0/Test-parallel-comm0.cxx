@@ -110,21 +110,25 @@ int main(int argc, char *argv[])
             << " (self) reduced " << selfVal << nl;
 
         // Identical size on all procs
-        bitSet procUsed(nProcs);
-
-        if ((myRank % 4) == 0)
         {
-            procUsed.set(myRank);
+            bitSet localUsed(nProcs);
+            localUsed.set(myRank, ((myRank % 4) == 0));
+
+            Pout<< "local  procUsed " << localUsed << nl;
+            localUsed.reduceOr(UPstream::worldComm, false);
+            Pout<< "reduce procUsed " << localUsed << nl;
         }
 
-        Pout<< "local  procUsed " << procUsed << nl;
-        reduce
-        (
-            procUsed.data(),
-            procUsed.size_data(),
-            bitOrOp<unsigned int>()
-        );
-        Pout<< "reduce procUsed " << procUsed << nl;
+        // With allGather
+        {
+            bitSet procUsed
+            (
+                bitSet::allGather((myRank % 4) == 0)
+            );
+
+            Pout<< "allGather: " << procUsed << nl;
+        }
+
 
         // Identical size on all procs
         // encode as 0:empty, 1:uniform, 2:nonuniform, 3:mixed
@@ -147,12 +151,26 @@ int main(int argc, char *argv[])
         }
 
         Pout<< "local  uniform " << uniformity << nl;
-        reduce
+        // reduce with op<..>()
+        #if 1
+        Foam::reduce
         (
             uniformity.data(),
-            uniformity.size_data(),
-            bitOrOp<unsigned int>()
+            uniformity.num_blocks(),
+            bitOrOp<unsigned int>(),
+            UPstream::msgType(),  // ignored
+            UPstream::worldComm
         );
+        #else
+        // Direct call to MPI_Allreduce
+        UPstream::mpiAllReduce
+        (
+            uniformity.data(),
+            uniformity.num_blocks(),
+            UPstream::opCodes::op_bit_or,
+            UPstream::worldComm
+        );
+        #endif
         Pout<< "reduce uniform " << uniformity << nl;
     }
 
@@ -160,8 +178,8 @@ int main(int argc, char *argv[])
     {
         Pair<label> val
         (
-            Pstream::myProcNo(UPstream::commWorld()),
-            Pstream::myProcNo(UPstream::commWorld())
+            UPstream::myProcNo(UPstream::commWorld()),
+            UPstream::myProcNo(UPstream::commWorld())
         );
 
         Pair<label> worldVal = val;

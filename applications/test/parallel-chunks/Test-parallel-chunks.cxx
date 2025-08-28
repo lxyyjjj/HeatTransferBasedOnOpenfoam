@@ -185,9 +185,9 @@ int main(int argc, char *argv[])
     }
     broadcast_chunks<labelList, label>(input1);
 
-    Pstream::maxCommsSize = 33;
+    UPstream::maxCommsSize = 33;
 
-    args.readIfPresent("comms-size", Pstream::maxCommsSize);
+    args.readIfPresent("comms-size", UPstream::maxCommsSize);
 
     broadcast_chunks<labelList, label>(input1);
 
@@ -197,11 +197,11 @@ int main(int argc, char *argv[])
         PstreamBuffers pBufs;
 
         labelList sendData;
-        if (Pstream::master())
+        if (UPstream::master())
         {
             sendData = identity(500);
 
-            for (const int proci : Pstream::subProcs())
+            for (const int proci : UPstream::subProcs())
             {
                 UOPstream os(proci, pBufs);
                 os << sendData;
@@ -211,7 +211,7 @@ int main(int argc, char *argv[])
         Info<< "call finishedSends()" << endl;
         pBufs.finishedScatters();
 
-        if (!Pstream::master())
+        if (UPstream::is_subrank())
         {
             UIPstream is(UPstream::masterNo(), pBufs);
             is >> sendData;
@@ -225,11 +225,11 @@ int main(int argc, char *argv[])
         labelListList recvBufs(UPstream::nProcs());
         labelList recvSizes;
 
-        if (Pstream::master())
+        if (UPstream::master())
         {
-            for (const int proci : Pstream::allProcs())
+            for (const int proci : UPstream::allProcs())
             {
-                if (proci != Pstream::myProcNo())
+                if (proci != UPstream::myProcNo())
                 {
                     sendBufs[proci] = identity(500);
                 }
@@ -253,11 +253,11 @@ int main(int argc, char *argv[])
         Map<labelList> recvBufs;
         Map<label> recvSizes;
 
-        if (Pstream::master())
+        if (UPstream::master())
         {
-            for (const int proci : Pstream::allProcs())
+            for (const int proci : UPstream::allProcs())
             {
-                if (proci != Pstream::myProcNo())
+                if (proci != UPstream::myProcNo())
                 {
                     sendBufs(proci) = identity(500);
                 }

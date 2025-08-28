@@ -142,6 +142,9 @@ int main(int argc, char *argv[])
             Info<< "got: " << bset1 << nl
                 << "and: " << bset2 << nl
                 << "and: " << bset3 << nl;
+
+            Info<< "==";
+            bset3.writeList(Info, 10) << nl;  // matrix-like output
         }
     }
 
