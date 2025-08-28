@@ -120,6 +120,7 @@ Components specified by absolute path
   -kahip-path DIR     Path for 'KAHIP_ARCH_PATH'  (overrides -kahip)
   -metis-path DIR     Path for 'METIS_ARCH_PATH'  (overrides -metis)
   -petsc-path DIR     Path for 'PETSC_ARCH_PATH'  (overrides -petsc)
+  -readline-path      Path for 'READLINE_ARCH_PATH'
   -scotch-path DIR    Path for 'SCOTCH_ARCH_PATH' (overrides -scotch)
 
   -gmp-path DIR       Path for 'GMP_ARCH_PATH'    (in cgal config)
@@ -128,7 +129,7 @@ Components specified by absolute path
 Components specified by homebrew (treat like system locations)
 Sets version as system, path from brew --prefix
   -adios-brew, -adios2-brew, -boost-brew, -cgal-brew,
-  -fftw-brew, -kahip-brew, -metis-brew, -scotch-brew
+  -fftw-brew, -kahip-brew, -metis-brew, -readline-brew -scotch-brew
 
   -with-homebrew      Shortcut for selecting all the above
 
@@ -500,6 +501,7 @@ then
         -fftw-brew \
         -kahip-brew \
         -metis-brew \
+        -readline-brew \
         -scotch-brew \
         "$@"
 fi
@@ -1171,6 +1173,35 @@ CONFIG_CSH
         # Replace PETSC_ARCH_PATH=...
         replaceBrewEtc     config.sh/petsc   PETSC_ARCH_PATH "$brewName"
         replaceBrewEtcCsh  config.csh/petsc  PETSC_ARCH_PATH "$brewName"
+        adjusted=true
+        ;;
+
+    -readline-path)
+        # Replace READLINE_ARCH_PATH=...
+        getOptionValue "$@"; shift "${nOptArgs:-0}"
+
+        if [ -n "$optValue" ]
+        then
+            # Remove leading '#config#' marker
+            removeEtcConfigMarker     config.sh/readline  READLINE_ARCH_PATH
+
+            replaceEtc  config.sh/readline  READLINE_ARCH_PATH "\"$optValue\""
+            adjusted=true
+        else
+            : "${adjusted:=empty}"
+        fi
+        ;;
+
+    -readline-brew)
+        brewName=readline; optValue="${brewName}-system"
+
+        # Remove leading '#config#' marker
+        removeEtcConfigMarker     config.sh/readline  READLINE_ARCH_PATH
+
+        # Replace READLINE_ARCH_PATH=...
+        replaceBrewEtc  config.sh/readline  READLINE_ARCH_PATH "$brewName"
+
+        # Replaced READLINE_ARCH_PATH=...
         adjusted=true
         ;;
 
