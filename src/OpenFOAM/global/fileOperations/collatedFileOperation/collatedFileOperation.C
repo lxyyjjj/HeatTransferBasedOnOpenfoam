@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2017-2018 OpenFOAM Foundation
-    Copyright (C) 2020-2023 OpenCFD Ltd.
+    Copyright (C) 2020-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -154,7 +154,7 @@ bool Foam::fileOperations::collatedFileOperation::appendObject
 {
     // Append to processorsNN/ file
 
-    const label proci = detectProcessorPath(io.objectPath());
+    const label proci = fileOperation::detectProcessorPath(io.objectPath());
 
     if (debug)
     {
@@ -544,7 +544,7 @@ Foam::word Foam::fileOperations::collatedFileOperation::processorsDir
 {
     if (UPstream::parRun())
     {
-        const List<int>& procs(UPstream::procID(comm_));
+        const auto& procs = UPstream::procID(comm_);
 
         word procDir(processorsBaseDir+Foam::name(nProcs_));
 
@@ -565,7 +565,7 @@ Foam::word Foam::fileOperations::collatedFileOperation::processorsDir
         if (ioRanks_.size())
         {
             // Detect current processor number
-            label proci = detectProcessorPath(fName);
+            label proci = fileOperation::detectProcessorPath(fName);
 
             if (proci != -1)
             {

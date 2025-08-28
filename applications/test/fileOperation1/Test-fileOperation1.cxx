@@ -27,7 +27,7 @@ Application
     Test-fileOperation1
 
 Description
-   Test string parsing and other bits for fileOperation
+    Test string parsing and other bits for fileOperation
 
 \*---------------------------------------------------------------------------*/
 
@@ -42,7 +42,8 @@ Description
 
 using namespace Foam;
 
-word toString(const fileOperation::procRangeType& group)
+template<class IntType>
+word toString(const IntRange<IntType>& group)
 {
     if (group.empty())
     {

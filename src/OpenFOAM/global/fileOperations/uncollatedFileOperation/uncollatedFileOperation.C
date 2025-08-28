@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2017 OpenFOAM Foundation
-    Copyright (C) 2020-2024 OpenCFD Ltd.
+    Copyright (C) 2020-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -661,7 +661,7 @@ Foam::fileOperations::uncollatedFileOperation::readStream
     {
         // Analyse the objectpath to find out the processor we're trying
         // to access
-        label proci = detectProcessorPath(io.objectPath());
+        label proci = fileOperation::detectProcessorPath(io.objectPath());
 
         if (proci == -1)
         {
@@ -675,15 +675,13 @@ Foam::fileOperations::uncollatedFileOperation::readStream
         // Analyse the fileName for any processor subset. Note: this
         // should really be part of filePath() which should return
         // both file and index in file.
-        fileName path, procDir, local;
         procRangeType group;
-        label nProcs;
-        splitProcessorPath(fName, path, procDir, local, group, nProcs);
+        fileOperation::detectProcessorPath(fName, group);
 
         // The local rank (offset)
         if (!group.empty())
         {
-            proci = proci - group.start();
+            proci -= group.start();
         }
 
         // Read data and return as stream

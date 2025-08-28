@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2017 OpenFOAM Foundation
-    Copyright (C) 2020-2024 OpenCFD Ltd.
+    Copyright (C) 2020-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -138,9 +138,8 @@ public:
         typedef Tuple2<fileName, Tuple2<pathType, int>> dirIndex;
         typedef List<dirIndex> dirIndexList;
 
-        //- For addressing a range of processors,
-        //- identical to UPstream::rangeType
-        typedef IntRange<int> procRangeType;
+        //- For addressing a range of processors (an int range)
+        typedef UPstream::rangeType procRangeType;
 
 
 private:
@@ -933,15 +932,31 @@ public:
             static label splitProcessorPath
             (
                 const fileName& objectPath,
+                //! [out] the leading part of the path
                 fileName& path,
+                //! [out] the processor directory name
                 fileName& procDir,
+                //! [out] the local path
                 fileName& local,
+                //! [out] any detected collated grouping
                 procRangeType& group,
+                //! [out] detected number of processors, -1 if none detected
                 label& nProcs
             );
 
             //- Detect processor number from '/aa/bb/processorDDD/cc'
             static label detectProcessorPath(const fileName& objPath);
+
+            //- Detect processor number from 'path/processorDDD/abc'
+            //- or 'path/processorsNN/abc', 'path/processorsNN_0-10/abc'
+            static label detectProcessorPath
+            (
+                const fileName& objPath,
+                //! [out] any detected collated grouping
+                procRangeType& group,
+                //! [out] detected number of collated processors, -1 if none
+                label* numProcs = nullptr
+            );
 
 
     // Rank selection/sub-selection

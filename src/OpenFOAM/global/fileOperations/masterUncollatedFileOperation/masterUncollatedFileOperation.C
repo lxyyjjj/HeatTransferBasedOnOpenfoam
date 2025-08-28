@@ -1984,17 +1984,15 @@ Foam::fileOperations::masterUncollatedFileOperation::readStream
         // Note: this should really be part of filePath() which should return
         // both file and index in file.
 
-        fileName path, procDir, local;
         procRangeType group;
-        label nProcs;
-        splitProcessorPath(fName, path, procDir, local, group, nProcs);
+        fileOperation::detectProcessorPath(fName, group);
 
 
         if (!UPstream::parRun())
         {
             // Analyse the objectpath to find out the processor we're trying
             // to access
-            label proci = detectProcessorPath(io.objectPath());
+            label proci = fileOperation::detectProcessorPath(io.objectPath());
 
             if (proci == -1)
             {
@@ -2009,7 +2007,7 @@ Foam::fileOperations::masterUncollatedFileOperation::readStream
             // The local rank (offset)
             if (!group.empty())
             {
-                proci = proci - group.start();
+                proci -= group.start();
             }
 
             if (debug)
@@ -2053,7 +2051,7 @@ Foam::fileOperations::masterUncollatedFileOperation::readStream
             // Get size of file to determine communications type
             bool bigSize = false;
 
-            if (Pstream::master(UPstream::worldComm))
+            if (UPstream::master(UPstream::worldComm))
             {
                 // TBD: handle multiple masters?
                 bigSize =
@@ -2064,7 +2062,7 @@ Foam::fileOperations::masterUncollatedFileOperation::readStream
             }
             // Reduce (not broadcast)
             // - if we have multiple master files (FUTURE)
-            Pstream::reduceOr(bigSize, UPstream::worldComm);
+            UPstream::reduceOr(bigSize, UPstream::worldComm);
 
             const UPstream::commsTypes myCommsType
             (
@@ -2610,12 +2608,10 @@ void Foam::fileOperations::masterUncollatedFileOperation::sync()
         if (Pstream::parRun() && !Pstream::master(UPstream::worldComm))
         {
             // Replace processor0 ending with processorDDD
-            fileName path;
-            fileName pDir;
-            fileName local;
+            fileName path, pDir, local;
             procRangeType group;
             label numProcs;
-            const label proci = splitProcessorPath
+            const label proci = fileOperation::splitProcessorPath
             (
                 dir,
                 path,

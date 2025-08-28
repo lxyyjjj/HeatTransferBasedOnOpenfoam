@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2017-2018 OpenFOAM Foundation
-    Copyright (C) 2019-2024 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -524,12 +524,11 @@ Foam::fileOperation::lookupAndCacheProcessorsPath
         for (const fileName& dirN : dirEntries)
         {
             // Analyse directory name
-            fileName rp, rd, rl;
-            label rNum;
+            label rNum(-1);
             const label readProci =
-                splitProcessorPath(dirN, rp, rd, rl, group, rNum);
+                fileOperation::detectProcessorPath(dirN, group, &rNum);
 
-            nProcs = max(nProcs, readProci+1);
+            nProcs = Foam::max(nProcs, readProci+1);
 
             Tuple2<pathType, int> pathTypeIdx(pathType::NOTFOUND, 0);
 
@@ -554,7 +553,7 @@ Foam::fileOperation::lookupAndCacheProcessorsPath
                 }
 
                 // "processorsNN" or "processorsNN_start-end"
-                nProcs = max(nProcs, rNum);
+                nProcs = Foam::max(nProcs, rNum);
 
                 if (group.empty())
                 {
@@ -581,7 +580,7 @@ Foam::fileOperation::lookupAndCacheProcessorsPath
 
             if (pathTypeIdx.first() != pathType::NOTFOUND)
             {
-                procDirs.append(dirIndex(dirN, pathTypeIdx));
+                procDirs.emplace_back(dirN, pathTypeIdx);
             }
         }
 
@@ -621,7 +620,7 @@ Foam::fileOperation::lookupAndCacheProcessorsPath
                 int flavour(pathType::PROCUNCOLLATED);
                 for (const dirIndex& pDir : procDirs)
                 {
-                    flavour = max(flavour, int(pDir.second().first()));
+                    flavour = Foam::max(flavour, int(pDir.second().first()));
                 }
 
                 reduce(nProcs, maxOp<label>());  // worldComm
@@ -640,13 +639,10 @@ Foam::fileOperation::lookupAndCacheProcessorsPath
                     {
                         pathTypeIdx.second() = proci;
 
-                        procDirs.append
+                        procDirs.emplace_back
                         (
-                            dirIndex
-                            (
-                                processorsBaseDir + Foam::name(nProcs),
-                                pathTypeIdx
-                            )
+                            processorsBaseDir + Foam::name(nProcs),
+                            pathTypeIdx
                         );
                     }
                     else
@@ -655,13 +651,10 @@ Foam::fileOperation::lookupAndCacheProcessorsPath
                         // - poor fallback for pathType::PROCOBJECT
                         // - out-of-range pathType::PROCBASEOBJECT
 
-                        procDirs.append
+                        procDirs.emplace_back
                         (
-                            dirIndex
-                            (
-                                "processor" + Foam::name(proci),
-                                pathTypeIdx
-                            )
+                            "processor" + Foam::name(proci),
+                            pathTypeIdx
                         );
                     }
 
@@ -1342,12 +1335,12 @@ Foam::label Foam::fileOperation::nProcs
             const label readProci =
                 splitProcessorPath(dirN, rp, rd, rl, group, rNum);
 
-            maxProc = max(maxProc, readProci);
+            maxProc = Foam::max(maxProc, readProci);
 
             if (rNum > 0)       // processorsDDD where DDD>0
             {
                 // Use processors number
-                maxProc = max(maxProc, rNum-1);
+                maxProc = Foam::max(maxProc, rNum-1);
                 // Mark in cache. TBD separate handling for groups?
                 foundDirs.set(labelRange(0, rNum));
 
@@ -1632,12 +1625,39 @@ Foam::label Foam::fileOperation::splitProcessorPath
 }
 
 
+Foam::label Foam::fileOperation::detectProcessorPath
+(
+    const fileName& objPath,
+    procRangeType& group,
+    label* numProcs
+)
+{
+    fileName path, procDir, local;
+    label nProcs;
+
+    label proci = fileOperation::splitProcessorPath
+    (
+        objPath,
+        path,
+        procDir,
+        local,
+        group,
+        nProcs
+    );
+
+    if (numProcs)
+    {
+        *numProcs = nProcs;
+    }
+
+    return proci;
+}
+
+
 Foam::label Foam::fileOperation::detectProcessorPath(const fileName& fName)
 {
-    fileName path, pDir, local;
     procRangeType group;
-    label nProcs;
-    return splitProcessorPath(fName, path, pDir, local, group, nProcs);
+    return fileOperation::detectProcessorPath(fName, group);
 }
 
 
