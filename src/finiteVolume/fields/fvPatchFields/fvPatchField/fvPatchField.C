@@ -187,12 +187,15 @@ Foam::fvPatchField<Type>::fvPatchField
 template<class Type>
 Foam::fvPatchField<Type>::fvPatchField
 (
-    const fvPatchField<Type>& ptf
+    const fvPatchField<Type>& pfld,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const Type& value
 )
 :
-    fvPatchFieldBase(ptf),
-    Field<Type>(ptf),
-    internalField_(ptf.internalField_)
+    fvPatchFieldBase(pfld, p),
+    Field<Type>(p.size(), value),
+    internalField_(iF)
 {}
 
 
@@ -219,9 +222,30 @@ void Foam::fvPatchField<Type>::check(const fvPatchField<Type>& rhs) const
 
 
 template<class Type>
+void Foam::fvPatchField<Type>::snGrad(UList<Type>& result) const
+{
+    // Get patch internal field, store temporarily in result
+    this->patchInternalField(result);
+    const auto& pif = result;
+
+    const Field<Type>& pfld = *this;
+    const auto& dc = patch().deltaCoeffs();
+
+    const label len = result.size();
+
+    for (label i = 0; i < len; ++i)
+    {
+        result[i] = dc[i]*(pfld[i] - pif[i]);
+    }
+}
+
+
+template<class Type>
 Foam::tmp<Foam::Field<Type>> Foam::fvPatchField<Type>::snGrad() const
 {
-    return patch().deltaCoeffs()*(*this - patchInternalField());
+    auto tfld = tmp<Field<Type>>::New(this->size());
+    this->snGrad(static_cast<UList<Type>&>(tfld.ref()));
+    return tfld;
 }
 
 

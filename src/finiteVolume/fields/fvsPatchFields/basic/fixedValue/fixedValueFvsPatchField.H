@@ -114,17 +114,29 @@ public:
             const fvPatchFieldMapper&
         );
 
-        //- Construct as copy
+        //- Copy construct onto a new patch with internal field reference
+        //- and specified value
         fixedValueFvsPatchField
         (
-            const fixedValueFvsPatchField<Type>&
+            const fixedValueFvsPatchField<Type>& pfld,
+            const fvPatch& p,
+            const DimensionedField<Type, surfaceMesh>& iF,
+            const Type& value
         );
 
+        //- Copy construct with internal field reference
         fixedValueFvsPatchField
         (
-            const fixedValueFvsPatchField<Type>&,
-            const DimensionedField<Type, surfaceMesh>&
+            const fixedValueFvsPatchField<Type>& pfld,
+            const DimensionedField<Type, surfaceMesh>& iF
         );
+
+        //- Copy construct
+        fixedValueFvsPatchField(const fixedValueFvsPatchField<Type>& pfld)
+        :
+            fixedValueFvsPatchField<Type>(pfld, pfld.internalField())
+        {}
+
 
         //- Return clone
         virtual tmp<fvsPatchField<Type>> clone() const

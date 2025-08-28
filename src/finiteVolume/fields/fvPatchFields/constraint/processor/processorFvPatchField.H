@@ -221,6 +221,13 @@ public:
             const scalarField& deltaCoeffs
         ) const;
 
+        //- Retrieve patch-normal gradient
+        virtual void snGrad
+        (
+            const scalarField& deltaCoeffs,
+            UList<Type>& result
+        ) const;
+
 
         // Coupled interface functionality
 
@@ -298,7 +305,11 @@ public:
         //- Does the patch field perform the transformation
         virtual bool doTransform() const
         {
-            return (pTraits<Type>::rank && !procPatch_.parallel());
+            return
+            (
+                is_rotational_vectorspace_v<Type>
+             && !procPatch_.parallel()
+            );
         }
 
         //- Return face transformation tensor
