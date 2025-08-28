@@ -35,30 +35,45 @@ License
 template<class T>
 void Foam::UList<T>::writeEntry(Ostream& os) const
 {
-    const word tag("List<" + word(pTraits<T>::typeName) + '>');
-    if (token::compound::isCompound(tag))
+    if constexpr (std::is_same_v<char, std::remove_cv_t<T>>)
     {
-        os  << tag << token::SPACE;
-    }
+        // Char data has a compound type:
+        os  << word("List<char>");
 
-    if (size())
-    {
-        os << *this;
-    }
-    else if
-    (
-        os.format() == IOstreamOption::BINARY
-     || std::is_same_v<char, std::remove_cv_t<T>>
-    )
-    {
-        // Zero-sized binary - Write size only
-        // NB: special treatment for char data (binary I/O only)
-        os << label(0);
+        if (this->size())
+        {
+            // Non-zero size: write as binary, so has leading newline separator.
+            os << *this;
+        }
+        else
+        {
+            // Zero-sized binary - Write size only
+            // Note that char data is always binary I/O only
+            os << token::SPACE << label(0);
+        }
     }
     else
     {
-        // Zero-sized ASCII - Write size and delimiters
-        os << label(0) << token::BEGIN_LIST << token::END_LIST;
+        const word tag("List<" + word(pTraits<T>::typeName) + '>');
+        if (token::compound::isCompound(tag))
+        {
+            os  << tag << token::SPACE;
+        }
+
+        if (size())
+        {
+            os << *this;
+        }
+        else if (os.format() == IOstreamOption::BINARY)
+        {
+            // Zero-sized binary - Write size only
+            os << label(0);
+        }
+        else
+        {
+            // Zero-sized ASCII - Write size and delimiters
+            os << label(0) << token::BEGIN_LIST << token::END_LIST;
+        }
     }
 }
 

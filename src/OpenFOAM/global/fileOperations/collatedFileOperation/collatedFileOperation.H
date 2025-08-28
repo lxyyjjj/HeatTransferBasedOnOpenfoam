@@ -147,7 +147,7 @@ public:
             virtual fileName objectPath
             (
                 const IOobject& io,
-                const word& typeName
+                const word& typeName  //!< currently unused
             ) const;
 
             //- Writes a regIOobject (so header, contents and divider).

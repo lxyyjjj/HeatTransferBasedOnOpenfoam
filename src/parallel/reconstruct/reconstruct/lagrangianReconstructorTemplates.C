@@ -88,15 +88,18 @@ Foam::lagrangianReconstructor::reconstructField
 
 
 template<class Type>
-Foam::tmp<Foam::CompactIOField<Foam::Field<Type>, Type>>
+Foam::tmp<Foam::CompactIOField<Foam::Field<Type>>>
 Foam::lagrangianReconstructor::reconstructFieldField
 (
     const word& cloudName,
     const word& fieldName
 )
 {
+    typedef CompactIOField<Field<Type>> compactType;
+    typedef IOField<Field<Type>> fallbackType;
+
     // Construct empty field on mesh
-    auto tfield = tmp<CompactIOField<Field<Type>, Type>>::New
+    auto tfield = tmp<compactType>::New
     (
         IOobject
         (
@@ -105,9 +108,9 @@ Foam::lagrangianReconstructor::reconstructFieldField
             cloud::prefix/cloudName,
             mesh_,
             IOobject::NO_READ,
-            IOobject::NO_WRITE
-        ),
-        Field<Field<Type>>()
+            IOobject::NO_WRITE,
+            IOobject::NO_REGISTER
+        )
     );
     auto& field = tfield.ref();
 
@@ -126,14 +129,11 @@ Foam::lagrangianReconstructor::reconstructFieldField
 
         if
         (
-            localIOobject.typeHeaderOk<CompactIOField<Field<Type>, Type>>
-            (
-                false
-            )
-         || localIOobject.typeHeaderOk<IOField<Field<Type>>>(false)
+            localIOobject.typeHeaderOk<compactType>(false)
+         || localIOobject.typeHeaderOk<fallbackType>(false)
         )
         {
-            CompactIOField<Field<Type>, Type> localField(localIOobject);
+            compactType localField(localIOobject);
 
             const label offset = field.size();
             field.setSize(offset + localField.size());
@@ -214,7 +214,7 @@ Foam::label Foam::lagrangianReconstructor::reconstructFieldFields
     const wordRes& selectedFields
 )
 {
-    typedef CompactIOField<Field<Type>, Type> fieldType;
+    typedef CompactIOField<Field<Type>> fieldType;
     typedef IOField<Field<Type>> fieldTypeB;
 
     UPtrList<const IOobject> fieldObjects;

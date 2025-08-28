@@ -226,6 +226,8 @@ inline void Foam::PtrDynList<T, SizeMin>::clear()
 template<class T, int SizeMin>
 inline void Foam::PtrDynList<T, SizeMin>::clearStorage()
 {
+    // Consistent allocated sizing
+    PtrList<T>::setAddressableSize(capacity_);
     PtrList<T>::clear();
     capacity_ = 0;
 }
@@ -258,8 +260,11 @@ inline void Foam::PtrDynList<T, SizeMin>::swap(PtrList<T>& list)
 {
     if
     (
-        static_cast<const PtrList<T>*>(this)
-     == static_cast<const PtrList<T>*>(&list)
+        FOAM_UNLIKELY
+        (
+            static_cast<const PtrList<T>*>(this)
+         == static_cast<const PtrList<T>*>(&list)
+        )
     )
     {
         return;  // Self-swap is a no-op
@@ -285,8 +290,11 @@ inline void Foam::PtrDynList<T, SizeMin>::swap
 {
     if
     (
-        static_cast<const PtrList<T>*>(this)
-     == static_cast<const PtrList<T>*>(&other)
+        FOAM_UNLIKELY
+        (
+            static_cast<const PtrList<T>*>(this)
+         == static_cast<const PtrList<T>*>(&other)
+        )
     )
     {
         return;  // Self-swap is a no-op
@@ -303,15 +311,10 @@ inline void Foam::PtrDynList<T, SizeMin>::swap
 template<class T, int SizeMin>
 inline void Foam::PtrDynList<T, SizeMin>::transfer(PtrList<T>& list)
 {
-    if
-    (
-        static_cast<const PtrList<T>*>(this)
-     == static_cast<const PtrList<T>*>(&list)
-    )
-    {
-        return;  // Self assignment is a no-op
-    }
+    // No check for self-assignment (different types)
 
+    // Consistent allocated sizing
+    PtrList<T>::setAddressableSize(capacity_);
     PtrList<T>::transfer(list);
     capacity_ = PtrList<T>::size();
 }
@@ -326,18 +329,22 @@ inline void Foam::PtrDynList<T, SizeMin>::transfer
 {
     if
     (
-        static_cast<const PtrList<T>*>(this)
-     == static_cast<const PtrList<T>*>(&list)
+        FOAM_UNLIKELY
+        (
+            static_cast<const PtrList<T>*>(this)
+         == static_cast<const PtrList<T>*>(&list)
+        )
     )
     {
         return;  // Self assignment is a no-op
     }
 
-    // Take over storage as-is (without shrink)
-    capacity_ = list.capacity();
-
+    // Consistent allocated sizing
+    PtrList<T>::setAddressableSize(capacity_);
     PtrList<T>::transfer(static_cast<PtrList<T>&>(list));
-    list.clearStorage();  // capacity=0 etc.
+
+    capacity_ = list.capacity();
+    list.setCapacity_unsafe(0);  // All contents moved
 }
 
 
@@ -414,8 +421,11 @@ inline void Foam::PtrDynList<T, SizeMin>::push_back
 {
     if
     (
-        static_cast<const PtrList<T>*>(this)
-     == static_cast<const PtrList<T>*>(&other)
+        FOAM_UNLIKELY
+        (
+            static_cast<const PtrList<T>*>(this)
+         == static_cast<const PtrList<T>*>(&other)
+        )
     )
     {
         FatalErrorInFunction
@@ -557,11 +567,20 @@ inline Foam::autoPtr<T> Foam::PtrDynList<T, SizeMin>::set
 
 
 template<class T, int SizeMin>
-inline void Foam::PtrDynList<T, SizeMin>::reorder(const labelUList& oldToNew)
+Foam::Ostream& Foam::PtrDynList<T, SizeMin>::printAddresses
+(
+    Ostream& os,
+    const bool full
+) const
 {
-    // Shrinking first is a bit annoying, but saves needing a special version.
-    this->shrink_to_fit();
-    PtrList<T>::reorder(oldToNew);
+    if (full)
+    {
+        return this->ptrs_.printAddresses(os, capacity_);
+    }
+    else
+    {
+        return UPtrList<T>::printAddresses(os);
+    }
 }
 
 
@@ -570,16 +589,23 @@ inline void Foam::PtrDynList<T, SizeMin>::reorder(const labelUList& oldToNew)
 template<class T, int SizeMin>
 inline void Foam::PtrDynList<T, SizeMin>::operator=
 (
-    const PtrList<T>& list
+    const UPtrList<T>& list
 )
 {
-    if (this == &list)
+    if
+    (
+        FOAM_UNLIKELY
+        (
+            static_cast<const UPtrList<T>*>(this)
+         == static_cast<const UPtrList<T>*>(&list)
+        )
+    )
     {
         return;  // Self-assignment is a no-op
     }
 
+    this->resize(list.size());
     PtrList<T>::operator=(list);
-    capacity_ = PtrList<T>::size();
 }
 
 
@@ -589,13 +615,20 @@ inline void Foam::PtrDynList<T, SizeMin>::operator=
     const PtrDynList<T, SizeMin>& list
 )
 {
-    if (this == &list)
+    if
+    (
+        FOAM_UNLIKELY
+        (
+            static_cast<const UPtrList<T>*>(this)
+         == static_cast<const UPtrList<T>*>(&list)
+        )
+    )
     {
         return;  // Self-assignment is a no-op
     }
 
-    PtrList<T>::operator=(list);
-    capacity_ = PtrList<T>::size();
+    this->resize(list.size());
+    PtrList<T>::operator=(static_cast<UPtrList<T>&>(list));
 }
 
 
@@ -608,14 +641,18 @@ inline void Foam::PtrDynList<T, SizeMin>::operator=
 {
     if
     (
-        static_cast<const PtrList<T>*>(this)
-     == static_cast<const PtrList<T>*>(&list)
+        FOAM_UNLIKELY
+        (
+            static_cast<const PtrList<T>*>(this)
+         == static_cast<const PtrList<T>*>(&list)
+        )
     )
     {
         return;  // Self-assignment is a no-op
     }
 
-    PtrList<T>::operator=(list);
+    this->resize(list.size());
+    PtrList<T>::operator=(static_cast<UPtrList<T>&>(list));
     capacity_ = PtrList<T>::size();
 }
 

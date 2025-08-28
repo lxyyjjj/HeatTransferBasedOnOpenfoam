@@ -53,8 +53,8 @@ template<class T>
 inline void Foam::UList<T>::fill_uniform(const T& val)
 {
     // Can dispatch with
-    // - std::execution::parallel_unsequenced_policy
-    // - std::execution::unsequenced_policy
+    // - std::execution::par_unseq
+    // - std::execution::unseq
     std::fill_n
     (
         this->v_, this->size_, val
@@ -65,15 +65,21 @@ inline void Foam::UList<T>::fill_uniform(const T& val)
 template<class T>
 inline void Foam::UList<T>::fill_uniform(Foam::zero)
 {
-    // Note: ambiguous conversions for char can still cause compilation
-    // issues.
-    // May also have special triggers when assigning non-contiguous from zero...
-
-    if constexpr (is_contiguous_v<T>)
+    if constexpr (std::is_arithmetic_v<T>)
     {
         // Can dispatch with
-        // - std::execution::parallel_unsequenced_policy
-        // - std::execution::unsequenced_policy
+        // - std::execution::par_unseq
+        // - std::execution::unseq
+        std::fill_n
+        (
+            this->v_, this->size_, T(0)
+        );
+    }
+    else if constexpr (is_contiguous_v<T>)
+    {
+        // Can dispatch with
+        // - std::execution::par_unseq
+        // - std::execution::unseq
         std::fill_n
         (
             this->data_bytes(), this->size_bytes(), char(0)
@@ -81,6 +87,9 @@ inline void Foam::UList<T>::fill_uniform(Foam::zero)
     }
     else
     {
+        // May also have special triggers when assigning non-contiguous
+        // from zero...
+
         const auto last = (this->v_ + this->size_);
 
         for (auto first = this->v_; (first != last); (void)++first)
@@ -348,29 +357,34 @@ inline void Foam::UList<T>::operator=(const T& val)
 }
 
 
-namespace Foam
-{
-    // Template specialization for bool
-    template<>
-    inline const bool& Foam::UList<bool>::operator[](const label i) const
-    {
-        // Lazy evaluation - return false for out-of-range
-        if (i >= 0 && i < size_)
-        {
-            return v_[i];
-        }
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-        return Foam::pTraits<bool>::zero;
-    }
-} // End namespace Foam
+template<class T>
+inline void Foam::UList<T>::operator=(Foam::zero)
+{
+    this->fill_uniform(Foam::zero{});
+}
 
 
 template<class T>
 inline T& Foam::UList<T>::operator[](const label i)
 {
-    #ifdef FULLDEBUG
-    checkIndex(i);
-    #endif
+    if constexpr (std::is_same_v<bool, std::remove_cv_t<T>>)
+    {
+        // Lazy evaluation - return false for out-of-range
+        // Note: strictly speaking should not be modifiable but we cannot
+        // alway control which signature (const or non-const) is called
+        if (i < 0 || i >= size_)
+        {
+            return const_cast<bool&>(Foam::pTraits<bool>::null());
+        }
+    }
+    else
+    {
+        #ifdef FULLDEBUG
+        checkIndex(i);
+        #endif
+    }
     return v_[i];
 }
 
@@ -378,9 +392,20 @@ inline T& Foam::UList<T>::operator[](const label i)
 template<class T>
 inline const T& Foam::UList<T>::operator[](const label i) const
 {
-    #ifdef FULLDEBUG
-    checkIndex(i);
-    #endif
+    if constexpr (std::is_same_v<bool, std::remove_cv_t<T>>)
+    {
+        // Lazy evaluation - return false for out-of-range
+        if (i < 0 || i >= size_)
+        {
+            return Foam::pTraits<bool>::null();
+        }
+    }
+    else
+    {
+        #ifdef FULLDEBUG
+        checkIndex(i);
+        #endif
+    }
     return v_[i];
 }
 

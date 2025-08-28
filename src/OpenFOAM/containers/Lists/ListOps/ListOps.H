@@ -658,6 +658,18 @@ inline void identity(labelUList& map, label start = 0)
 }
 
 
+//- Count the occurrences of the given element.
+//  When start is specified, any occurrences before start are ignored.
+//  Like std::count but works with list indexing
+template<class ListType>
+label count
+(
+    const ListType& input,
+    typename ListType::const_reference val,
+    const label start=0
+);
+
+
 //- Count the number of matching entries.
 //  When start is specified, any occurrences before start are ignored.
 //  Linear search.

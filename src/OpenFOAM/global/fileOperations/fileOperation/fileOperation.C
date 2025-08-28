@@ -28,7 +28,6 @@ License
 
 #include "fileOperation.H"
 #include "objectRegistry.H"
-#include "labelIOList.H"
 #include "registerSwitch.H"
 #include "stringOps.H"
 #include "Time.H"
@@ -728,7 +727,7 @@ bool Foam::fileOperation::exists(IOobject& io) const
         (
             isFile(objPath)
             // object with local scope
-         && io.typeHeaderOk<labelIOList>(false)
+         && io.typeHeaderOk<regIOobject>(false)
         );
     }
 
@@ -750,7 +749,7 @@ bool Foam::fileOperation::exists(IOobject& io) const
                 (
                     isFile(originalPath)
                     // object with local scope
-                 && io.typeHeaderOk<labelIOList>(false)
+                 && io.typeHeaderOk<regIOobject>(false)
                 );
             }
         }

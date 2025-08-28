@@ -61,6 +61,10 @@ class IOList
         //- Read if IOobject flags set. Return true if read.
         bool readIOcontents();
 
+        //- Read the content size.
+        //  Return the size if read, -1 otherwise
+        label readIOsize();
+
 public:
 
     //- The underlying content type
@@ -75,7 +79,7 @@ public:
         //- Default copy construct
         IOList(const IOList&) = default;
 
-        //- Construct from IOobject
+        //- Construct from IOobject. Will be zero size if not read.
         explicit IOList(const IOobject& io);
 
         //- Construct from IOobject and zero size (if not read)
@@ -92,6 +96,10 @@ public:
 
 
     // Factory Methods
+
+        //- Read and return content size, -1 if not read.
+        //  The IOobject is never registered
+        static label readContentsSize(const IOobject& io);
 
         //- Read and return contents. The IOobject is never registered
         static List<T> readContents(const IOobject& io);
@@ -113,11 +121,20 @@ public:
 
     // Member Operators
 
-        //- Copy assignment of entries
-        void operator=(const IOList<T>& rhs);
-
         //- Copy or move assignment of entries
         using List<T>::operator=;
+
+        //- Copy assignment of entries
+        void operator=(const IOList<T>& rhs)
+        {
+            List<T>::operator=(rhs);
+        }
+
+        //- Move assignment of entries
+        void operator=(IOList<T>&& rhs)
+        {
+            List<T>::operator=(std::move(static_cast<List<T>&>(rhs)));
+        }
 };
 
 

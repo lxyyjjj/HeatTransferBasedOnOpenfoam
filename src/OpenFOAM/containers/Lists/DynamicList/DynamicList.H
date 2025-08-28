@@ -255,7 +255,7 @@ public:
     // Edit
 
         //- Swap with plain List content. Implies shrink_to_fit().
-        inline void swap(List<T>& list);
+        inline void swap(List<T>& other);
 
         //- Swap content, independent of sizing parameter
         template<int AnySizeMin>
@@ -264,7 +264,7 @@ public:
         //- Transfer contents of the argument List into this.
         inline void transfer(List<T>& list);
 
-        //- Transfer contents of any sized DynamicList into this.
+        //- Transfer contents of any DynamicList into this.
         template<int AnySizeMin>
         inline void transfer(DynamicList<T, AnySizeMin>& list);
 

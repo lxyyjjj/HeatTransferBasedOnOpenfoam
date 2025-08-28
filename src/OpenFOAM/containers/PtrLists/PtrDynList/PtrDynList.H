@@ -238,14 +238,18 @@ public:
         //- Auto-sizes list as required.
         inline autoPtr<T> set(const label i, const tmp<T>& ptr);
 
-        //- Reorder elements. Reordering must be unique (ie, shuffle).
-        inline void reorder(const labelUList& oldToNew);
+
+    // Writing
+
+        //- Print pointer addresses to Ostream (debugging only).
+        //  Optionally print addresses within the upper (capacity) region
+        Ostream& printAddresses(Ostream& os, const bool full=false) const;
 
 
     // Member Operators
 
         //- Copy (clone) assignment
-        inline void operator=(const PtrList<T>& list);
+        inline void operator=(const UPtrList<T>& list);
 
         //- Copy (clone) assignment
         inline void operator=(const PtrDynList<T, SizeMin>& list);

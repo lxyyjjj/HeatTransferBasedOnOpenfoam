@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011 OpenFOAM Foundation
-    Copyright (C) 2018-2023 OpenCFD Ltd.
+    Copyright (C) 2018-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -86,20 +86,7 @@ Ostream& printAddr
     const UPtrList<T>& list
 )
 {
-    const label len = list.size();
-
-    // Size and start delimiter
-    os  << nl << indent << len << nl
-        << indent << token::BEGIN_LIST << incrIndent << nl;
-
-    for (label i=0; i < len; ++i)
-    {
-        os << "addr=" << Foam::name(list.get(i)) << nl;
-    }
-
-    // End delimiter
-    os << decrIndent << indent << token::END_LIST << nl;
-    return os;
+    return list.printAddresses(os);
 }
 
 
@@ -176,11 +163,11 @@ Ostream& print
     {
         const label cap = list.capacity();
 
-        for (label i=len; i < cap; ++i)
+        for (label i = len; i < cap; ++i)
         {
             const T* ptr = list.get(i);
 
-            os << "unused " << name(ptr) << nl;
+            os << "unused " << Foam::name(ptr) << nl;
         }
     }
 
@@ -518,6 +505,7 @@ int main(int argc, char *argv[])
         print(Info, dynlist1d);
 
         Info<< "addresses:" << nl;
+        dynlist1d.printAddresses(Info, true);
         printAddr(Info, dynlist1d);
 
         PtrList<Scalar> list1d;

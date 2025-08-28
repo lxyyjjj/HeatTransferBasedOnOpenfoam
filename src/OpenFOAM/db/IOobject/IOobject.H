@@ -537,13 +537,14 @@ public:
         //- True if headerClassName() is non-empty (after reading)
         inline bool hasHeaderClass() const noexcept;
 
+        //- Check if headerClassName() equals the expected type.
+        //- Always true if the expected type is empty.
+        inline bool isHeaderClass(const word& expectedType) const;
+
         //- Check if headerClassName() equals Type::typeName
+        //- Always true for a \c void type.
         template<class Type>
         inline bool isHeaderClass() const;
-
-        //- Same as isHeaderClass()
-        template<class Type>
-        bool isHeaderClassName() const { return isHeaderClass<Type>(); }
 
 
     // Meta-data
@@ -611,20 +612,18 @@ public:
         fileName objectRelPath() const;
 
         //- Redirect to fileHandler filePath, searching locally.
-        //  When search is false, simply use the current instance,
-        //  otherwise search previous instances.
         fileName localFilePath
         (
             const word& typeName,
+            //! False: use current instance; True: search previous instances
             const bool search=true
         ) const;
 
         //- Redirect to fileHandler filePath, searching up if in parallel.
-        //  When search is false, simply use the current instance,
-        //  otherwise search previous instances.
         fileName globalFilePath
         (
             const word& typeName,
+            //! False: use current instance; True: search previous instances
             const bool search=true
         ) const;
 
@@ -645,13 +644,25 @@ public:
         bool readHeader(dictionary& headerDict, Istream& is);
 
         //- Read header (respects is_globalIOobject trait) and check its info.
+        //- A \c void type suppresses trait and type-name checks.
         template<class Type>
         bool typeHeaderOk
         (
             //! Check headerClassName against the type-name
-            const bool checkType = true,
+            [[maybe_unused]] const bool checkType = true,
             //! Also search previous instances if not found at current instance
             const bool search = true,
+            //! Report any check-type failures
+            const bool verbose = true
+        );
+
+        //- Forwards to single-parameter version with the specified search type.
+        //- A \c void type suppresses trait and type-name checks.
+        template<class Type, bool Searching>
+        bool typeHeaderOk
+        (
+            //! Check headerClassName against the type-name
+            const bool checkType = true,
             //! Report any check-type failures
             const bool verbose = true
         );
@@ -718,17 +729,14 @@ public:
 
         //- Copy assignment, copies all values (except the registry)
         void operator=(const IOobject& io);
+
+
+    // Housekeeping
+
+        //- Same as isHeaderClass()
+        template<class Type>
+        bool isHeaderClassName() const { return isHeaderClass<Type>(); }
 };
-
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-//- Specialization for \c void always returns true (no headerClassName check).
-template<>
-inline bool IOobject::isHeaderClass<void>() const
-{
-    return true;
-}
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

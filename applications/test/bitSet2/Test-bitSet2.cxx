@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2018-2021 OpenCFD Ltd.
+    Copyright (C) 2018-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -75,9 +75,9 @@ inline Ostream& info(const UList<bool>& bools)
     Info<< "size=" << bools.size()
         << " count=" << BitOps::count(bools)
         << " !count=" << BitOps::count(bools, false)
-        << " all:" << BitOps::all(bools)
-        << " any:" << BitOps::any(bools)
-        << " none:" << BitOps::none(bools) << nl;
+        << " all:" << bools.all()
+        << " any:" << bools.any()
+        << " none:" << bools.none() << nl;
 
     return Info;
 }
@@ -194,8 +194,10 @@ int main(int argc, char *argv[])
     {
         boolList bools = list1.values();
 
-        Info<<"===============" << nl;
-        Info<<"bools: " << flatOutput(bools) << nl;
+        Info<< "===============" << nl;
+        Info<< "bools: " << flatOutput(bools) << nl;
+        Info<< "    ";
+        info(bools);
 
         for (int i : { -10, 0, 8, 15, 32})
         {
@@ -238,17 +240,18 @@ int main(int argc, char *argv[])
     }
 
     #ifdef TEST_SFINAE
+    // This should fail to compile:
     {
         labelList labels = list1.toc();
         if (labels.test(0))
         {
-            Info<<"no" << endl;
+            Info<< "no" << endl;
         }
 
         List<double*> ptrs(10, nullptr);
         if (ptrs.get(0))
         {
-            Info<<"no" << endl;
+            Info<< "no" << endl;
         }
     }
     #endif

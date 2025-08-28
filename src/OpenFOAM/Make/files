@@ -42,7 +42,6 @@ chars = primitives/chars
 $(chars)/char/char.C
 $(chars)/wchar/wchar.C
 $(chars)/lists/charList.C
-$(chars)/lists/charUList.C
 
 primitives/direction/directionIO.C
 

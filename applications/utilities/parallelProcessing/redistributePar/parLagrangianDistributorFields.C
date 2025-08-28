@@ -64,7 +64,7 @@ Foam::label Foam::parLagrangianDistributor::readAllFields
             );                                                                \
                                                                               \
             nTotal += parLagrangianDistributor::readFields                    \
-            <CompactIOField<Field<Type>, Type>>                               \
+            <CompactIOField<Field<Type>>>                                     \
             (                                                                 \
                 cloud,                                                        \
                 haveCloud,                                                    \
@@ -177,7 +177,7 @@ Foam::label Foam::parLagrangianDistributor::distributeAllStoredFields
             );                                                                \
                                                                               \
             nTotal += this->distributeStoredFields                            \
-            <CompactIOField<Field<Type>, Type>>                               \
+            <CompactIOField<Field<Type>>>                                     \
             (                                                                 \
                 lagrangianMap,                                                \
                 cloud                                                         \

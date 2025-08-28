@@ -149,6 +149,10 @@ public:
         //- if the key does not exist in the table.
         inline const T* get(const Key& key) const;
 
+        //- Return pointer associated with given entry or a nullptr
+        //- if the key does not exist in the table.
+        inline T* get(const Key& key);
+
 
     // Edit
 
@@ -234,7 +238,9 @@ public:
         inline bool emplace(const Key& key, Args&&... args);
 
         //- Emplace set an entry, overwriting any existing entries.
-        //  \return Reference to the new element.
+        //  \param key - the location to set
+        //  \param args arguments to forward to the constructor of the element
+        //  \return reference to the new element.
         template<class... Args>
         inline T& emplace_set(const Key& key, Args&&... args);
 

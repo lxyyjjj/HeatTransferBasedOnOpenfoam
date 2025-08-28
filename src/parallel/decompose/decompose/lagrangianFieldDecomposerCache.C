@@ -53,7 +53,7 @@ public:
     #undef  declareField
     #define declareField(Type)                                                \
     PtrList<PtrList<IOField<Type>>> Type##Fields_;                            \
-    PtrList<PtrList<CompactIOField<Field<Type>, Type>>> Type##FieldFields_;
+    PtrList<PtrList<CompactIOField<Field<Type>>>> Type##FieldFields_;
 
     declareField(label);
     declareField(scalar);

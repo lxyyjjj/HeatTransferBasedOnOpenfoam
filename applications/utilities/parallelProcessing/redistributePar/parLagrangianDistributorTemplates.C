@@ -156,14 +156,15 @@ Foam::label Foam::parLagrangianDistributor::distributeFieldFields
     const wordRes& selectedFields
 ) const
 {
-    typedef CompactIOField<Field<Type>, Type> Container;
+    typedef CompactIOField<Field<Type>> Container;
+    typedef IOField<Field<Type>> fallbackType;
 
     DynamicList<word> fieldNames;
 
     // CompactIOField Field names
     fieldNames.push_back
     (
-        filterObjects<CompactIOField<Field<Type>, Type>>
+        filterObjects<Container>
         (
             objects,
             selectedFields
@@ -173,7 +174,7 @@ Foam::label Foam::parLagrangianDistributor::distributeFieldFields
     // IOField Field names
     fieldNames.push_back
     (
-        filterObjects<IOField<Field<Type>>>
+        filterObjects<fallbackType>
         (
             objects,
             selectedFields

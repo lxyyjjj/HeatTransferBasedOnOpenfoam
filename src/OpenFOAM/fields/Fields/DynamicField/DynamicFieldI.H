@@ -567,12 +567,12 @@ inline void Foam::DynamicField<T, SizeMin>::shrink_to_fit()
 
 template<class T, int SizeMin>
 inline void
-Foam::DynamicField<T, SizeMin>::swap(List<T>& list)
+Foam::DynamicField<T, SizeMin>::swap(List<T>& other)
 {
     if
     (
         static_cast<const List<T>*>(this)
-     == static_cast<const List<T>*>(&list)
+     == static_cast<const List<T>*>(&other)
     )
     {
         return;  // Self-swap is a no-op
@@ -582,7 +582,7 @@ Foam::DynamicField<T, SizeMin>::swap(List<T>& list)
     this->shrink_to_fit();
 
     // Swap storage and addressable size
-    UList<T>::swap(list);
+    UList<T>::swap(other);
 
     // Update capacity
     capacity_ = List<T>::size();
@@ -658,17 +658,22 @@ inline void Foam::DynamicField<T, SizeMin>::transfer
 {
     if
     (
-        static_cast<const List<T>*>(this)
-     == static_cast<const List<T>*>(&list)
+        FOAM_UNLIKELY
+        (
+            static_cast<const UList<T>*>(this)
+         == static_cast<const UList<T>*>(&list)
+        )
     )
     {
         return;  // Self-assignment is a no-op
     }
 
-    // Take over storage as-is (without shrink)
-    capacity_ = list.capacity();
+    // Consistent allocated sizing
+    List<T>::setAddressableSize(capacity_);
     Field<T>::transfer(static_cast<List<T>&>(list));
-    list.clearStorage();  // capacity=0 etc.
+
+    capacity_ = list.capacity();
+    list.setCapacity_unsafe(0);  // All contents moved
 }
 
 
@@ -681,17 +686,22 @@ inline void Foam::DynamicField<T, SizeMin>::transfer
 {
     if
     (
-        static_cast<const List<T>*>(this)
-     == static_cast<const List<T>*>(&list)
+        FOAM_UNLIKELY
+        (
+            static_cast<const UList<T>*>(this)
+         == static_cast<const UList<T>*>(&list)
+        )
     )
     {
         return;  // Self-assignment is a no-op
     }
 
-    // Take over storage as-is (without shrink)
-    capacity_ = list.capacity();
+    // Consistent allocated sizing
+    List<T>::setAddressableSize(capacity_);
     Field<T>::transfer(static_cast<List<T>&>(list));
-    list.clearStorage();  // capacity=0 etc.
+
+    capacity_ = list.capacity();
+    list.setCapacity_unsafe(0);  // All contents moved
 }
 
 
@@ -744,7 +754,14 @@ inline void Foam::DynamicField<T, SizeMin>::push_back
     const UList<T>& list
 )
 {
-    if (this == &list)
+    if
+    (
+        FOAM_UNLIKELY
+        (
+            static_cast<const UList<T>*>(this)
+         == static_cast<const UList<T>*>(&list)
+        )
+    )
     {
         FatalErrorInFunction
             << "Attempted push_back to self"
@@ -764,7 +781,14 @@ inline void Foam::DynamicField<T, SizeMin>::push_back
     List<T>&& list
 )
 {
-    if (this == &list)
+    if
+    (
+        FOAM_UNLIKELY
+        (
+            static_cast<const UList<T>*>(this)
+         == static_cast<const UList<T>*>(&list)
+        )
+    )
     {
         FatalErrorInFunction
             << "Attempted push_back to self"
@@ -774,6 +798,7 @@ inline void Foam::DynamicField<T, SizeMin>::push_back
     const label idx = List<T>::size();
     resize(idx + list.size());
 
+    // Move the elements
     std::move(list.begin(), list.end(), this->begin(idx));
 
     list.clear();
@@ -880,7 +905,7 @@ inline void Foam::DynamicField<T, SizeMin>::operator=
     List<T>&& list
 )
 {
-    transfer(list);
+    this->transfer(list);
 }
 
 
@@ -890,7 +915,7 @@ inline void Foam::DynamicField<T, SizeMin>::operator=
     DynamicField<T, SizeMin>&& list
 )
 {
-    transfer(list);
+    this->transfer(list);
 }
 
 
@@ -901,7 +926,7 @@ inline void Foam::DynamicField<T, SizeMin>::operator=
     DynamicField<T, AnySizeMin>&& list
 )
 {
-    transfer(list);
+    this->transfer(list);
 }
 
 
@@ -912,7 +937,7 @@ inline void Foam::DynamicField<T, SizeMin>::operator=
     DynamicList<T, AnySizeMin>&& list
 )
 {
-    transfer(list);
+    this->transfer(list);
 }
 
 

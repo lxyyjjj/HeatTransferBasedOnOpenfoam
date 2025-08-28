@@ -27,12 +27,12 @@ Typedef
     Foam::pointZoneMesh
 
 Description
-    A ZoneMesh with the type pointZone
+    A ZoneMesh with pointZone content on a polyMesh
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef pointZoneMeshFwd_H
-#define pointZoneMeshFwd_H
+#ifndef Foam_pointZoneMeshFwd_H
+#define Foam_pointZoneMeshFwd_H
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
