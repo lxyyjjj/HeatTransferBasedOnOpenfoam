@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2016 OpenFOAM Foundation
-    Copyright (C) 2017-2023 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,17 +43,13 @@ namespace Foam
 
 Foam::zone::zone()
 :
-    zoneIdentifier(),
-    labelList(),
-    lookupMapPtr_(nullptr)
+    zoneIdentifier()
 {}
 
 
 Foam::zone::zone(const word& name, const label index)
 :
-    zoneIdentifier(name, index),
-    labelList(),
-    lookupMapPtr_(nullptr)
+    zoneIdentifier(name, index)
 {}
 
 
@@ -91,9 +87,23 @@ Foam::zone::zone
     const label index
 )
 :
-    zoneIdentifier(name, dict, index),
-    labelList(dict.get<labelList>(labelsName)),
-    lookupMapPtr_(nullptr)
+    zoneIdentifier(name, dict, index)
+{
+    if (!labelsName.empty())
+    {
+        dict.readEntry<labelList>(labelsName, *this, keyType::LITERAL);
+    }
+}
+
+
+Foam::zone::zone
+(
+    const zone& originalZone,
+    const label newIndex
+)
+:
+    zoneIdentifier(originalZone, newIndex),
+    labelList(originalZone)
 {}
 
 
@@ -105,8 +115,7 @@ Foam::zone::zone
 )
 :
     zoneIdentifier(originalZone, newIndex),
-    labelList(addr),
-    lookupMapPtr_(nullptr)
+    labelList(addr)
 {}
 
 
@@ -118,8 +127,7 @@ Foam::zone::zone
 )
 :
     zoneIdentifier(originalZone, newIndex),
-    labelList(std::move(addr)),
-    lookupMapPtr_(nullptr)
+    labelList(std::move(addr))
 {}
 
 
@@ -131,8 +139,9 @@ const Foam::Map<Foam::label>& Foam::zone::lookupMap() const
     {
         const labelList& addr = *this;
 
-        lookupMapPtr_.reset(new Map<label>(2*addr.size()));
+        lookupMapPtr_.reset(new Map<label>());
         auto& map = *lookupMapPtr_;
+        map.reserve(addr.size());
 
         for (const label id : addr)
         {
@@ -148,6 +157,13 @@ Foam::label Foam::zone::localID(const label globalID) const
 {
     return lookupMap().lookup(globalID, -1);
 }
+
+
+// void Foam::zone::sort()
+// {
+//     clearAddressing();
+//     Foam::sort(*this);
+// }
 
 
 void Foam::zone::clearAddressing()
@@ -169,7 +185,8 @@ bool Foam::zone::checkDefinition(const label maxSize, const bool report) const
     bool hasError = false;
 
     // To check for duplicate entries
-    labelHashSet elems(2*size());
+    labelHashSet elems;
+    elems.reserve(addr.size());
 
     for (const label id : addr)
     {
@@ -182,8 +199,7 @@ bool Foam::zone::checkDefinition(const label maxSize, const bool report) const
                 SeriousErrorInFunction
                     << "Zone " << this->name()
                     << " contains invalid index label " << id << nl
-                    << "Valid index labels are 0.."
-                    << maxSize-1 << endl;
+                    << "Valid index labels are 0.." << (maxSize-1) << endl;
             }
             else
             {
@@ -208,8 +224,8 @@ bool Foam::zone::checkDefinition(const label maxSize, const bool report) const
 
 void Foam::zone::write(Ostream& os) const
 {
-    os  << nl << this->name()
-        << nl << static_cast<const labelList&>(*this);
+    os.writeEntry("type", type());
+    zoneIdentifier::write(os);
 }
 
 
@@ -217,7 +233,9 @@ void Foam::zone::write(Ostream& os) const
 
 Foam::Ostream& Foam::operator<<(Ostream& os, const zone& zn)
 {
-    zn.write(os);
+    os  << nl << zn.name()
+        << nl << static_cast<const labelList&>(zn);
+
     os.check(FUNCTION_NAME);
     return os;
 }

@@ -531,6 +531,32 @@ const
 
 
 template<class ZoneType, class MeshType>
+bool Foam::ZoneMesh<ZoneType, MeshType>::reindex()
+{
+    PtrList<ZoneType>& zones = *this;
+
+    bool changed = false;
+
+    // Adapt indices
+    forAll(zones, zonei)
+    {
+        if (zones[zonei].index() != zonei)
+        {
+            zones[zonei].index() = zonei;
+            changed = true;
+        }
+    }
+
+    if (changed)
+    {
+        this->clearLocalAddressing();
+    }
+
+    return changed;
+}
+
+
+template<class ZoneType, class MeshType>
 Foam::labelList Foam::ZoneMesh<ZoneType, MeshType>::indices
 (
     const wordRe& matcher,
@@ -1069,16 +1095,76 @@ void Foam::ZoneMesh<ZoneType, MeshType>::updateMetaData()
     }
     else
     {
-        dictionary& meta = this->getMetaData();
-        meta.set("names", zoneNames);
+        // Save as a list of names without the leading size
+        tokenList toks(2+zoneNames.size());
+
+        auto iter = toks.begin();
+        (*iter).pToken(token::BEGIN_LIST);
+        iter = std::move(zoneNames.begin(), zoneNames.end(), ++iter);
+        (*iter).pToken(token::END_LIST);
+
+        this->getMetaData().set("names", std::move(toks));
     }
+}
+
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+template<class ZoneType, class MeshType>
+void Foam::ZoneMesh<ZoneType, MeshType>::writeEntry(Ostream& os) const
+{
+    const PtrList<ZoneType>& entries = *this;
+
+    os << entries.size();
+
+    if (entries.empty())
+    {
+        // 0-sized : can write with less vertical space
+        os << token::BEGIN_LIST << token::END_LIST;
+    }
+    else
+    {
+        os << nl << token::BEGIN_LIST << nl;
+
+        for (const auto& zn : entries)
+        {
+            os.beginBlock(zn.name());
+            zn.write(os);
+            os.endBlock();
+        }
+        os << token::END_LIST;
+    }
+}
+
+
+template<class ZoneType, class MeshType>
+void Foam::ZoneMesh<ZoneType, MeshType>::writeEntry
+(
+    const word& keyword,
+    Ostream& os
+) const
+{
+    const PtrList<ZoneType>& entries = *this;
+
+    if (!keyword.empty())
+    {
+        os.write(keyword);
+        if (entries.empty())
+        {
+            os << token::SPACE;
+        }
+    }
+
+    writeEntry(os);
+
+    if (!keyword.empty()) os.endEntry();
 }
 
 
 template<class ZoneType, class MeshType>
 bool Foam::ZoneMesh<ZoneType, MeshType>::writeData(Ostream& os) const
 {
-    os  << *this;
+    writeEntry(os);
     return os.good();
 }
 
@@ -1163,24 +1249,7 @@ Foam::Ostream& Foam::operator<<
     const ZoneMesh<ZoneType, MeshType>& zones
 )
 {
-    const label sz = zones.size();
-
-    if (sz)
-    {
-        os  << sz << nl << token::BEGIN_LIST;
-
-        for (label i=0; i < sz; ++i)
-        {
-            zones[i].writeDict(os);
-        }
-
-        os  << token::END_LIST;
-    }
-    else
-    {
-        os  << sz << token::BEGIN_LIST << token::END_LIST;
-    }
-
+    zones.writeEntry(os);
     return os;
 }
 

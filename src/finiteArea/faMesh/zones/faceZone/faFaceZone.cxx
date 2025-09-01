@@ -5,8 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2011 OpenFOAM Foundation
-    Copyright (C) 2017-2025 OpenCFD Ltd.
+    Copyright (C) 2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,35 +25,35 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "cellZone.H"
-#include "cellZoneMesh.H"
-#include "polyMesh.H"
+#include "faFaceZone.H"
+#include "faFaceZoneMesh.H"
+#include "faMesh.H"
 #include "IOstream.H"
-#include "addToRunTimeSelectionTable.H"
+// #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    defineTypeNameAndDebug(cellZone, 0);
-    defineRunTimeSelectionTable(cellZone, dictionary);
-    addToRunTimeSelectionTable(cellZone, cellZone, dictionary);
+    defineTypeNameAndDebug(faFaceZone, 0);
+    // defineRunTimeSelectionTable(faFaceZone, dictionary);
+    // addToRunTimeSelectionTable(faFaceZone, faFaceZone, dictionary);
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::cellZone::cellZone(const cellZoneMesh& zm)
+Foam::faFaceZone::faFaceZone(const faFaceZoneMesh& zm)
 :
     zone(),
     zoneMesh_(zm)
 {}
 
 
-Foam::cellZone::cellZone
+Foam::faFaceZone::faFaceZone
 (
     const word& name,
     const label index,
-    const cellZoneMesh& zm
+    const faFaceZoneMesh& zm
 )
 :
     zone(name, index),
@@ -62,12 +61,12 @@ Foam::cellZone::cellZone
 {}
 
 
-Foam::cellZone::cellZone
+Foam::faFaceZone::faFaceZone
 (
     const word& name,
     const labelUList& addr,
     const label index,
-    const cellZoneMesh& zm
+    const faFaceZoneMesh& zm
 )
 :
     zone(name, addr, index),
@@ -75,12 +74,12 @@ Foam::cellZone::cellZone
 {}
 
 
-Foam::cellZone::cellZone
+Foam::faFaceZone::faFaceZone
 (
     const word& name,
     labelList&& addr,
     const label index,
-    const cellZoneMesh& zm
+    const faFaceZoneMesh& zm
 )
 :
     zone(name, std::move(addr), index),
@@ -88,23 +87,23 @@ Foam::cellZone::cellZone
 {}
 
 
-Foam::cellZone::cellZone
+Foam::faFaceZone::faFaceZone
 (
     const word& name,
     const dictionary& dict,
     const label index,
-    const cellZoneMesh& zm
+    const faFaceZoneMesh& zm
 )
 :
-    zone(name, dict, cellZone::labelsName(), index),
+    zone(name, dict, faFaceZone::labelsName(), index),
     zoneMesh_(zm)
 {}
 
 
-Foam::cellZone::cellZone
+Foam::faFaceZone::faFaceZone
 (
-    const cellZone& originalZone,
-    const cellZoneMesh& zm,
+    const faFaceZone& originalZone,
+    const faFaceZoneMesh& zm,
     const label newIndex
 )
 :
@@ -113,11 +112,11 @@ Foam::cellZone::cellZone
 {}
 
 
-Foam::cellZone::cellZone
+Foam::faFaceZone::faFaceZone
 (
-    const cellZone& originalZone,
+    const faFaceZone& originalZone,
     Foam::zero,
-    const cellZoneMesh& zm,
+    const faFaceZoneMesh& zm,
     const label newIndex
 )
 :
@@ -126,12 +125,12 @@ Foam::cellZone::cellZone
 {}
 
 
-Foam::cellZone::cellZone
+Foam::faFaceZone::faFaceZone
 (
-    const cellZone& originalZone,
+    const faFaceZone& originalZone,
     Foam::zero,
     const label index,
-    const cellZoneMesh& zm
+    const faFaceZoneMesh& zm
 )
 :
     zone(originalZone, labelList(), index),
@@ -139,29 +138,29 @@ Foam::cellZone::cellZone
 {}
 
 
-Foam::cellZone::cellZone
+Foam::faFaceZone::faFaceZone
 (
-    const cellZone& originalZone,
+    const faFaceZone& originalZone,
     const labelUList& addr,
     const label index,
-    const cellZoneMesh& zm
+    const faFaceZoneMesh& zm
 )
 :
-    cellZone(originalZone, Foam::zero{}, index, zm)
+    faFaceZone(originalZone, Foam::zero{}, index, zm)
 {
     labelList::operator=(addr);
 }
 
 
-Foam::cellZone::cellZone
+Foam::faFaceZone::faFaceZone
 (
-    const cellZone& originalZone,
+    const faFaceZone& originalZone,
     labelList&& addr,
     const label index,
-    const cellZoneMesh& zm
+    const faFaceZoneMesh& zm
 )
 :
-    cellZone(originalZone, Foam::zero{}, index, zm)
+    faFaceZone(originalZone, Foam::zero{}, index, zm)
 {
     labelList::transfer(addr);
 }
@@ -169,20 +168,19 @@ Foam::cellZone::cellZone
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Foam::label Foam::cellZone::max_index() const noexcept
+Foam::label Foam::faceZonecellZone::max_index() const noexcept
 {
-    return zoneMesh_.mesh().nCells();
+    return zoneMesh_.mesh().nFaces();
 }
 
 
-// void Foam::cellZone::sort()
-// {
-//     clearAddressing();
-//     Foam::sort(static_cast<labelList&>(*this));
-// }
+bool Foam::faFaceZone::checkDefinition(const bool report) const
+{
+    return zone::checkDefinition(max_index(), report);
+}
 
 
-void Foam::cellZone::resetAddressing(cellZone&& zn)
+void Foam::faFaceZone::resetAddressing(faFaceZone&& zn)
 {
     if (this == &zn)
     {
@@ -195,7 +193,7 @@ void Foam::cellZone::resetAddressing(cellZone&& zn)
 }
 
 
-void Foam::cellZone::resetAddressing(const cellZone& zn)
+void Foam::faFaceZone::resetAddressing(const faFaceZone& zn)
 {
     if (this == &zn)
     {
@@ -207,58 +205,50 @@ void Foam::cellZone::resetAddressing(const cellZone& zn)
 }
 
 
-void Foam::cellZone::resetAddressing(const labelUList& addr)
+void Foam::faFaceZone::resetAddressing(const labelUList& addr)
 {
     clearAddressing();
     labelList::operator=(addr);
 }
 
 
-void Foam::cellZone::resetAddressing(labelList&& addr)
+void Foam::faFaceZone::resetAddressing(labelList&& addr)
 {
     clearAddressing();
     labelList::transfer(addr);
 }
 
 
-void Foam::cellZone::write(Ostream& os) const
+void Foam::faFaceZone::write(Ostream& os) const
 {
     zone::write(os);
-    labelList::writeEntry(cellZone::labelsName(), os);
+    labelList::writeEntry(faFaceZone::labelsName(), os);
 }
 
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-void Foam::cellZone::operator=(const cellZone& zn)
+void Foam::faFaceZone::operator=(const faFaceZone& zn)
 {
-    if (this == &zn)
-    {
-        return;  // Self-assignment is a no-op
-    }
-
-    clearAddressing();
-    labelList::operator=(static_cast<const labelList&>(zn));
+    resetAddressing(zn);
 }
 
 
-void Foam::cellZone::operator=(const labelUList& addr)
+void Foam::faFaceZone::operator=(const labelUList& addr)
 {
-    clearAddressing();
-    labelList::operator=(addr);
+    resetAddressing(addr);
 }
 
 
-void Foam::cellZone::operator=(labelList&& addr)
+void Foam::faFaceZone::operator=(labelList&& addr)
 {
-    clearAddressing();
-    labelList::transfer(addr);
+    resetAddressing(std::move(addr));
 }
 
 
 // * * * * * * * * * * * * * * * Ostream Operator  * * * * * * * * * * * * * //
 
-Foam::Ostream& Foam::operator<<(Ostream& os, const cellZone& zn)
+Foam::Ostream& Foam::operator<<(Ostream& os, const faFaceZone& zn)
 {
     zn.write(os);
     os.check(FUNCTION_NAME);

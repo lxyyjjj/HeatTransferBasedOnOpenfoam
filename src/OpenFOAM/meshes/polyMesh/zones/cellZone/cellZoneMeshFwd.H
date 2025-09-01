@@ -24,25 +24,25 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Typedef
-    Foam::pointZoneMesh
+    Foam::cellZoneMesh
 
 Description
-    A ZoneMesh with pointZone content on a polyMesh
+    A ZoneMesh with cellZone content on a polyMesh
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef Foam_pointZoneMeshFwd_H
-#define Foam_pointZoneMeshFwd_H
+#ifndef Foam_cellZoneMeshFwd_H
+#define Foam_cellZoneMeshFwd_H
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    class pointZone;
+    class cellZone;
     class polyMesh;
 
-    template<class Zone, class MeshType> class ZoneMesh;
-    typedef ZoneMesh<pointZone, polyMesh> pointZoneMesh;
+    template<class ZoneType, class MeshType> class ZoneMesh;
+    typedef ZoneMesh<cellZone, polyMesh> cellZoneMesh;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,29 +23,17 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Typedef
-    Foam::faceZoneMesh
-
 Description
-    A ZoneMesh with faceZone content on a polyMesh
+    Foam::faFaceZoneMesh
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef Foam_faceZoneMeshFwd_H
-#define Foam_faceZoneMeshFwd_H
+#ifndef Foam_faFaceZoneMesh_H
+#define Foam_faFaceZoneMesh_H
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
-    class faceZone;
-    class polyMesh;
-
-    template<class Zone, class MeshType> class ZoneMesh;
-    typedef ZoneMesh<faceZone, polyMesh> faceZoneMesh;
-}
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+#include "ZoneMesh.H"
+#include "faFaceZone.H"
+#include "faFaceZoneMeshFwd.H"
 
 #endif
 

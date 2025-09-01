@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,25 +24,25 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Typedef
-    Foam::cellZoneMesh
+    Foam::faFaceZone
 
 Description
-    A ZoneMesh with cellZone content on a polyMesh
+    A ZoneMesh with faFaceZone content on a faMesh
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef Foam_cellZoneMeshFwd_H
-#define Foam_cellZoneMeshFwd_H
+#ifndef Foam_faFaceZoneMeshFwd_H
+#define Foam_faFaceZoneMeshFwd_H_H
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    class cellZone;
-    class polyMesh;
+    class faFaceZone;
+    class faMesh;
 
-    template<class Zone, class MeshType> class ZoneMesh;
-    typedef ZoneMesh<cellZone, polyMesh> cellZoneMesh;
+    template<class ZoneType, class MeshType> class ZoneMesh;
+    typedef ZoneMesh<faFaceZone, faMesh> faFaceZoneMesh;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

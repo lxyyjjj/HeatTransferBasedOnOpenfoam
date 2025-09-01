@@ -11,6 +11,8 @@ faMesh/faMeshBoundaryHalo.C
 faMesh/faBoundaryMesh/faBoundaryMesh.C
 faMesh/faBoundaryMesh/faBoundaryMeshEntries.C
 
+faceZone = faMesh/zones/faceZone/faFaceZone.cxx
+
 faMesh/faMeshSubset/faMeshSubset.C
 faMesh/faMeshTools/faMeshTools.C
 faMesh/faMeshTools/faMeshToolsChecks.C

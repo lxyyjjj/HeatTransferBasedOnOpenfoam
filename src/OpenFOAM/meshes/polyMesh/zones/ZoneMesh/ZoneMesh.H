@@ -113,6 +113,9 @@ public:
 
     // Public Typedefs
 
+        //- The referenced mesh type
+        typedef MeshType mesh_type;
+
         //- The zone type. Same as PtrList<ZoneType>::value_type
         typedef ZoneType zone_type;
 
@@ -226,6 +229,11 @@ public:
         //- Sorted list of zone names satisfying the input matchers
         wordList sortedNames(const wordRes& matcher) const;
 
+        //- Adjust the index of zone entries to be consistent with their
+        //- position in the list.
+        //  If the indexing changed, invalidates any mapping.
+        //  \returns true if the indexing changed.
+        bool reindex();
 
         //- The (sorted) patch indices for all matches,
         //- optionally matching zone groups.
@@ -380,8 +388,15 @@ public:
         //- Update internal meta-data (eg, prior to writing)
         void updateMetaData();
 
+        //- Write as a plain list of entries
+        void writeEntry(Ostream& os) const;
+
+        //- Write as a primitive entry with given name.
+        //- If the keyword is empty, revert to a plain list.
+        void writeEntry(const word& keyword, Ostream& os) const;
+
         //- The writeData member function required by regIOobject
-        bool writeData(Ostream& os) const;
+        virtual bool writeData(Ostream& os) const;
 
 
     // Ostream Operator
