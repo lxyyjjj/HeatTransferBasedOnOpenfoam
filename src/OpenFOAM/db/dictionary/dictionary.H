@@ -953,6 +953,21 @@ public:
         //  \return pointer to inserted entry or nullptr on failure
         entry* set(const keyType& k, const dictionary& v);
 
+        //- Assign an empty primitive entry,
+        //- overwriting any existing entry.
+        //  \return pointer to entry or nullptr on failure
+        entry* set(const keyType& k, std::nullptr_t);
+
+        //- Assign a primitive entry from a list of tokens,
+        //- overwriting any existing entry.
+        //  \return pointer to entry or nullptr on failure
+        entry* set(const keyType& k, const UList<token>& tokens);
+
+        //- Assign a primitive entry from a list of tokens,
+        //- overwriting any existing entry.
+        //  \return pointer to entry or nullptr on failure
+        entry* set(const keyType& k, List<token>&& tokens);
+
         //- Assign a T entry, overwriting any existing entry.
         //  \return pointer to inserted entry or nullptr on failure
         template<class T>

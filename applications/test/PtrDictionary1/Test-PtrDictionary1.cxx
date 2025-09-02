@@ -42,6 +42,8 @@ Description
 
 using namespace Foam;
 
+bool verbosity = true;
+
 class ent
 :
     public Dictionary<ent>::link
@@ -73,14 +75,12 @@ class Scalar
 
 public:
 
-    static bool verbose;
-
     constexpr Scalar() noexcept : data_(0) {}
     Scalar(scalar val) noexcept : data_(val) {}
 
     ~Scalar()
     {
-        if (verbose) Info<< "delete Scalar: " << data_ << endl;
+        if (verbosity) Info<< "delete Scalar: " << data_ << endl;
     }
 
     scalar value() const noexcept { return data_; }
@@ -92,8 +92,6 @@ public:
         return os;
     }
 };
-
-bool Scalar::verbose = true;
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -28,7 +28,13 @@ Class
     Foam::Field
 
 Description
-    Generic templated field type.
+    Generic templated field type that is much like a Foam::List
+    except that it is expected to hold numerical content
+    (not generic elements such as strings etc).
+
+    In addition to methods specific to numerical fields
+    (e.g., clamp, min, max, transpose, ...), it also has a reference
+    counter that is used by Foam::tmp handling.
 
 SourceFiles
     FieldFunctions.H

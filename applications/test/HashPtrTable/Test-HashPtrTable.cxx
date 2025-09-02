@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011 OpenFOAM Foundation
-    Copyright (C) 2017-2022 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,33 +42,55 @@ Description
 
 using namespace Foam;
 
-class Scalar
+bool verbosity = true;
+
+// Gratuitous class inheritance
+template<class T>
+class BoxedType
 {
-    scalar data_;
+    T data_;
 
 public:
 
     static bool verbose;
 
-    constexpr Scalar() noexcept : data_(0) {}
-    Scalar(scalar val) noexcept : data_(val) {}
+    constexpr BoxedType() noexcept : data_(0) {}
+    BoxedType(T val) noexcept : data_(val) {}
+
+    ~BoxedType()
+    {
+        if (verbosity) Info<< "    [delete BoxedType: " << value() << ']' << nl;
+    }
+
+    T value() const noexcept { return data_; }
+    T& value() noexcept { return data_; }
+
+    auto clone() const { return autoPtr<BoxedType<T>>::New(*this); }
+};
+
+template<class T> Ostream& operator<<(Ostream& os, const BoxedType<T>& item)
+{
+    return (os << " -> " << item.value());
+}
+
+
+class Scalar : public BoxedType<scalar>
+{
+public:
+
+    using BoxedType<scalar>::BoxedType;
 
     ~Scalar()
     {
-        if (verbose) Info<< "delete Scalar: " << data_ << endl;
+        if (verbosity) Info<< "delete Scalar: " << value() << nl;
     }
-
-    const scalar& value() const noexcept { return data_; }
-    scalar& value() noexcept { return data_; }
-
-    friend Ostream& operator<<(Ostream& os, const Scalar& item)
-    {
-        os  << item.value();
-        return os;
-    }
+    auto clone() const { return autoPtr<Scalar>::New(*this); }
 };
 
-bool Scalar::verbose = true;
+Ostream& operator<<(Ostream& os, const Scalar& item)
+{
+    return (os << item.value());
+}
 
 
 template<class T>

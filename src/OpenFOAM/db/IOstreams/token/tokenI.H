@@ -547,6 +547,14 @@ inline bool Foam::token::boolToken() const
 }
 
 
+inline void Foam::token::boolToken(bool on)
+{
+    reset();
+    type_ = tokenType::BOOL;
+    data_.labelVal = on;
+}
+
+
 inline bool Foam::token::isFlag() const noexcept
 {
     return (type_ == tokenType::FLAG);
@@ -603,6 +611,14 @@ inline Foam::token::punctuationToken Foam::token::pToken() const
 }
 
 
+inline void Foam::token::pToken(const punctuationToken p)
+{
+    reset();
+    type_ = tokenType::PUNCTUATION;
+    data_.punctuationVal = p;
+}
+
+
 inline bool Foam::token::isLabel() const noexcept
 {
     return
@@ -646,6 +662,14 @@ inline Foam::label Foam::token::labelToken() const
 
     parseError("label");
     return 0;
+}
+
+
+inline void Foam::token::labelToken(const label val)
+{
+    reset();
+    type_ = tokenType::LABEL;
+    data_.labelVal = val;
 }
 
 
@@ -1031,17 +1055,13 @@ inline void Foam::token::operator=(token&& tok)
 
 inline void Foam::token::operator=(const punctuationToken p)
 {
-    reset();
-    type_ = tokenType::PUNCTUATION;
-    data_.punctuationVal = p;
+    token::pToken(p);
 }
 
 
 inline void Foam::token::operator=(const label val)
 {
-    reset();
-    type_ = tokenType::LABEL;
-    data_.labelVal = val;
+    token::labelToken(val);
 }
 
 

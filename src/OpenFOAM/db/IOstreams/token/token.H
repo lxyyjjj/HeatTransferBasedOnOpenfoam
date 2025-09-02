@@ -717,6 +717,9 @@ public:
         //  Report FatalIOError and return false if token is not BOOL or LABEL
         inline bool boolToken() const;
 
+        //- Assign to a boolean token
+        inline void boolToken(bool on);
+
         //- Return flag bitmask value.
         //  Report FatalIOError and return NO_FLAG if token is not FLAG
         inline int flagToken() const;
@@ -725,9 +728,15 @@ public:
         //  Report FatalIOError and return \b \\0 if token is not PUNCTUATION
         inline punctuationToken pToken() const;
 
+        //- Assign to a punctuation token
+        inline void pToken(const punctuationToken p);
+
         //- Return label value.
         //  Report FatalIOError and return \b 0 if token is not LABEL
         inline label labelToken() const;
+
+        //- Assign to a label token
+        inline void labelToken(const label val);
 
         //- Return float value.
         //  Report FatalIOError and return \b 0 if token is not FLOAT

@@ -39,26 +39,26 @@ Description
 
 using namespace Foam;
 
+bool verbosity = true;
+
 class Scalar
 {
     scalar data_;
 
 public:
 
-    static bool verbose;
-
     constexpr Scalar() noexcept : data_(0) {}
     Scalar(scalar val) noexcept : data_(val) {}
 
     ~Scalar()
     {
-        if (verbose) Info<< "delete Scalar: " << data_ << endl;
+        if (verbosity) Info<< "delete Scalar: " << value() << nl;
     }
 
-    const scalar& value() const noexcept { return data_; }
+    scalar value() const noexcept { return data_; }
     scalar& value() noexcept { return data_; }
 
-    autoPtr<Scalar> clone() const { return autoPtr<Scalar>::New(data_); }
+    auto clone() const { return autoPtr<Scalar>::New(*this); }
 
     friend Ostream& operator<<(Ostream& os, const Scalar& item)
     {
@@ -66,8 +66,6 @@ public:
         return os;
     }
 };
-
-bool Scalar::verbose = true;
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

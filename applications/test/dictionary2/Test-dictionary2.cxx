@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2017-2023 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -47,8 +47,18 @@ void entryInfo(entry* e)
 {
     if (e)
     {
-        Info<<"added "
-            << e->keyword() << ": " << typeid(e).name() << nl;
+        Info<< "added "
+            << e->keyword() << ": " << typeid(e).name();
+
+        if (auto* stream = e->streamPtr())
+        {
+            Info<< " tokens: "; stream->tokens().writeList(Info);
+        }
+        if (auto* dict = e->dictPtr())
+        {
+            Info<< " dictionary:";
+        }
+        Info<< nl;
     }
 }
 
@@ -200,12 +210,31 @@ int main(int argc, char *argv[])
     {
         dictionary tmpdict;
 
+        // Add an empty entry and populate afterwards
+        if (entry* e = dict1.set(word::printf("entry%d", i), nullptr))
         {
-            entry* e = dict1.add
-            (
-                word::printf("entry%d", i),
-                string("entry" + Foam::name(i))
-            );
+            auto& toks = e->stream();
+            toks.resize(2);
+
+            toks[0] = word("value" + Foam::name(i));
+            toks[1] = 10*i;
+            entryInfo(e);
+        }
+
+        // Add an entry from given list of tokens
+        {
+            tokenList toks(2);
+            toks[0] = word("value" + Foam::name(i));
+            toks[1] = 10*i;
+
+            Info<< "set token0: " << Foam::name(&(toks[0])) << nl;
+
+            entry* e = dict1.set(word::printf("_entry%d", i), std::move(toks));
+
+            // verify that the address is identical (ie, move semantics worked)
+            auto& newToks = e->stream();
+            Info<< "get token0: " << Foam::name(&(newToks[0])) << nl;
+
             entryInfo(e);
         }
 

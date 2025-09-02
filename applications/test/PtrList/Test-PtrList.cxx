@@ -41,35 +41,85 @@ Description
 
 using namespace Foam;
 
-class Scalar
+bool verbosity = true;
+
+// Gratuitous class inheritance
+template<class T>
+class BoxedType
 {
-    scalar data_;
+    T data_;
 
 public:
 
     static bool verbose;
 
-    constexpr Scalar() noexcept : data_(0) {}
-    Scalar(scalar val) noexcept : data_(val) {}
+    constexpr BoxedType() noexcept : data_(0) {}
+    BoxedType(T val) noexcept : data_(val) {}
+
+    ~BoxedType()
+    {
+        if (verbosity) Info<< "    [delete BoxedType: " << value() << ']' << nl;
+    }
+
+    T value() const noexcept { return data_; }
+    T& value() noexcept { return data_; }
+
+    auto clone() const { return autoPtr<BoxedType<T>>::New(*this); }
+};
+
+template<class T> Ostream& operator<<(Ostream& os, const BoxedType<T>& item)
+{
+    return (os << " -> " << item.value());
+}
+
+
+class Scalar : public BoxedType<scalar>
+{
+public:
+
+    using BoxedType<scalar>::BoxedType;
 
     ~Scalar()
     {
-        if (verbose) Info<< "delete Scalar: " << data_ << endl;
+        if (verbosity) Info<< "delete Scalar: " << value() << nl;
     }
-
-    scalar value() const noexcept { return data_; }
-    scalar& value() noexcept { return data_; }
-
-    autoPtr<Scalar> clone() const { return autoPtr<Scalar>::New(data_); }
-
-    friend Ostream& operator<<(Ostream& os, const Scalar& item)
-    {
-        os  << item.value();
-        return os;
-    }
+    auto clone() const { return autoPtr<Scalar>::New(*this); }
 };
 
-bool Scalar::verbose = true;
+Ostream& operator<<(Ostream& os, const Scalar& item)
+{
+    return (os << item.value());
+}
+
+
+class Integer : public BoxedType<label>
+{
+public:
+
+    using BoxedType<label>::BoxedType;
+
+    ~Integer()
+    {
+        if (verbosity) Info<< "delete Integer: " << value() << nl;
+    }
+    auto clone() const { return autoPtr<Integer>::New(*this); }
+};
+
+Ostream& operator<<(Ostream& os, const Integer& item)
+{
+    return (os << item.value());
+}
+
+
+//- Permit up-casting to the base class (eg, fvMesh to polyMesh).
+//  Usually only for holding (const) references.
+//  Exercise caution with the
+template<class Base, class Derived>
+std::enable_if_t<std::is_base_of_v<Base, Derived>, const UPtrList<Base>&>
+upcast(const UPtrList<Derived>& This)
+{
+    return *reinterpret_cast<const UPtrList<Base>*>(&This);
+}
 
 
 // As per
@@ -251,9 +301,9 @@ int main(int argc, char *argv[])
 
         Info<< "DLPtrList: " << llist1 << endl;
 
-        Scalar::verbose = false;
+        verbosity = false;
         llist1.clear();
-        Scalar::verbose = true;
+        verbosity = true;
     }
     #endif
 
@@ -330,6 +380,44 @@ int main(int argc, char *argv[])
         // list1.push_back(std::move(ptr));
     }
 
+
+    // Test upcasting - dangerous
+    {
+        const auto& base =
+            *reinterpret_cast<UPtrList<BoxedType<scalar>>*>(&list1);
+
+        Info<< "list :" << list1 << nl;
+        Info<< "base :" << base << nl;
+    }
+
+    // Expect bad things to happen!!
+    {
+        const auto& base =
+            *reinterpret_cast<UPtrList<BoxedType<label>>*>(&list1);
+
+        Info<< "list :" << list1 << nl;
+        Info<< "base :" << base << nl;
+    }
+
+    // Test upcasting - compile safer (make as member function?)
+    {
+        // const auto& base = list1.upcast<BoxedType<scalar>>();
+        const auto& base = upcast<BoxedType<scalar>>(list1);
+
+        Info<< "list :" << list1 << nl;
+        Info<< "base :" << base << nl;
+    }
+
+    // Refuse to compile (good!)
+    #if 0
+    {
+        // const auto& base = list1.upcast<BoxedType<label>>();
+        const auto& base = upcast<BoxedType<label>>(list1);
+
+        Info<< "list :" << list1 << nl;
+        Info<< "base :" << base << nl;
+    }
+    #endif
 
     PtrList<Scalar> list2(15);
     Info<< "Emplace set " << list2.size() << " values" << nl;
