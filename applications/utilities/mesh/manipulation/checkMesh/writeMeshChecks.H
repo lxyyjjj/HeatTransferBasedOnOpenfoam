@@ -15,6 +15,12 @@ writeChecksFormatType writeChecksFormat(writeChecksFormatType::none);
 
 auto writeMeshChecks = [&](const fvMesh& mesh, const writeChecksFormatType fmt)
 {
+    // Early exit if 'none' option is set
+    if (fmt == writeChecksFormatType::none)
+    {
+        return;
+    }
+
     if (UPstream::master())
     {
         fileName path(mesh.time().globalPath()/"checkMesh");
