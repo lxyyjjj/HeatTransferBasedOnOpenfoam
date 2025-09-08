@@ -38,6 +38,8 @@ linux*Gcc*/
 linux*Icc*/
 solaris*Gcc*/
 SunOS*Gcc*/
+darwin*Clang*/
+darwin*Gcc*/
 platforms/
 
 # Top-level build directories
