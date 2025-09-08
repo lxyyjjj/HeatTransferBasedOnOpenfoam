@@ -14,7 +14,7 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     MPPICFoam;
+application     MPPICDyMFoam;
 
 startFrom       startTime;
 
