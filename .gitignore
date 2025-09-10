@@ -11,6 +11,7 @@
 
 # File-browser settings - anywhere
 .directory
+.DS_Store   # OSX app store 
 
 # Backup/recovery versions - anywhere
 .#*
