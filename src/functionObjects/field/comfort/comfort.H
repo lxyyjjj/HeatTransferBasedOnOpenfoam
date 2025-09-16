@@ -133,6 +133,9 @@ class comfort
 {
     // Private Data
 
+        //- Wall patch IDs
+        mutable labelList wallPatchIDs_;
+
         //- Clothing [-]
         dimensionedScalar clothing_;
 
@@ -160,8 +163,14 @@ class comfort
         //- Tolerance criteria for iterative process to find Tcl
         scalar tolerance_;
 
+        //- Global sum of wall area [m^2]
+        mutable scalar wallArea_;
+
         //- Maximum number of correctors for cloth temperature
         int maxClothIter_;
+
+        //- Flag to indicate if wall info has been initialized
+        mutable bool wallInfoInit_;
 
         //- Flag to set to true if the radiation temperature is provided
         bool TradSet_;
@@ -174,6 +183,9 @@ class comfort
 
         //- Calculate the magnitude of the velocity [m/s]
         tmp<volScalarField> magU() const;
+
+        //- Initialize wall caches for Trad() (ids + global area)
+        void initWallInfo() const;
 
         //- Calculate the radiation temperature in the domain using a simple
         //- approach [K]
