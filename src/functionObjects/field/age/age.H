@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2018-2021 OpenFOAM Foundation
-    Copyright (C) 2021 OpenCFD Ltd.
+    Copyright (C) 2021-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -123,6 +123,12 @@ class age
         //- Name of field from which schemes are taken
         word schemesField_;
 
+        //- Name of the divergence scheme
+        word divScheme_;
+
+        //- Name of the Laplacian scheme
+        word laplacianScheme_;
+
         //- Convergence tolerance
         scalar tolerance_;
 
@@ -131,6 +137,9 @@ class age
 
         //- Flag to turn on/off the diffusion term
         bool diffusion_;
+
+        //- Flag that indicates if flux is mass-based or volume-based
+        bool isCompressible_;
 
 
     // Private Member Functions
