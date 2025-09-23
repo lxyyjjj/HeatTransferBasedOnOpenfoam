@@ -197,7 +197,7 @@ void Foam::binModels::singleDirectionUniformBin::apply()
         {
             WarningInFunction
                 << "Unable to find field " << fieldNames_[i]
-                << ". Avaliable objects are "
+                << ". Available objects are "
                 << mesh_.objectRegistry::sortedToc()
                 << endl;
         }
