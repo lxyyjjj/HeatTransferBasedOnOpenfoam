@@ -61,7 +61,7 @@ Usage
         mode            <mode>;
 
         // Optional entries (runtime modifiable)
-        T               <Tname>;
+        Ts              <TshellName>;
         emissivity      0;
 
         // Conditional mandatory entries (runtime modifiable)
@@ -83,10 +83,10 @@ Usage
 
     where the entries mean:
     \table
-      Property  | Description                          | Type  | Reqd | Dflt
-      type      | Type name: externalHeatFluxSource    | word  | yes  | -
-      mode      | Mode of heat flux condition          | word  | yes  | -
-      T         | Name of operand temperature field    | word  | no   | T
+      Property  | Description                       | Type  | Reqd | Dflt
+      type      | Type name: externalHeatFluxSource | word  | yes  | -
+      mode      | Mode of heat flux condition       | word  | yes  | -
+      Ts        | Name of shell temperature field   | word  | no   | Ts(suffix)
       emissivity | Surface emissivity for radiative flux to ambient <!--
                  -->                                   | scalar | no  | 0
       Q         | Fixed heat power [W]                 | Function1 | cndtnl | -
@@ -103,8 +103,15 @@ Usage
     \verbatim
       power       | Use fixed power (supply Q)
       flux        | Use fixed heat flux (supply q)
-      coefficient | Use fixes heat transfer coefficient (supply h and T)
+      coefficient | Use fixes heat transfer coefficient (supply h and Ta)
     \endverbatim
+
+    \b Naming changes from 2506 and earlier:
+    \table
+      Keyword  | Description               | Keyword (old) | Deflt (old)
+      Ts       | Temperature (shell)       | T   | T
+    \endtable
+    If \c Ts is missing, the keyword \c T is still accepted.
 
 See also
   - Foam::Function1
@@ -159,7 +166,7 @@ private:
         //- Operation mode
         operationMode mode_;
 
-        //- Name of temperature field
+        //- Name of shell temperature field (default: "Ts"+suffix)
         word TName_;
 
         //- Heat power [W]
@@ -174,7 +181,7 @@ private:
         //- Ambient temperature [K]
         autoPtr<Function1<scalar>> Ta_;
 
-        //- Optional surface emissivity for radiative transfer to ambient
+        //- Surface emissivity for radiative transfer to ambient (default: 0)
         scalar emissivity_;
 
 
