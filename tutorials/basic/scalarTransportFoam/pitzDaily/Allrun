@@ -3,17 +3,17 @@ cd "${0%/*}" || exit                                # Run from this directory
 . ${WM_PROJECT_DIR:?}/bin/tools/RunFunctions        # Tutorial run functions
 #------------------------------------------------------------------------------
 
-# Do pitzDaily
-( cd pitzDaily && foamRunTutorials )
+runApplication blockMesh
+runApplication $(getApplication)
 
 if true  ## if notTest "$@"
 then
     # Clone case for additional tests
-    cloneCase pitzDaily pitzDaily-stepFunction
+    cloneCase . ../pitzDaily-stepFunction
 
     # Modify and execute
     (
-        cd pitzDaily-stepFunction || exit
+        cd ../pitzDaily-stepFunction || exit
 
         # Run a bit longer
         foamDictionary system/controlDict -entry endTime -set 0.2
