@@ -89,9 +89,10 @@ See also
 
 SourceFiles
     IOobject.C
+    IOobjectIO.C
+    IOobjectMetaData.C
     IOobjectReadHeader.C
     IOobjectWriteHeader.C
-    IOobjectPrint.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -99,6 +100,7 @@ SourceFiles
 #define Foam_IOobject_H
 
 #include "fileName.H"
+#include "scalarFwd.H"
 #include "typeInfo.H"
 #include "refPtr.H"  // For autoPtr, refPtr, tmp, stdFoam
 #include "Enum.H"
@@ -127,6 +129,10 @@ Ostream& operator<<(Ostream&, const InfoProxy<IOobject>&);
 template<class T>
 struct is_globalIOobject : std::false_type {};
 
+//- Trait for specifying IOobject types that support the coherent format
+template<class T>
+struct is_coherentIOobject : std::false_type {};
+
 
 /*---------------------------------------------------------------------------*\
                            Class IOobject Declaration
@@ -148,12 +154,11 @@ public:
         };
 
         //- Enumeration defining the file checking options
+        //- (time-stamp | inotify) | (all | masterOnly)
         enum fileCheckTypes : char
         {
-            timeStamp,
-            timeStampMaster,
-            inotify,
-            inotifyMaster
+            timeStamp = 1, timeStampMaster = 3,
+            inotify = 4,   inotifyMaster = 6
         };
 
         //- Names for the fileCheckTypes
@@ -284,6 +289,9 @@ public:
             bannerEnabled_ = on;
             return old;
         }
+
+        //- Test fileModificationChecking for master-only
+        static inline bool fileModificationChecking_masterOnly() noexcept;
 
         //- Split path into instance, local, name components
         //
@@ -575,6 +583,10 @@ public:
 
         //- Modifiable access to instance path component
         inline fileName& instance() noexcept;
+
+        //- Return the scalar value of the instance component (or 0),
+        //- which often corresponds to a time index/value.
+        scalar instanceValue() const;
 
         //- Read access to local path component
         inline const fileName& local() const noexcept;

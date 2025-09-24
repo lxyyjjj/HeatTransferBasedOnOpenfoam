@@ -271,9 +271,6 @@ $(hashes)/base64Layer.C
 gzstream = $(Streams)/gzstream
 $(gzstream)/gzstream.C
 
-memstream = $(Streams)/memory
-$(memstream)/SpanStreams.C
-
 Fstreams = $(Streams)/Fstreams
 $(Fstreams)/IFstream.C
 $(Fstreams)/OFstream.C
@@ -283,9 +280,6 @@ $(Fstreams)/masterOFstream.C
 Tstreams = $(Streams)/Tstreams
 $(Tstreams)/ITstream.C
 $(Tstreams)/OTstream.C
-
-StringStreams = $(Streams)/StringStreams
-$(StringStreams)/StringStream.C
 
 Pstreams = $(Streams)/Pstreams
 /* $(Pstreams)/UPstream.C in global.C */

@@ -64,6 +64,10 @@ int main(int argc, char * argv[])
     osha<< str;
     Info<< osha.digest() << " : output << to empty" << nl;
 
+    osha.reset();
+    osha<< std::string_view(str);
+    Info<< osha.digest() << " : << string_view [ not quite right !]" << nl;
+
     sha.clear();
     sha.append(str);
     shaDig = sha;

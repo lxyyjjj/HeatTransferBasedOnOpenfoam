@@ -35,10 +35,10 @@ Description
 #ifndef Foam_memoryStreamBuffer_H
 #define Foam_memoryStreamBuffer_H
 
-#include "stdFoam.H"  // For span
 #include "DynamicList.H"
 
 #include <memory>
+#include <string>
 #include <type_traits>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -213,9 +213,42 @@ public:
         //- The span size (number of input characters)
         std::streamsize size_bytes() const { return (egptr() - eback()); }
 
-        std::string_view view() const
+        //- True if position is within the current input range
+        bool in_range(std::streampos pos) const
+        {
+            return (pos >= 0 && pos < span_capacity());
+        }
+
+        //- A string view of the current input region
+        auto view() const
         {
             return std::string_view(data_bytes(), size_bytes());
+        }
+
+        //- A sub-slice string view of the current input region
+        auto view(size_t pos, size_t len) const
+        {
+            // Restrict intersection count to the current content range
+            if (len && in_range(pos))
+            {
+                if ((len == std::string::npos) || (len > (size_bytes()-pos)))
+                {
+                    len = (size_bytes()-pos);
+                }
+            }
+            else
+            {
+                len = 0;  // Ignore out-of-range
+            }
+
+            if (len)
+            {
+                return std::string_view(data_bytes()+pos, len);
+            }
+            else
+            {
+                return std::string_view();
+            }
         }
 
         //- Some information about the input buffer position/capacity
@@ -316,7 +349,8 @@ public:
             sync_gbuffer();
         }
 
-        //- Reset buffer and return contents
+        //- Reset buffer and return contents.
+        //- The list size and capacity are identical
         DynamicList<char> release()
         {
             DynamicList<char> chars(std::move(storage_));
@@ -396,9 +430,42 @@ public:
         //- The span size (size of output buffer)
         std::streamsize size_bytes() const { return (pptr() - pbase()); }
 
-        std::string_view view() const
+        //- True if position is within the current output range
+        bool in_range(std::streampos pos) const
+        {
+            return (pos >= 0 && pos < span_tellp());
+        }
+
+        //- A string view of the current output region
+        auto view() const
         {
             return std::string_view(data_bytes(), size_bytes());
+        }
+
+        //- A sub-slice string view of the current output region
+        auto view(size_t pos, size_t len) const
+        {
+            // Restrict intersection count to the current content range
+            if (len && in_range(pos))
+            {
+                if ((len == std::string::npos) || (len > (size_bytes()-pos)))
+                {
+                    len = (size_bytes()-pos);
+                }
+            }
+            else
+            {
+                len = 0;  // Ignore out-of-range
+            }
+
+            if (len)
+            {
+                return std::string_view(data_bytes()+pos, len);
+            }
+            else
+            {
+                return std::string_view();
+            }
         }
 
         //- Some information about the output buffer position/capacity
@@ -537,7 +604,7 @@ public:
         }
 
         //- Shrink storage to addressed storage
-        void shrink()
+        void shrink_to_fit()
         {
             const auto cur = span_tellp();  // Addressed length
 
@@ -549,7 +616,7 @@ public:
         //- Exchange buffer content and parameter contents, reset positions
         void swap(List<char>& other)
         {
-            const auto cur = span_tellp();  // Output length
+            const auto cur = span_tellp();  // Addressed length
             other.swap(storage_);
             other.resize(cur);              // Truncate to output length
             sync_pbuffer();
@@ -559,7 +626,7 @@ public:
         template<int SizeMin>
         void swap(DynamicList<char,SizeMin>& other)
         {
-            const auto cur = span_tellp();  // Output length
+            const auto cur = span_tellp();  // Addressed length
 
             other.resize(other.capacity()); // Use entire space
             other.swap(storage_);  // NB: not storage_.swap(other)
@@ -571,7 +638,7 @@ public:
         //- The list size corresponds to the region of output.
         DynamicList<char> release()
         {
-            const auto cur = span_tellp();  // Output length
+            const auto cur = span_tellp();  // Addressed length
             DynamicList<char> chars(std::move(storage_));
             chars.resize(cur);              // Restrict to output length
 
@@ -579,6 +646,12 @@ public:
             sync_pbuffer();
             return chars;
         }
+
+
+    // Housekeeping
+
+        //- Same as shrink_to_fit()
+        void shrink() { shrink_to_fit(); }
 };
 
 

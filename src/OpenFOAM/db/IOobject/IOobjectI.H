@@ -27,6 +27,16 @@ License
 
 // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
+inline bool Foam::IOobject::fileModificationChecking_masterOnly() noexcept
+{
+    return
+    (
+        IOobject::fileModificationChecking == fileCheckTypes::timeStampMaster
+     || IOobject::fileModificationChecking == fileCheckTypes::inotifyMaster
+    );
+}
+
+
 template<class StringType>
 inline Foam::word Foam::IOobject::groupName
 (

@@ -191,10 +191,7 @@ bool Foam::IOobject::readAndCheckHeader
     const bool masterOnly
     (
         isGlobal
-     && (
-            IOobject::fileModificationChecking == IOobject::timeStampMaster
-         || IOobject::fileModificationChecking == IOobject::inotifyMaster
-        )
+     && IOobject::fileModificationChecking_masterOnly()
     );
 
     const auto& handler = Foam::fileHandler();

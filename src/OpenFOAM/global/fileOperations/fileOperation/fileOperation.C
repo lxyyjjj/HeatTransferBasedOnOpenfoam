@@ -320,11 +320,7 @@ Foam::fileMonitor& Foam::fileOperation::monitor() const
     {
         monitorPtr_.reset
         (
-            new fileMonitor
-            (
-                IOobject::fileModificationChecking == IOobject::inotify
-             || IOobject::fileModificationChecking == IOobject::inotifyMaster
-            )
+            new fileMonitor(IOobject::fileModificationChecking_masterOnly())
         );
     }
     return *monitorPtr_;
@@ -476,11 +472,7 @@ Foam::fileOperation::lookupAndCacheProcessorsPath
         const bool readDirMasterOnly
         (
             UPstream::parRun() && !distributed()
-         &&
-            (
-                IOobject::fileModificationChecking == IOobject::timeStampMaster
-             || IOobject::fileModificationChecking == IOobject::inotifyMaster
-            )
+         && IOobject::fileModificationChecking_masterOnly()
         );
 
         // The above selection excludes masterUncollated, which uses inotify or

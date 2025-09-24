@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2017 OpenFOAM Foundation
-    Copyright (C) 2016-2023 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -481,6 +481,19 @@ const Foam::fileName& Foam::IOobject::caseName() const noexcept
 const Foam::fileName& Foam::IOobject::globalCaseName() const noexcept
 {
     return time().globalCaseName();
+}
+
+
+Foam::scalar Foam::IOobject::instanceValue() const
+{
+    scalar val(0);
+
+    // Only makes sense for a relative instance (word type)
+    if (Foam::readScalar(instance_, val))
+    {
+        return val;
+    }
+    return 0;
 }
 
 

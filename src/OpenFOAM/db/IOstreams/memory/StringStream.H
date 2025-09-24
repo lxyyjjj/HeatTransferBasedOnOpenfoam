@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2017-2024 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,9 +28,6 @@ InClass
 
 Description
     Input/output from string buffers.
-
-SourceFiles
-    StringStream.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -127,8 +124,13 @@ public:
             this->rewind();
         }
 
-        //- Print stream description to Ostream
-        virtual void print(Ostream& os) const override;
+        //- Print stream description
+        virtual void print(Ostream& os) const override
+        {
+            os << "istringstream : buffer =\n" << this->str() << '\n';
+            IOstream::print(os);
+            IOstream::print(os, stream_.rdstate());
+        }
 
 
     // Member Operators
@@ -236,8 +238,13 @@ public:
             stream_.rdbuf()->pubseekpos(0, std::ios_base::out);
         }
 
-        //- Print stream description to Ostream
-        virtual void print(Ostream& os) const override;
+        //- Print stream description
+        virtual void print(Ostream& os) const override
+        {
+            os << "ostringstream : buffer =\n" << this->str() << '\n';
+            IOstream::print(os);
+            IOstream::print(os, stream_.rdstate());
+        }
 
 
     // Older style, without stream option (including 2012 release)

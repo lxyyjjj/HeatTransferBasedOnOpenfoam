@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,25 +35,31 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include "base64Layer.H"
+#include "SpanStream.H"
 #include "List.H"
 #include "Pair.H"
-
-#include <sstream>
 
 using namespace Foam;
 
 bool test(const Pair<string>& unit)
 {
-    const string& input = unit.first();
-    const string& expected = unit.second();
+    const auto& input = unit.first();
+    const auto& expected = unit.second();
 
-    std::ostringstream os;
+    Foam::ocharstream os;
 
-    base64Layer b64(os);
-    b64.write(input.data(), input.size());
-    b64.close();
+    {
+        base64Layer b64(os);
+        b64.write(input.data(), input.size());
 
-    const string encoded = os.str();
+        if (b64.close())
+        {
+            // Extra information
+            // std::cerr<< "closed with pending data" << nl;
+        }
+    }
+
+    const auto encoded = os.view();
 
     Info<< input << nl;
 
@@ -78,7 +84,7 @@ bool test(std::initializer_list<Pair<string>> list)
 {
     bool good = true;
 
-    for (const Pair<string>& t : list)
+    for (const auto& t : list)
     {
         good = test(t) && good;
     }
@@ -91,7 +97,7 @@ bool test(const UList<Pair<string>>& list)
 {
     bool good = true;
 
-    for (const Pair<string>& t : list)
+    for (const auto& t : list)
     {
         good = test(t) && good;
     }
@@ -107,7 +113,7 @@ void testMixed(std::ostream& os, const UList<Pair<string>>& list)
     os  << "<test-mixed>" << nl;
 
     int i=0;
-    for (const Pair<string>& t : list)
+    for (const auto& t : list)
     {
         const string& input = t.first();
 

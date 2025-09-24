@@ -473,11 +473,8 @@ void Foam::Time::readModifiedObjects()
         // processors!
         fileHandler().updateStates
         (
-            (
-                IOobject::fileModificationChecking == IOobject::inotifyMaster
-             || IOobject::fileModificationChecking == IOobject::timeStampMaster
-            ),
-            Pstream::parRun()
+            IOobject::fileModificationChecking_masterOnly(),
+            UPstream::parRun()
         );
         // Time handling is special since controlDict_ is the one dictionary
         // that is not registered to any database.

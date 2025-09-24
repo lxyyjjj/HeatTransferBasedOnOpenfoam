@@ -281,10 +281,7 @@ void Foam::regIOobject::addWatch()
     const bool masterOnly
     (
         global()
-     && (
-            IOobject::fileModificationChecking == IOobject::timeStampMaster
-         || IOobject::fileModificationChecking == IOobject::inotifyMaster
-        )
+     && IOobject::fileModificationChecking_masterOnly()
     );
 
     // if (debug)

@@ -124,8 +124,9 @@ public:
             return buffer_type::span_capacity();
         }
 
-        //- Reserve output space for at least this amount
-        void reserve(const std::streamsize n)
+        //- Reserve output space for at least this amount.
+        //- Applies a min-size and capacity doubling.
+        void reserve(std::streamsize n)
         {
             buffer_type::reserve(n);
         }
@@ -137,7 +138,26 @@ public:
             stream_type::clear();  // Clear old errors
         }
 
-        //- Span of the current output characters (is modifiable!)
+        //- Reposition the stream from the start
+        void seek(std::streampos pos)
+        {
+            if (buffer_type::in_range(pos))
+            {
+                buffer_type::pubseekpos(pos, std::ios_base::out);
+                stream_type::clear();  // Clear old errors
+            }
+        }
+
+        //- A string_view of buffer contents
+        auto view() const { return buffer_type::view(); }
+
+        //- A sub-slice string view of the buffer contents
+        auto view(size_t pos, size_t len = std::string::npos) const
+        {
+            return buffer_type::view(pos, len);
+        }
+
+        //- A list \em span of current output contents (is modifiable!!)
         UList<char> list() const
         {
             return UList<char>
@@ -145,12 +165,6 @@ public:
                 buffer_type::data_bytes(),
                 label(buffer_type::size_bytes())
             );
-        }
-
-        //- A string_view of buffer contents
-        auto view() const
-        {
-            return buffer_type::view();
         }
 
         //- For ostringstream compatibility, return the buffer as string copy.
@@ -190,8 +204,11 @@ public:
         //- Some information about the output buffer position/capacity
         void debug_info(Ostream& os) const
         {
-            os  << "put=" << output_pos() << '/' << capacity();
+            os << "put=" << output_pos() << '/' << capacity();
         }
+
+        //- Information about stream
+        void print(Ostream& os) const { debug_info(os); os << '\n'; }
 };
 
 
@@ -268,23 +285,24 @@ public:
         std::streamsize capacity() const { return stream_.capacity(); }
 
         //- Reserve output space for at least this amount
-        void reserve(const std::streamsize n) { stream_.reserve(n); }
+        void reserve(std::streamsize n) { stream_.reserve(n); }
 
-        //- Span of the current output characters (is modifiable!)
-        UList<char> list() const { return stream_.list(); }
 
         //- A string_view of buffer contents
-        auto view() const
+        auto view() const { return stream_.view(); }
+
+        //- A sub-slice string view of the buffer contents
+        auto view(size_t pos, size_t len = std::string::npos) const
         {
-            return stream_.view();
+            return stream_.view(pos, len);
         }
+
+        //- A list \em span of the current output characters (is modifiable!)
+        UList<char> list() const { return stream_.list(); }
 
         //- For OStringStream compatibility, return the buffer as string copy.
         //  Use sparingly - it creates a full copy!!
-        auto str() const
-        {
-            return stream_.str();
-        }
+        auto str() const { return stream_.str(); }
 
         //- Exchange stream content and parameter contents, reset positions
         void swap(List<char>& other)
@@ -316,11 +334,23 @@ public:
             syncState();
         }
 
-        //- Print stream description to Ostream
-        virtual void print(Ostream& os) const override;
+        //- Reposition the stream from the start
+        void seek(std::streampos pos)
+        {
+            stream_.seek(pos);
+            syncState();
+        }
+
+        //- Print stream description
+        virtual void print(Ostream& os) const override
+        {
+            os << "ocharstream: ";
+            stream_.debug_info(os);
+            os << '\n';
+        }
 
 
-    // Houskeeping
+    // Housekeeping
 
         //- Block size was used in OpenFOAM-v2306 and earlier
         void setBlockSize(int n) {}

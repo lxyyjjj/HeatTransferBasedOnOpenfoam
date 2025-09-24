@@ -172,7 +172,7 @@ public:
 
             //- Emit begin marker for low-level raw binary output.
             //  The count indicates the number of bytes for subsequent
-            //  writeRaw calls.
+            //  writeRaw calls [currently only used by Pstream].
             virtual bool beginRawWrite(std::streamsize count) = 0;
 
             //- Emit end marker for low-level raw binary output.
