@@ -79,19 +79,14 @@ class DynamicField
         template<class ListType>
         inline void doAssignDynList(const ListType& list);
 
-        //- Alter the size of the underlying storage
-        //  The 'nocopy' option will not attempt to recover old content
-        inline void doCapacity(const bool nocopy, const label len);
+        //- Alter the size of the underlying storage,
+        //- retaining the first count elements.
+        inline void doCapacity_copy(label count, const label len);
 
-        //- Reserve allocation space for at least this size.
+        //- Reserve allocation space for at least this size,
+        //- retaining the first count elements.
         //  Never shrinks the allocated size, use setCapacity() for that.
-        //  The 'nocopy' option will not attempt to recover old content
-        inline void doReserve(const bool nocopy, const label len);
-
-        //- Reserve allocation space for at least this size.
-        //  Never shrinks the allocated size, use setCapacity() for that.
-        //  The 'nocopy' option will not attempt to recover old content
-        inline void doResize(const bool nocopy, const label len);
+        inline void doReserve_copy(label count, const label len);
 
 
 public:
@@ -245,6 +240,10 @@ public:
 
         //- Alter addressable size and fill \em new entries with constant value
         inline void resize(const label len, const T& val);
+
+        //- Alter addressable size, retaining the first count contents.
+        //  \note Only uses a limited number of internal checks.
+        inline void resize_copy(label count, const label len);
 
         //- Alter addressable size and set val for \em all addressed entries
         inline void resize_fill(const label len, const T& val);

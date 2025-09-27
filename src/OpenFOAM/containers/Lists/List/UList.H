@@ -628,6 +628,15 @@ public:
             return false;
         }
 
+        //- Return a string_view of the charList. Content is non-modifiable.
+        template<class TypeT = T>
+        std::enable_if_t
+        <std::is_same_v<char, std::remove_cv_t<TypeT>>, std::string_view>
+        inline view() const
+        {
+            return std::string_view(v_, size_);
+        }
+
 
     // Hashing
 

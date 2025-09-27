@@ -29,24 +29,13 @@ License
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 template<class T>
-inline void Foam::List<T>::doAlloc()
+inline void Foam::List<T>::doAlloc(const label len)
 {
-    if (this->size_ > 0)
+    if (len > 0)
     {
         // With sign-check to avoid spurious -Walloc-size-larger-than
-        this->v_ = ListPolicy::allocate<T>(this->size_);
-    }
-}
-
-
-template<class T>
-inline void Foam::List<T>::reAlloc(const label len)
-{
-    if (this->size_ != len)
-    {
-        clear();
+        this->v_ = ListPolicy::allocate<T>(len);
         this->size_ = len;
-        doAlloc();
     }
 }
 
@@ -95,23 +84,24 @@ template<class T>
 template<class InputIterator>
 inline Foam::List<T>::List
 (
-    InputIterator firstIter,
-    InputIterator lastIter,  // (unused)
+    InputIterator input,
+    InputIterator inputEnd,  // (unused)
     const label len
 )
-:
-    UList<T>(nullptr, len)
 {
     if (len > 0)
     {
-        doAlloc();
+        doAlloc(len);
 
         // Like std::copy() or std::copy_n()
         // but without any requirements on the iterator category
 
-        for (label i = 0; i < len; (void)++i, (void)++firstIter)
+        auto iter = this->v_;
+        const auto endIter = (iter + len);
+
+        for (; iter != endIter; (void)++iter, (void)++input)
         {
-            this->v_[i] = *firstIter;
+            *iter = *input;
         }
     }
 }
@@ -122,6 +112,17 @@ inline Foam::List<T>::List
 template<class T>
 inline constexpr Foam::List<T>::List() noexcept
 {}
+
+
+template<class T>
+inline Foam::List<T>::List(List<T>&& list) noexcept
+:
+    UList<T>(list.data(), list.size())
+{
+    // Stole content
+    list.size_ = 0;
+    list.v_ = nullptr;
+}
 
 
 template<class T>
@@ -158,7 +159,7 @@ inline void Foam::List<T>::resize(const label len)
 {
     if (this->size_ != len)
     {
-        this->resize_copy(this->size_, len);
+        resize_copy(this->size_, len);
     }
 }
 
@@ -166,7 +167,7 @@ inline void Foam::List<T>::resize(const label len)
 template<class T>
 inline void Foam::List<T>::resize_fill(const label len, const T& val)
 {
-    this->reAlloc(len);
+    resize_nocopy(len);
     UList<T>::operator=(val);
 }
 
@@ -174,7 +175,12 @@ inline void Foam::List<T>::resize_fill(const label len, const T& val)
 template<class T>
 inline void Foam::List<T>::resize_nocopy(const label len)
 {
-    this->reAlloc(len);
+    // Same as resize_copy(0, len);
+    if (this->size_ != len)
+    {
+        clear();
+        doAlloc(len);
+    }
 }
 
 
