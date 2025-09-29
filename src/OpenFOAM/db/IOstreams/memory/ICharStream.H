@@ -357,6 +357,7 @@ public:
         //- Rewind the stream, clearing any old errors
         virtual void rewind() override
         {
+            Istream::rewind();
             stream_.rewind();
             syncState();
         }

@@ -563,6 +563,8 @@ Foam::label Foam::UIPstreamBase::remaining() const noexcept
 
 void Foam::UIPstreamBase::rewind()
 {
+    Istream::rewind();  // Drop any putback
+
     recvBufPos_ = 0;  // Assume the entire buffer is for us to read from
     setOpened();
     setGood();
