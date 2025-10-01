@@ -416,6 +416,12 @@ public:
             return TimePaths::globalPath()/TimeState::timeName();
         }
 
+        //- Return current time path (case or global)
+        fileName timePath(IOobjectOption::Layout layout) const
+        {
+            return TimePaths::path(layout)/TimeState::timeName();
+        }
+
 
     // Database Functions
 

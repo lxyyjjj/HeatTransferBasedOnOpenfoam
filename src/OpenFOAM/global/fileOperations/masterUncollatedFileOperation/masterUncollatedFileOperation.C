@@ -1495,7 +1495,15 @@ Foam::fileOperations::masterUncollatedFileOperation::findInstance
     enum failureCodes { FAILED_STOPINST = 1, FAILED_CONSTINST = 2 };
     int failed(0);
 
-    instantList ts = time.times();
+    // The timeDirs
+    instantList ts
+    (
+        this->findTimes
+        (
+            time.path(),  // time.path(layout)
+            time.constant()
+        )
+    );
 
     // if (Pstream::master(comm_))
     if (Pstream::master(UPstream::worldComm))

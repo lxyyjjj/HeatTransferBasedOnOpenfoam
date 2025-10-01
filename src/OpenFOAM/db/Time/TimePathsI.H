@@ -94,6 +94,18 @@ inline Foam::fileName& Foam::TimePaths::caseName() noexcept
 }
 
 
+inline const Foam::fileName&
+Foam::TimePaths::caseName(IOobjectOption::Layout layout) const noexcept
+{
+    return
+    (
+        (IOobjectOption::Layout::global == layout)
+      ? globalCaseName_
+      : caseName_
+    );
+}
+
+
 inline Foam::fileName Foam::TimePaths::path() const
 {
     return rootPath()/caseName();
@@ -103,6 +115,13 @@ inline Foam::fileName Foam::TimePaths::path() const
 inline Foam::fileName Foam::TimePaths::globalPath() const
 {
     return rootPath()/globalCaseName();
+}
+
+
+inline Foam::fileName
+Foam::TimePaths::path(IOobjectOption::Layout layout) const
+{
+    return rootPath()/caseName(layout);
 }
 
 
