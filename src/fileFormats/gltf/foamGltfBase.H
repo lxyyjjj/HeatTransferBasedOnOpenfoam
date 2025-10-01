@@ -104,13 +104,9 @@ namespace glTF
         TRIANGLE_FAN = 6
     };
 
-    // Helper function to return the enum value
-    template<class Type>
-    auto key(const Type& t) -> std::enable_if_t
-    <
-        std::is_enum_v<Type>,
-        std::underlying_type_t<Type>
-    >
+    //- Helper function to return the enum value
+    template<class Type, class = std::enable_if_t<std::is_enum_v<Type>>>
+    constexpr auto key(const Type& t) noexcept
     {
         return static_cast<std::underlying_type_t<Type>>(t);
     }

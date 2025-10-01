@@ -299,18 +299,16 @@ public:
 
         //- Test if the label byte-size associated with the stream
         //- is the same as the given type
-        template<class T = label>
-        std::enable_if_t<std::is_integral_v<T>, bool>
-        checkLabelSize() const noexcept
+        template<class T, class = std::enable_if_t<std::is_integral_v<T>>>
+        bool checkLabelSize() const noexcept
         {
             return sizeofLabel_ == sizeof(T);
         }
 
         //- Test if the scalar byte-size associated with the stream
         //- is the same as the given type
-        template<class T = scalar>
-        std::enable_if_t<std::is_floating_point_v<T>, bool>
-        checkScalarSize() const noexcept
+        template<class T, class = std::enable_if_t<std::is_floating_point_v<T>>>
+        bool checkScalarSize() const noexcept
         {
             return sizeofScalar_ == sizeof(T);
         }

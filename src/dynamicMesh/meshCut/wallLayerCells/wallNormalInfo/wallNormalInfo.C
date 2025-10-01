@@ -64,7 +64,7 @@ Foam::Istream& Foam::operator>>
     {
         is >> rhs.normal_;
     }
-    else if (!is.checkScalarSize<>())
+    else if (!is.checkScalarSize<scalar>())
     {
         // Non-native scalar size
         is.beginRawRead();

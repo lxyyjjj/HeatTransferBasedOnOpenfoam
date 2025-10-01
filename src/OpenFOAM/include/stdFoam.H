@@ -160,13 +160,22 @@ void Swap(T (&a)[N], T (&b)[N])
 //     - https://en.cppreference.com/w/cpp/iterator/rbegin
 //     - https://en.cppreference.com/w/cpp/iterator/rend
 
-
 namespace stdFoam
 {
 
 //- Map any dependent type to false (workaround before CWG2518)
 template<typename...>
 inline constexpr bool dependent_false_v = false;
+
+//- Test for \c bool type (after removing cv)
+template<typename T>
+inline constexpr bool is_bool_v
+    = std::is_same<bool, std::remove_cv_t<T>>::value;
+
+//- Test for \c char type (after removing cv)
+template<typename T>
+inline constexpr bool is_char_v
+    = std::is_same<char, std::remove_cv_t<T>>::value;
 
 } // End namespace stdFoam
 
@@ -468,10 +477,13 @@ public:
         }
 
         //- A writable view as byte content (if the pointer type is non-const).
-        //- Like data(), the const access itself is const.
-        template<class TypeT = Type>
-        std::enable_if_t<!std::is_const_v<TypeT>, char*>
-        data_bytes() const noexcept
+        //- Like data(), the access itself is const.
+        template
+        <
+            class TypeT = Type,
+            class = std::enable_if_t<!std::is_const_v<TypeT>>
+        >
+        char* data_bytes() const noexcept
         {
             return reinterpret_cast<char*>(data_);
         }

@@ -338,9 +338,12 @@ public:
         //  Increases size when setting an out-of-bounds value.
         //
         //  \return True if value changed.
-        template<class TypeT = T>
-        std::enable_if_t<std::is_same_v<bool, TypeT>, bool>
-        inline set(const label i, bool val = true)
+        template
+        <
+            class TypeT = T,
+            class = std::enable_if_t<stdFoam::is_bool_v<TypeT>>
+        >
+        inline bool set(const label i, bool val = true)
         {
             if (i < 0)
             {
