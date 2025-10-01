@@ -1099,7 +1099,7 @@ Foam::IOobject Foam::fileOperation::findInstance
         // Backward search for first time that is <= startValue
         for (; instIndex >= 0; --instIndex)
         {
-            if (ts[instIndex].value() <= startValue)
+            if (ts[instIndex] <= startValue)
             {
                 break;
             }

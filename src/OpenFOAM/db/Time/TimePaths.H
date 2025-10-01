@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2014 OpenFOAM Foundation
-    Copyright (C) 2016-2023 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,13 +57,25 @@ class TimePaths
 {
     // Private Data
 
+        //- True if this is a processor case
         bool processorCase_;
+
+        //- True running with distributed directories
         bool distributed_;
 
+        //- The root path
         const fileName rootPath_;
+
+        //- The global case name
         fileName globalCaseName_;
-        fileName case_;
+
+        //- The local (processor) case name
+        fileName caseName_;
+
+        //- The name for the "system" directory
         const word system_;
+
+        //- The name for the "constant" directory
         const word constant_;
 
 

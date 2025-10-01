@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2018-2023 OpenCFD Ltd.
+    Copyright (C) 2018-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -84,13 +84,13 @@ inline const Foam::fileName& Foam::TimePaths::globalCaseName() const noexcept
 
 inline const Foam::fileName& Foam::TimePaths::caseName() const noexcept
 {
-    return case_;
+    return caseName_;
 }
 
 
 inline Foam::fileName& Foam::TimePaths::caseName() noexcept
 {
-    return case_;
+    return caseName_;
 }
 
 

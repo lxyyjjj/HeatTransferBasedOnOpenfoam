@@ -765,7 +765,7 @@ public:
                 const IOobject& io,
                 const scalar startValue,
                 //! The search stop instance
-                const word& stopInstance,
+                const word& stopInstance = "",
                 //! Return \c "constant" instead of \c "" if the search failed
                 const bool constant_fallback = true
             ) const;

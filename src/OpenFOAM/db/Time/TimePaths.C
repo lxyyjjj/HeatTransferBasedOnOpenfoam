@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2013 OpenFOAM Foundation
-    Copyright (C) 2016-2024 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -80,7 +80,7 @@ Foam::TimePaths::TimePaths
     distributed_(distributed),
     rootPath_(rootPath),
     globalCaseName_(globalCaseName),
-    case_(caseName),
+    caseName_(caseName),
     system_(systemDirName),
     constant_(constantDirName)
 {
@@ -195,7 +195,7 @@ Foam::label Foam::TimePaths::findClosestTimeIndex
     {
         if (timeDirs[timei].name() == constantDirName) continue;
 
-        const scalar diff = mag(timeDirs[timei].value() - t);
+        const scalar diff = Foam::mag(timeDirs[timei].value() - t);
         if (diff < deltaT)
         {
             deltaT = diff;
@@ -237,7 +237,7 @@ Foam::instant Foam::TimePaths::findClosestTime(const scalar t) const
 
     for (label timei=1; timei < nTimes; ++timei)
     {
-        const scalar diff = mag(timeDirs[timei].value() - t);
+        const scalar diff = Foam::mag(timeDirs[timei].value() - t);
         if (diff < deltaT)
         {
             deltaT = diff;
