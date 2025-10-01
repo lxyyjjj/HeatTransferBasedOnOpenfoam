@@ -28,27 +28,38 @@ License
 
 #include "List.H"
 #include "FixedList.H"
-#include "PtrList.H"
+#include "UPtrList.H"
 
-// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+// Only a limited number of internal size checks.
+// Caller knows what they are doing.
 template<class T>
-void Foam::List<T>::resize_copy(const label count, const label len)
+void Foam::List<T>::resize_copy(label count, const label len)
 {
-    // Only a limited number of internal size checks.
-    // Caller knows what they are doing.
-
-    if (FOAM_LIKELY(len > 0))
+    if (this->size_ == len)
+    {
+        // no-op
+    }
+    else if (FOAM_LIKELY(len > 0))
     {
         // With sign-check to avoid spurious -Walloc-size-larger-than
-        const label oldLen = this->size_;
-        const label overlap = Foam::min(count, len);
-        // Extra safety, not currently necessary:
-        // const label overlap = Foam::min(Foam::min(count, oldLen), len);
 
         T* old = this->v_;
+        const label oldLen = this->size_;
 
-        if (overlap > 0)
+        if (count > len)
+        {
+            count = len;        // The count truncated by the new length
+        }
+
+        // Extra safety, probably not necessary:
+        // if (count > oldLen)
+        // {
+        //     count = oldLen;  // The count truncated by the old length
+        // }
+
+        if (count > 0)
         {
             // Recover overlapping content when resizing
 
@@ -58,7 +69,7 @@ void Foam::List<T>::resize_copy(const label count, const label len)
             // Can dispatch with
             // - std::execution::par_unseq
             // - std::execution::unseq
-            std::move(old, (old + overlap), this->v_);
+            std::move(old, (old + count), this->v_);
 
             ListPolicy::deallocate(old, oldLen);
         }
@@ -91,8 +102,6 @@ void Foam::List<T>::resize_copy(const label count, const label len)
 
 template<class T>
 Foam::List<T>::List(const label len)
-:
-    UList<T>(nullptr, len)
 {
     if (FOAM_UNLIKELY(len < 0))
     {
@@ -103,15 +112,14 @@ Foam::List<T>::List(const label len)
 
     if (len > 0)
     {
-        doAlloc();
+        // resize_nocopy()
+        doAlloc(len);
     }
 }
 
 
 template<class T>
 Foam::List<T>::List(const label len, const T& val)
-:
-    UList<T>(nullptr, len)
 {
     if (FOAM_UNLIKELY(len < 0))
     {
@@ -122,7 +130,8 @@ Foam::List<T>::List(const label len, const T& val)
 
     if (len > 0)
     {
-        doAlloc();
+        // resize_fill()
+        doAlloc(len);
         UList<T>::operator=(val);
     }
 }
@@ -130,8 +139,6 @@ Foam::List<T>::List(const label len, const T& val)
 
 template<class T>
 Foam::List<T>::List(const label len, Foam::zero)
-:
-    UList<T>(nullptr, len)
 {
     if (FOAM_UNLIKELY(len < 0))
     {
@@ -142,7 +149,8 @@ Foam::List<T>::List(const label len, Foam::zero)
 
     if (len > 0)
     {
-        doAlloc();
+        // resize_fill()
+        doAlloc(len);
         UList<T>::operator=(Foam::zero{});
     }
 }
@@ -177,12 +185,10 @@ Foam::List<T>::List(Foam::one, Foam::zero)
 
 template<class T>
 Foam::List<T>::List(const UList<T>& list)
-:
-    UList<T>(nullptr, list.size_)
 {
-    if (this->size_ > 0)
+    if (!list.empty())
     {
-        doAlloc();
+        doAlloc(list.size());
         UList<T>::deepCopy(list);
     }
 }
@@ -190,12 +196,10 @@ Foam::List<T>::List(const UList<T>& list)
 
 template<class T>
 Foam::List<T>::List(const List<T>& list)
-:
-    UList<T>(nullptr, list.size_)
 {
-    if (this->size_ > 0)
+    if (!list.empty())
     {
-        doAlloc();
+        doAlloc(list.size());
         UList<T>::deepCopy(list);
     }
 }
@@ -203,19 +207,18 @@ Foam::List<T>::List(const List<T>& list)
 
 template<class T>
 Foam::List<T>::List(List<T>& list, bool reuse)
-:
-    UList<T>(nullptr, list.size_)
 {
     if (reuse)
     {
         // Steal content
         this->v_ = list.v_;
+        this->size_ = list.size_;
         list.v_ = nullptr;
         list.size_ = 0;
     }
-    else if (this->size_ > 0)
+    else if (!list.empty())
     {
-        doAlloc();
+        doAlloc(list.size());
         UList<T>::deepCopy(list);
     }
 }
@@ -223,11 +226,12 @@ Foam::List<T>::List(List<T>& list, bool reuse)
 
 template<class T>
 Foam::List<T>::List(const UList<T>& list, const labelUList& indices)
-:
-    UList<T>(nullptr, indices.size())
 {
-    doAlloc();
-    copyList(list, indices);  // <- deepCopy()
+    if (!indices.empty())
+    {
+        doAlloc(indices.size());
+        copyList(list, indices);  // <- deepCopy()
+    }
 }
 
 
@@ -238,11 +242,12 @@ Foam::List<T>::List
     const UList<T>& list,
     const FixedList<label,N>& indices
 )
-:
-    UList<T>(nullptr, indices.size())
 {
-    doAlloc();
-    copyList(list, indices);  // <- deepCopy()
+    // if (!FixedList::empty()) is always true
+    {
+        doAlloc(indices.size());
+        copyList(list, indices);  // <- deepCopy()
+    }
 }
 
 
@@ -255,24 +260,23 @@ Foam::List<T>::List(const FixedList<T, N>& list)
 
 
 template<class T>
-Foam::List<T>::List(const PtrList<T>& list)
-:
-    UList<T>(nullptr, list.size())
+Foam::List<T>::List(const UPtrList<T>& list)
 {
-    doAlloc();
-    copyList(list);
+    if (!list.empty())
+    {
+        doAlloc(list.size());
+        copyList(list);
+    }
 }
 
 
 template<class T>
 template<class Addr>
 Foam::List<T>::List(const IndirectListBase<T, Addr>& list)
-:
-    UList<T>(nullptr, list.size())
 {
-    if (this->size_ > 0)
+    if (!list.empty())
     {
-        doAlloc();
+        doAlloc(list.size());
         UList<T>::deepCopy(list);
     }
 }
@@ -286,20 +290,8 @@ Foam::List<T>::List(std::initializer_list<T> list)
 
 
 template<class T>
-Foam::List<T>::List(List<T>&& list) noexcept
-:
-    UList<T>(list.data(), list.size())
-{
-    list.size_ = 0;
-    list.v_ = nullptr;
-}
-
-
-template<class T>
 template<int SizeMin>
 Foam::List<T>::List(DynamicList<T, SizeMin>&& list)
-:
-    UList<T>()
 {
     transfer(list);
 }
@@ -327,7 +319,7 @@ void Foam::List<T>::resize(const label len, const T& val)
         return;
     }
 
-    this->resize_copy(oldLen, len);
+    resize_copy(oldLen, len);
 
     // Fill trailing part with new values
     if (oldLen < this->size_)
@@ -368,7 +360,7 @@ void Foam::List<T>::transfer(DynamicList<T, SizeMin>& list)
     // Shrink the allocated space to the number of elements used
     list.shrink_to_fit();
     transfer(static_cast<List<T>&>(list));
-    list.clearStorage();  // Deletion, capacity=0 etc.
+    list.setCapacity_unsafe(0);  // All contents moved
 }
 
 
@@ -382,9 +374,9 @@ void Foam::List<T>::operator=(const UList<T>& list)
         return;  // Self-assignment is a no-op
     }
 
-    reAlloc(list.size_);
+    resize_nocopy(list.size());
 
-    if (this->size_ > 0)
+    if (!list.empty())
     {
         UList<T>::deepCopy(list);
     }
@@ -399,9 +391,9 @@ void Foam::List<T>::operator=(const List<T>& list)
         return;  // Self-assignment is a no-op
     }
 
-    reAlloc(list.size_);
+    resize_nocopy(list.size());
 
-    if (this->size_ > 0)
+    if (!list.empty())
     {
         UList<T>::deepCopy(list);
     }
@@ -412,7 +404,7 @@ template<class T>
 template<unsigned N>
 void Foam::List<T>::operator=(const FixedList<T, N>& list)
 {
-    reAlloc(list.size());
+    resize_nocopy(list.size());
 
     std::copy(list.begin(), list.end(), this->v_);
 }
@@ -422,7 +414,7 @@ template<class T>
 template<class Addr>
 void Foam::List<T>::operator=(const IndirectListBase<T, Addr>& list)
 {
-    reAlloc(list.size());
+    resize_nocopy(list.size());
     UList<T>::deepCopy(list);
 }
 
@@ -430,8 +422,7 @@ void Foam::List<T>::operator=(const IndirectListBase<T, Addr>& list)
 template<class T>
 void Foam::List<T>::operator=(std::initializer_list<T> list)
 {
-    reAlloc(list.size());
-
+    resize_nocopy(list.size());
     std::copy(list.begin(), list.end(), this->v_);
 }
 

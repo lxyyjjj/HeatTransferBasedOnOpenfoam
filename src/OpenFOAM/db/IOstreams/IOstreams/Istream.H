@@ -175,7 +175,8 @@ public:
             //- operation.
             virtual Istream& readRaw(char* data, std::streamsize count) = 0;
 
-            //- Rewind the stream so that it may be read again
+            //- Rewind the stream so that it may be read again.
+            //  The base implementation clears any putback.
             virtual void rewind() = 0;
 
 

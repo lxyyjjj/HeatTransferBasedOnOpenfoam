@@ -183,11 +183,24 @@ int main(int argc, char *argv[])
     printInfo(obuf);
 
     // Overwrite at some position
-    obuf.stdStream().rdbuf()->pubseekpos(0.60 * obuf.size());
-    obuf << "<" << nl << "OVERWRITE" << nl;
+    if (auto i = obuf.view().find("item5"); i != std::string::npos)
+    {
+        // obuf.seek(0.60 * obuf.size());
+        obuf.seek(i);
+        obuf << "<OVERWRITE>" << nl;
+    }
 
     Info<<"after overwrite" << nl;
     printInfo(obuf);
+
+    // Truncate
+    {
+        constexpr float fraction = 0.90;
+        Info<<"truncated at " << (100*fraction) << "% ["
+            << int(fraction*obuf.size()) << " chars]" << nl;
+        obuf.seek(fraction*obuf.size());
+        printInfo(obuf);
+    }
 
     Info<< "transfer contents to a List or ICharStream" << nl;
 

@@ -31,8 +31,7 @@ Description
     Similar to OStringStream but with a List for its storage instead of
     as string to allow reuse of List contents without copying.
 
-    The default initial size is 512-bytes and uses size doubling.
-    After construction can use the reserve() method to adjust this.
+    Internally imposes a 512 byte min-size and uses capacity doubling.
 
 See Also
     Foam::ICharStream
@@ -131,6 +130,25 @@ public:
             buffer_type::reserve(n);
         }
 
+        //- Reserve output space for at least this amount.
+        //- Does not apply min-size or capacity doubling etc.
+        void reserve_exact(std::streamsize n)
+        {
+            buffer_type::reserve_exact(n);
+        }
+
+        //- Increase (reserve) space for another \c count entries
+        void extend(std::streamsize count)
+        {
+            buffer_type::extend(count);
+        }
+
+        //- Increase (reserve) space for another \c count entries
+        void extend_exact(std::streamsize count)
+        {
+            buffer_type::extend_exact(count);
+        }
+
         //- Rewind the stream, clearing any old errors
         void rewind()
         {
@@ -209,6 +227,64 @@ public:
 
         //- Information about stream
         void print(Ostream& os) const { debug_info(os); os << '\n'; }
+
+
+    // Extra/Convenience Methods
+
+        //- Append a single character to the end
+        void push_back(char c) { stream_type::put(c); }
+
+        //- Rewind the end by 1 or more elements
+        void pop_back(int n = 1) { buffer_type::pop_back(n); }
+
+        //- Append repeated character content
+        void append(std::streamsize count, char c)
+        {
+            if (count > 0)
+            {
+                buffer_type::extend(count);
+                while (count-- > 0)
+                {
+                    stream_type::put(c);
+                }
+            }
+        }
+
+        //- Append character content - like a plain write()
+        void append(const char* data, std::streamsize count)
+        {
+            if (data && count > 0)
+            {
+                buffer_type::extend(count);
+                write(data, count);
+            }
+        }
+
+        //- Overwrite a single character
+        void overwrite(std::streampos pos, char c)
+        {
+            buffer_type::overwrite(pos, c);
+        }
+
+        //- Overwrite a sub-slice with character content
+        void overwrite
+        (
+            std::streampos pos,
+            const char* data,
+            std::streamsize count
+        )
+        {
+            buffer_type::overwrite(pos, data, count);
+        }
+
+        //- The output data (start of output characters)
+        const char* cdata_bytes() const { return buffer_type::data_bytes(); }
+
+        //- The output data (start of output characters)
+        char* data_bytes() { return buffer_type::data_bytes(); }
+
+        //- The current number of output characters
+        std::streamsize size_bytes() const { return buffer_type::size_bytes(); }
 };
 
 
@@ -287,6 +363,15 @@ public:
         //- Reserve output space for at least this amount
         void reserve(std::streamsize n) { stream_.reserve(n); }
 
+        //- Reserve output space for at least this amount.
+        //- Does not apply min-size or capacity doubling etc.
+        void reserve_exact(std::streamsize n) { stream_.reserve_exact(n); }
+
+        //- Increase (reserve) space for another \c n entries
+        void extend(std::streamsize n) { stream_.extend(n); }
+
+        //- Increase (reserve) space for another \c n entries
+        void extend_exact(std::streamsize n) { stream_.extend_exact(n); }
 
         //- A string_view of buffer contents
         auto view() const { return stream_.view(); }
@@ -347,6 +432,56 @@ public:
             os << "ocharstream: ";
             stream_.debug_info(os);
             os << '\n';
+        }
+
+
+    // Extra/Convenience Methods
+
+        //- Append a single character to the end
+        void push_back(char c) { stream_.push_back(c); }
+
+        //- Rewind the end by 1 or more elements
+        void pop_back(int n = 1) { stream_.pop_back(n); }
+
+        //- Append repeated character content
+        void append(std::streamsize count, char c)
+        {
+            stream_.append(count, c);
+        }
+
+        //- Append character content
+        void append(const char* data, std::streamsize count)
+        {
+            stream_.append(data, count);
+        }
+
+        //- Append character content
+        void append(std::string_view sv)
+        {
+            stream_.append(sv.data(), sv.size());
+        }
+
+        //- Overwrite a single character
+        void overwrite(std::streampos pos, char c)
+        {
+            stream_.overwrite(pos, c);
+        }
+
+        //- Overwrite a sub-slice with character content
+        void overwrite
+        (
+            std::streampos pos,
+            const char* data,
+            std::streamsize count
+        )
+        {
+            stream_.overwrite(pos, data, count);
+        }
+
+        //- Overwrite a sub-slice with character content
+        void overwrite(std::streampos pos, std::string_view sv)
+        {
+            stream_.overwrite(pos, sv.data(), sv.size());
         }
 
 

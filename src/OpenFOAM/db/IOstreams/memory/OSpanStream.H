@@ -226,6 +226,23 @@ public:
 
     // Extra/Convenience Methods
 
+        //- Overwrite a single character
+        void overwrite(std::streampos pos, char c)
+        {
+            buffer_type::overwrite(pos, c);
+        }
+
+        //- Overwrite a sub-slice with character content
+        void overwrite
+        (
+            std::streampos pos,
+            const char* data,
+            std::streamsize count
+        )
+        {
+            buffer_type::overwrite(pos, data, count);
+        }
+
         //- The output data (start of output characters)
         const char* cdata_bytes() const { return buffer_type::data_bytes(); }
 
@@ -234,7 +251,6 @@ public:
 
         //- The current number of output characters
         std::streamsize size_bytes() const { return buffer_type::size_bytes(); }
-
 };
 
 
@@ -381,6 +397,47 @@ public:
             os << "ospanstream: ";
             stream_.debug_info(os);
             os << '\n';
+        }
+
+
+    // Extra/Convenience Methods
+
+        //- Append character content - same as writeRaw()
+        void append(const char* data, std::streamsize count)
+        {
+            if (data && count > 0)
+            {
+                writeRaw(data, count);
+            }
+        }
+
+        //- Append character content - same as writeRaw()
+        void append(std::string_view sv)
+        {
+            append(sv.data(), sv.size());
+        }
+
+        //- Overwrite a single character
+        void overwrite(std::streampos pos, char c)
+        {
+            stream_.overwrite(pos, c);
+        }
+
+        //- Overwrite a sub-slice with character content
+        void overwrite
+        (
+            std::streampos pos,
+            const char* data,
+            std::streamsize count
+        )
+        {
+            stream_.overwrite(pos, data, count);
+        }
+
+        //- Overwrite a sub-slice with character content
+        void overwrite(std::streampos pos, std::string_view sv)
+        {
+            stream_.overwrite(pos, sv.data(), sv.size());
         }
 };
 

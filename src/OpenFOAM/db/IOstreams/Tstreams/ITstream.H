@@ -531,7 +531,11 @@ public:
         virtual bool endRawRead() override { return false; }
 
         //- Rewind the stream so that it may be read again. Same as seek(0)
-        virtual void rewind() override { ITstream::seek(0); }
+        virtual void rewind() override
+        {
+            Istream::rewind();
+            ITstream::seek(0);
+        }
 
 
     // Output

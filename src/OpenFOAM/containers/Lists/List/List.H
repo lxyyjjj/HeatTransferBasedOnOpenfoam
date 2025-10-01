@@ -56,7 +56,7 @@ template<class T> class List;
 template<class T, unsigned N> class FixedList;
 template<class T, int SizeMin> class DynamicList;
 
-template<class T> class PtrList;
+template<class T> class UPtrList;
 
 template<class T> Istream& operator>>(Istream& is, List<T>& list);
 
@@ -77,12 +77,8 @@ class List
 {
     // Private Member Functions
 
-        //- Allocate list storage
-        inline void doAlloc();
-
-        //- Reallocate list storage to the given size
-        //  Discards old storage (if any). Does not copy old contents
-        inline void reAlloc(const label len);
+        //- Allocate list storage. Assumes there is no existing content
+        inline void doAlloc(const label len);
 
         //- Copy all list contents. Uses operator[] on the input list
         template<class ListType>
@@ -98,8 +94,8 @@ class List
         template<class InputIterator>
         inline List
         (
-            InputIterator firstIter,
-            InputIterator lastIter,  // (unused)
+            InputIterator input,
+            InputIterator inputEnd,  // (unused)
             const label len
         );
 
@@ -111,17 +107,7 @@ class List
     // Methods as per DynamicList to simplify code maintenance
 
         //- Stub method for internal naming as per DynamicList
-        void setCapacity_nocopy(const label len) { resize_nocopy(len); }
-
-
-protected:
-
-    // Protected Member Functions
-
-        //- Low-level resizing (backend for resize).
-        //- Change allocation size of list, retaining the first count contents.
-        //  \note Only uses a limited number of internal checks.
-        void resize_copy(const label count, const label len);
+        void setCapacity_nocopy(label len) { resize_nocopy(len); }
 
 
 public:
@@ -185,8 +171,8 @@ public:
         template<unsigned N>
         explicit List(const FixedList<T, N>& list);
 
-        //- Construct as copy of PtrList<T>
-        explicit List(const PtrList<T>& list);
+        //- Construct as copy of UPtrList<T> content
+        explicit List(const UPtrList<T>& list);
 
         //- Construct as copy of IndirectList contents
         template<class Addr>
@@ -196,7 +182,7 @@ public:
         List(std::initializer_list<T> list);
 
         //- Move construct from List
-        List(List<T>&& list) noexcept;
+        inline List(List<T>&& list) noexcept;
 
         //- Move construct from DynamicList
         template<int SizeMin>
@@ -227,6 +213,10 @@ public:
         //- Adjust allocated size of list and set val for \em new elements
         void resize(const label len, const T& val);
 
+        //- Change allocated size of list, retaining the first count elements.
+        //  \note Only uses a limited number of internal checks.
+        void resize_copy(label count, const label len);
+
         //- Adjust allocated size of list and set val for \em all elements
         inline void resize_fill(const label len, const T& val);
 
@@ -234,13 +224,8 @@ public:
         //  retaining old content.
         //  If no reallocation is required, the contents remain untouched.
         //  Otherwise the contents will be uninitialized.
+        //  Shorthand for \c resize(0, len)
         inline void resize_nocopy(const label len);
-
-        //- Alias for resize()
-        void setSize(const label n) { this->resize(n); }
-
-        //- Alias for resize()
-        void setSize(const label n, const T& val) { this->resize(n, val); }
 
 
     // Edit
@@ -404,6 +389,12 @@ public:
         //- Same as push_uniq()
         FOAM_DEPRECATED_FOR(2022-10, "push_uniq()")
         label appendUniq(const T& val) { return this->push_uniq(val); }
+
+        //- Alias for resize()
+        void setSize(label n) { this->resize(n); }
+
+        //- Alias for resize()
+        void setSize(label n, const T& val) { this->resize(n, val); }
 };
 
 

@@ -1084,6 +1084,7 @@ bool Foam::ISstream::endRawRead()
 
 void Foam::ISstream::rewind()
 {
+    Istream::rewind();    // Drop any putback
     lineNumber_ = 1;      // Reset line number
 
     stdStream().clear();  // Clear the iostate error state flags
