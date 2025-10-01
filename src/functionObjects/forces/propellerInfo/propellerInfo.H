@@ -32,7 +32,7 @@ Group
 Description
     Calculates propeller performance and wake field properties.
 
-    Controlled by executeControl:
+    Controlled by \c executeControl:
     - Propeller performance
       - Thrust coefficient, Kt
       - Torque coefficient, 10*Kq
@@ -111,7 +111,7 @@ Usage
 
     Where the entries comprise:
     \table
-        Property        | Description                   | Required | Deflt value
+        Property        | Description                   | Reqd     | Deflt
         type            | Type name: propellerInfo      | yes      |
         log             | Write to standard output      | no       | no
         patches         | Patches included in the forces calculation | yes |
@@ -163,8 +163,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef functionObjects_propellerInfo_H
-#define functionObjects_propellerInfo_H
+#ifndef Foam_functionObjects_propellerInfo_H
+#define Foam_functionObjects_propellerInfo_H
 
 #include "forces.H"
 #include "Enum.H"
@@ -366,7 +366,7 @@ public:
 
     // Constructors
 
-        //- Construct from Time and dictionary
+        //- Construct from name, Time and dictionary
         propellerInfo
         (
             const word& name,
@@ -391,13 +391,13 @@ public:
 
     // Member Functions
 
-        //- Read the forces data
+        //- Read the function-object dictionary
         virtual bool read(const dictionary&);
 
-        //- Execute, currently does nothing
+        //- Execute the function-object operations
         virtual bool execute();
 
-        //- Write the forces
+        //- Write the function-object results
         virtual bool write();
 
         void UpdateMesh(const mapPolyMesh& mpm);

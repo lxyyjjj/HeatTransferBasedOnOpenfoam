@@ -134,8 +134,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef functionObjects_vtkCloud_H
-#define functionObjects_vtkCloud_H
+#ifndef Foam_functionObjects_vtkCloud_H
+#define Foam_functionObjects_vtkCloud_H
 
 #include "fvMeshFunctionObject.H"
 #include "parcelSelectionDetail.H"
@@ -229,7 +229,7 @@ public:
 
     // Constructors
 
-        //- Construct from Time and dictionary
+        //- Construct from name, Time and dictionary
         vtkCloud
         (
             const word& name,
@@ -244,13 +244,13 @@ public:
 
     // Member Functions
 
-        //- Read the vtkCloud specification
+        //- Read the function-object dictionary
         virtual bool read(const dictionary& dict);
 
-        //- Execute, currently does nothing
+        //- Execute the function-object operations (no-op)
         virtual bool execute();
 
-        //- Write fields
+        //- Write the function-object results
         virtual bool write();
 };
 

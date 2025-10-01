@@ -36,33 +36,32 @@ Description
     \table
       Operand        | Type              | Location
       input          | -                 | -
-      output file    | dat               <!--
-                 --> | $FOAM_CASE/postProcessing/\<FO\>/\<time\>/\<field\>
+      output file    | dat               | postProcessing/<FO>/<time>/field
       output field   | volScalarField (only boundaryField) <!--
-                 --> | $FOAM_CASE/\<time\>/\<outField\>
+                     --> | postProcessing/<FO>/<time>/outField
     \endtable
 
 Usage
     Minimal example by using \c system/controlDict.functions:
     \verbatim
-    wallHeatFlux1
+    wallHeatFluxFO
     {
-        // Mandatory entries (unmodifiable)
+        // Mandatory entries
         type        wallHeatFlux;
         libs        (fieldFunctionObjects);
 
-        // Optional entries (runtime modifiable)
+        // Optional entries
         patches     (<patch1> ... <patchN>); // (wall1 "(wall2|wall3)");
-        qr          qr;
+        qr          <word>;;
 
-        // Optional (inherited) entries
+        // Inherited entries
         ...
     }
     \endverbatim
 
     where the entries mean:
     \table
-      Property     | Description                           | Type | Req'd | Dflt
+      Property     | Description                           | Type | Reqd | Deflt
       type         | Type name: wallHeatFlux               | word |  yes  | -
       libs         | Library name: fieldFunctionObjects    | word |  yes  | -
       patches    | Names of operand patches   | wordList | no | all wall patches
@@ -70,19 +69,8 @@ Usage
     \endtable
 
     The inherited entries are elaborated in:
-     - \link functionObject.H \endlink
-     - \link writeFile.H \endlink
-
-    Minimal example by using the \c postProcess utility:
-    \verbatim
-        <solver> -postProcess -func wallHeatFlux
-    \endverbatim
-
-See also
-    - Foam::functionObject
-    - Foam::functionObjects::fvMeshFunctionObject
-    - Foam::functionObjects::writeFile
-    - ExtendedCodeGuide::functionObjects::field::wallHeatFlux
+      - \link functionObject.H \endlink
+      - \link writeFile.H \endlink
 
 SourceFiles
     wallHeatFlux.C
@@ -146,7 +134,7 @@ public:
 
     // Constructors
 
-        //- Construct from Time and dictionary
+        //- Construct from name, Time and dictionary
         wallHeatFlux
         (
             const word& name,
@@ -167,13 +155,13 @@ public:
 
     // Member Functions
 
-        //- Read the wallHeatFlux data
+        //- Read the function-object dictionary
         virtual bool read(const dictionary& dict);
 
-        //- Calculate the wall heat-flux
+        //- Execute the function-object operations
         virtual bool execute();
 
-        //- Write the wall heat-flux
+        //- Write the function-object results
         virtual bool write();
 };
 

@@ -90,7 +90,7 @@ Description
 Usage
     Minimal example by using \c system/controlDict.functions:
     \verbatim
-    DMD1
+    DMDFO
     {
         // Mandatory entries
         DMDModel            STDMD;
@@ -176,10 +176,6 @@ Note
     the evaluation of this function for a given
     mag(eigenvalue)*(no. of STDMD steps), i.e. x*y, whose magnitude is larger
     than \c sortLimiter.
-
-See also
-  - Foam::functionObjects::DMD
-  - Foam::DMDModel
 
 SourceFiles
     STDMD.C
@@ -485,9 +481,9 @@ public:
             virtual bool fit();
 
 
-        // IO
+        // I-O
 
-            //- Read STDMD settings
+            //- Read the function-object dictionary
             virtual bool read(const dictionary& dict);
 };
 

@@ -309,7 +309,7 @@ public:
 
     // Constructors
 
-        //- Construct from Time and dictionary
+        //- Construct from name, Time and dictionary
         vtkWrite
         (
             const word& name,

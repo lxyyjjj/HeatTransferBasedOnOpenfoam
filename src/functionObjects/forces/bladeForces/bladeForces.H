@@ -43,10 +43,10 @@ Description
     \table
       Operand       | Type           | Location
       input         | -              | -
-      output file   | dat            | postProcessing/\<FO\>/\<time\>/\<file\>s
+      output file   | dat            | postProcessing/<FO>/<time>/files
     \endtable
 
-    where \c \<file\>s:
+    where \c <file>s:
     \verbatim
       force.dat        | Forces (thrust drag torque)
       C_d.dat          | Cd values (per bin)
@@ -339,7 +339,7 @@ public:
 
     // Constructors
 
-        //- Construct from Time and dictionary
+        //- Construct from name, Time and dictionary
         bladeForces
         (
             const word& name,
@@ -383,13 +383,15 @@ public:
         void calculate();
 
 
-        //- Read the dictionary
-        virtual bool read(const dictionary& dict);
+    // I-O
 
-        //- Execute the function object
+        //- Read the function-object dictionary
+        virtual bool read(const dictionary&);
+
+        //- Execute the function-object operations
         virtual bool execute();
 
-        //- Write to data files/fields and to streams
+        //- Write the function-object results
         virtual bool write();
 };
 

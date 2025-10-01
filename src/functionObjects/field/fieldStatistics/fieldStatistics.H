@@ -34,18 +34,19 @@ Description
 
     Operands:
     \table
-      Operand      | Type                          | Location
-      input        | vol\<Type\>Field(s)           | Registry
-      output file  | dat | \<case\>/postProcessing/\<FO\>/\<time\>/\<file\>
-      output field | -                             | -
+      Operand      | Type                  | Location
+      input        | vol<Type>Field(s)     | Registry
+      output file  | dat                   | postProcessing/<FO>/<time>/file
+      output field | -                     | -
     \endtable
 
-    where \c \<Type\>=Scalar/Vector/SphericalTensor/SymmTensor/Tensor.
+    where \c Type can be one of:
+        \c Scalar, \c Vector, \c SphericalTensor, \c SymmTensor, or \c Tensor.
 
 Usage
     Minimal example by using \c system/controlDict.functions:
     \verbatim
-    fieldStatistics1
+    fieldStatisticsFO
     {
         // Mandatory entries
         type             fieldStatistics;
@@ -78,6 +79,10 @@ Usage
       extrema | Flag to enable extrema data calculations | bool | no | false
     \endtable
 
+    The inherited entries are elaborated in:
+      - \link functionObject.H \endlink
+      - \link writeFile.H \endlink
+
     Available statistics of the operand field through the \c statistics entry:
     \verbatim
       min        | Minimum value
@@ -98,18 +103,14 @@ Usage
       volumetric  | Volume-weighted arithmetic mean
     \endverbatim
 
-    The inherited entries are elaborated in:
-      - \link functionObject.H \endlink
-      - \link writeFile.H \endlink
-
 SourceFiles
     fieldStatistics.cxx
     fieldStatisticsImpl.cxx
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef functionObjects_fieldStatistics_H
-#define functionObjects_fieldStatistics_H
+#ifndef Foam_functionObjects_fieldStatistics_H
+#define Foam_functionObjects_fieldStatistics_H
 
 #include "fvMeshFunctionObject.H"
 #include "writeFile.H"
@@ -344,13 +345,13 @@ public:
 
     // Member Functions
 
-        //- Read function object settings
-        virtual bool read(const dictionary&);
+        //- Read the function-object dictionary
+        virtual bool read(const dictionary& dict);
 
-        //- Execute function object
+        //- Execute the function-object operations
         virtual bool execute();
 
-        //- Write function object results
+        //- Write the function-object results
         virtual bool write();
 };
 

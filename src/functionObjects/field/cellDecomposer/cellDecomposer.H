@@ -34,52 +34,63 @@ Description
 
     The secondary mesh gets created on-the-fly by decomposing the current mesh.
 
+    The decomposition can be full (all cells) or partial (a cellSet). The
+    decomposition can be done in different ways, see the \c decomposeType
+    description below.
+
+    The mapping is done via nearest-neighbour interpolation. The mapped fields
+    are written to the time directory of the original mesh. The mapped fields
+    have the same name as the input fields, but with a \c _decomposed suffix.
+
+    The mapping tolerates cells that cannot be mapped, e.g. if the cell centre
+    of a cell in the decomposed mesh lies outside the original mesh. The
+    unmapped cells get a value of zero, and a warning is issued.
 
     Operands:
     \table
       Operand      | Type                       | Location
-      input        | {vol,surface}\<Type\>Field <!--
-                                    --> | $FOAM_CASE/\<time\>/\<inpField\>
+      input        | {vol,surface}<Type>Field   | <time>/inputFields
       output file  | -                          | -
-      output field | {vol,surface}\<Type\>Field <!--
-                                    --> | $FOAM_CASE/\<time\>/\<outField\>
+      output field | {vol,surface}<Type>Field   | <time>/outputField
     \endtable
 
-    where \c \<Type\>=Scalar/Vector/SphericalTensor/SymmTensor/Tensor.
+    where \c Type can be one of:
+        \c Scalar, \c Vector, \c SphericalTensor, \c SymmTensor, or \c Tensor.
 
 Usage
     Minimal example by using \c system/controlDict.functions:
     \verbatim
-    cellDecomposer1
+    cellDecomposerFO
     {
-        // Mandatory entries (unmodifiable)
+        // Mandatory entries
         type            cellDecomposer;
         libs            (fieldFunctionObjects);
+        fields          (<wordRes>);  // (<field1> <field2> ... <fieldN>);
+        mapRegion       <word>;       // myTetMesh;
+        decomposeType   <word>;       // polyhedral;
+        selectionMode   <word>;       //all;
 
-        // Mandatory (inherited) entries (runtime modifiable)
-        fields          (<field1> <field2> ... <fieldN>);
-        mapRegion       myTetMesh;
+        // Inherited entries
         ...
-        // Mandatory entries
-        // Decompose type: 
-        decomposeType   polyhedral;
-        // Cell set to decompose
-        selectionMode   all;
     }
     \endverbatim
 
     where the entries mean:
     \table
-      Property     | Description                        | Type | Req'd | Dflt
+      Property     | Description                        | Type | Reqd | Deflt
       type         | Type name: cellDecomposer          | word |  yes  | -
       libs         | Library name: fieldFunctionObjects | word |  yes  | -
-      fields       | Names of operand fields            | wordList |  yes  | -
+      fields       | Names of operand fields            | wordRes |  yes  | -
       mapRegion    | Name of region to map to           | word |  yes  | -
       decomposeType | How to decompose cells            | word |  yes  | -
       selectionMode | How to select cells (see fvOption)| word |  yes  | -
     \endtable
 
+    The inherited entries are elaborated in:
+      - \link functionObject.H \endlink
+
     decomposeType:
+
     - faceCentre : decompose cells into tets using face centre and cell centre.
                    (hex becomes 6*4 tets)
     - faceDiagonal : decompose cells into tets using face diagonal, similar
@@ -93,9 +104,6 @@ Usage
                    cells in selected set. Used to convert polyhedral mesh into
                    'simple' mesh.
 
-    The inherited entries are elaborated in:
-     - \link functionObject.H \endlink
-
 See also
     - Foam::functionObjects::mapFields
 
@@ -104,8 +112,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef functionObjects_cellDecomposer_H
-#define functionObjects_cellDecomposer_H
+#ifndef Foam_functionObjects_cellDecomposer_H
+#define Foam_functionObjects_cellDecomposer_H
 
 #include "fvMeshFunctionObject.H"
 #include "volFieldsFwd.H"
@@ -115,6 +123,7 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 class tetDecomposer;
 class mapPolyMesh;
 
@@ -160,6 +169,8 @@ class cellDecomposer
         template<class Type>
         bool writeFieldType() const;
 
+        //- Interpolates a given volumetric field onto a new mesh using
+        //- provided mapping information.
         template<class Type>
         tmp<GeometricField<Type, fvPatchField, volMesh>>
         interpolate
@@ -182,7 +193,7 @@ public:
 
     // Constructors
 
-        //- Construct from Time and dictionary
+        //- Construct from name, Time and dictionary
         cellDecomposer
         (
             const word& name,
@@ -197,13 +208,13 @@ public:
 
     // Member Functions
 
-        //- Read the cellDecomposer data
+        //- Read the function-object dictionary
         virtual bool read(const dictionary& dict);
 
-        //- Execute
+        //- Execute the function-object operations
         virtual bool execute();
 
-        //- Write
+        //- Write the function-object results
         virtual bool write();
 };
 
