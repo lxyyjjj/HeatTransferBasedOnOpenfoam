@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2022 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -126,7 +126,10 @@ protected:
         //- Applied flag list - corresponds to each fieldNames_ entry
         List<bool> applied_;
 
-        //- Region name (finite-area)
+        //- The finite-area mesh name
+        word areaName_;
+
+        //- The model region name (finite-area)
         word regionName_;
 
 
@@ -246,50 +249,60 @@ public:
 
     // Member Functions
 
-        // Access
-
-            //- Return const access to the source name
-            inline const word& name() const noexcept;
-
-            //- Return const access to the mesh database
-            inline const fvMesh& mesh() const noexcept;
-
-            //- Return dictionary
-            inline const dictionary& coeffs() const noexcept;
-
-            //- True if source is active
-            inline bool active() const noexcept;
-
-            //- Set the applied flag to true for field index fieldi
-            inline void setApplied(const label fieldi);
-
-            //- The region name
-            inline const word& regionName() const noexcept;
-
-            //- Return the region mesh database (demand-driven)
-            inline const faMesh& regionMesh() const;
-
-            //- Return volSurfaceMapping (demand-driven)
-            inline const volSurfaceMapping& vsm() const;
+        //- Compare the region names.
+        //  Treats empty or polyMesh::defaultRegion as always matching
+        static bool sameRegionNames(const word& name1, const word& name2);
 
 
-        // Edit
+    // Access
 
-            //- Change source active flag, return previous value
-            inline bool active(const bool on) noexcept;
+        //- The source name
+        const word& name() const noexcept { return name_; }
+
+        //- Return const access to the mesh database
+        const fvMesh& mesh() const noexcept { return mesh_; }
+
+        //- Return dictionary
+        const dictionary& coeffs() const noexcept { return coeffs_; }
+
+        //- True if source is active
+        bool active() const noexcept { return active_; }
+
+        //- Set the applied flag to true for field index fieldi
+        inline void setApplied(const label fieldi);
+
+        //- The finite-area mesh name
+        const word& areaName() const noexcept { return areaName_; }
+
+        //- The model region name
+        const word& regionName() const noexcept { return regionName_; }
+
+        //- Return the region mesh database (demand-driven)
+        inline const faMesh& regionMesh() const;
+
+        //- Return volSurfaceMapping (demand-driven)
+        inline const volSurfaceMapping& vsm() const;
 
 
-        // Checks
+    // Edit
 
-            //- Is the source active?
-            virtual bool isActive();
+        //- Change source active flag, return previous value
+        inline bool active(bool on) noexcept;
 
-            //- Return index of field name if found in fieldNames list
-            virtual label applyToField(const word& fieldName) const;
 
-            //- Check that the source has been applied
-            virtual void checkApplied() const;
+    // Checks
 
+        //- Is the source active?
+        virtual bool isActive();
+
+        //- Return index of field name if found in fieldNames list
+        virtual label applyToField(const word& fieldName) const;
+
+        //- Check that the source has been applied
+        virtual void checkApplied() const;
+
+
+    // Member Functions
 
         // Evaluation
 

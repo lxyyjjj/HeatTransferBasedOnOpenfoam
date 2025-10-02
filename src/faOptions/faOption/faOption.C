@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2022 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,6 +37,17 @@ namespace Foam
         defineTypeNameAndDebug(option, 0);
         defineRunTimeSelectionTable(option, dictionary);
     }
+}
+
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+bool Foam::fa::option::sameRegionNames(const word& name1, const word& name2)
+{
+    const auto& a = polyMesh::regionName(name1);
+    const auto& b = polyMesh::regionName(name2);
+
+    return (a.empty() || b.empty() || (a == b));
 }
 
 

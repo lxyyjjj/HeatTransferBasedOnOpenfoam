@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2022 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 ------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,6 +27,7 @@ License
 
 #include "faOptions.H"
 #include "faMesh.H"
+#include "faMeshesRegistry.H"
 #include "Time.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -40,76 +41,188 @@ namespace Foam
 }
 
 
-// * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
-Foam::IOobject Foam::fa::options::createIOobject
-(
-    const fvMesh& mesh
-) const
+namespace
 {
+
+// Create IO object if dictionary is present
+// - check finite-area locations
+Foam::IOobject createIOobject
+(
+    const Foam::polyMesh& mesh,
+    const Foam::word& baseName,  // eg, faOptions
+    const Foam::word& areaName
+)
+{
+    using namespace Foam;
+
+    // eg, faOptions, faOptions.<area-name> etc
+    const word lookupName
+    (
+        IOobject::groupName(baseName, polyMesh::regionName(areaName))
+    );
+
     IOobject io
     (
-        typeName,
+        lookupName,
         mesh.time().constant(),
-        mesh,
-        IOobject::MUST_READ,
-        IOobject::NO_WRITE
+        // located under finite-area
+        faMeshesRegistry::New(mesh).thisDb(),
+        IOobjectOption::MUST_READ,
+        IOobjectOption::NO_WRITE,
+        IOobjectOption::REGISTER
     );
 
     if (io.typeHeaderOk<IOdictionary>(true))
     {
-        Info<< "Creating finite area options from "
-            << io.instance()/io.name() << nl
-            << endl;
-
-        io.readOpt(IOobject::MUST_READ_IF_MODIFIED);
+        io.readOpt(IOobjectOption::READ_MODIFIED);
     }
     else
     {
-        // Check if the faOptions file is in system
+        // Check if faOptions, faOptions.<area-name> file is in system
         io.instance() = mesh.time().system();
 
         if (io.typeHeaderOk<IOdictionary>(true))
         {
-            Info<< "Creating finite area options from "
-                << io.instance()/io.name() << nl
-                << endl;
-
-            io.readOpt(IOobject::MUST_READ_IF_MODIFIED);
+            io.readOpt(IOobjectOption::READ_MODIFIED);
         }
         else
         {
-            io.readOpt(IOobject::NO_READ);
+            io.readOpt(IOobjectOption::NO_READ);
         }
+    }
+
+
+    if (!io.isAnyRead() && polyMesh::regionName(areaName).empty())
+    {
+        // Check legacy location (default area region only)
+        // - registered on polyMesh
+
+        IOobject legacy
+        (
+            baseName,  // eg, faOptions
+            mesh.time().constant(),
+            mesh,
+            IOobjectOption::MUST_READ,
+            IOobjectOption::NO_WRITE,
+            IOobjectOption::REGISTER
+        );
+
+        if (legacy.typeHeaderOk<IOdictionary>(true))
+        {
+            legacy.readOpt(IOobjectOption::READ_MODIFIED);
+        }
+        else
+        {
+            // Check if the faOptions file is in system
+            legacy.instance() = mesh.time().system();
+
+            if (legacy.typeHeaderOk<IOdictionary>(true))
+            {
+                legacy.readOpt(IOobjectOption::READ_MODIFIED);
+            }
+            else
+            {
+                legacy.readOpt(IOobjectOption::NO_READ);
+            }
+        }
+
+        if (legacy.isAnyRead())
+        {
+            Info<< "Creating finite-area options from "
+                << legacy.instance()/legacy.name()
+                << " (legacy location)" << nl << endl;
+
+            return legacy;
+        }
+    }
+
+    if (io.isAnyRead())
+    {
+        Info<< "Creating finite-area options from "
+            << io.instance()/faMesh::prefix()/io.name() << nl << endl;
     }
 
     return io;
 }
+
+} // End anonymous namespace
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::fa::options::options
 (
-    const fvMesh& mesh
+    const fvMesh& mesh,
+    const IOobject& io,
+    const word& defaultAreaName
 )
 :
-    IOdictionary(createIOobject(mesh)),
-    optionList(mesh, *this)
+    IOdictionary(io),
+    fa::optionList(mesh, *this, defaultAreaName)
 {}
 
 
-Foam::fa::options& Foam::fa::options::New(const fvMesh& mesh)
+Foam::fa::options::options
+(
+    const fvMesh& mesh,
+    const word& defaultAreaName
+)
+:
+    IOdictionary(createIOobject(mesh, typeName, defaultAreaName)),
+    fa::optionList(mesh, *this, defaultAreaName)
+{}
+
+
+Foam::fa::options& Foam::fa::options::New
+(
+    const fvMesh& mesh,
+    const word& defaultAreaName
+)
 {
-    options* ptr = mesh.thisDb().getObjectPtr<options>(typeName);
+    // eg, faOptions, faOptions.<area-name> etc
+    const word lookupName
+    (
+        IOobject::groupName(typeName, polyMesh::regionName(defaultAreaName))
+    );
+
+    // Registered under finite-area?
+    auto* ptr =
+        faMeshesRegistry::New(mesh).thisDb().getObjectPtr<fa::options>
+        (
+            lookupName
+        );
+
+    if (!ptr && polyMesh::regionName(defaultAreaName).empty())
+    {
+        // Legacy location?
+        // Registered under polyMesh. region0 area only!
+        ptr = mesh.thisDb().getObjectPtr<fa::options>(typeName);
+
+        if (ptr)
+        {
+            InfoInFunction
+                << "Retrieved  " << typeName
+                << " from polyMesh " << mesh.name()
+                << " (legacy location)" << endl;
+        }
+    }
 
     if (!ptr)
     {
         DebugInFunction
-            << "Constructing " << typeName
-            << " for region " << mesh.name() << endl;
+            << "Constructing " << lookupName
+            << " for region " << mesh.name()
+            << " : " << polyMesh::regionName(defaultAreaName) << endl;
 
-        ptr = new options(mesh);
+        ptr = new fa::options
+        (
+            mesh,
+            createIOobject(mesh, typeName, defaultAreaName),
+            defaultAreaName
+        );
+
         regIOobject::store(ptr);
     }
 
@@ -121,7 +234,7 @@ bool Foam::fa::options::read()
 {
     if (IOdictionary::regIOobject::read())
     {
-        optionList::read(*this);
+        fa::optionList::read(*this);
         return true;
     }
 

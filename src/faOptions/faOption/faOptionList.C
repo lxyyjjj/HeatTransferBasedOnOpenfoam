@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2022 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 ------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -79,17 +79,27 @@ void Foam::fa::optionList::checkApplied() const
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::fa::optionList::optionList(const fvMesh& mesh)
+Foam::fa::optionList::optionList
+(
+    const fvMesh& mesh,
+    const word& defaultAreaName
+)
 :
     PtrList<fa::option>(),
     mesh_(mesh),
+    areaName_(defaultAreaName),
     checkTimeIndex_(mesh_.time().startTimeIndex() + 2)
 {}
 
 
-Foam::fa::optionList::optionList(const fvMesh& mesh, const dictionary& dict)
+Foam::fa::optionList::optionList
+(
+    const fvMesh& mesh,
+    const dictionary& dict,
+    const word& defaultAreaName
+)
 :
-    Foam::fa::optionList(mesh)
+    Foam::fa::optionList(mesh, defaultAreaName)
 {
     reset(optionsDict(dict));
 }

@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2023 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,7 +34,7 @@ inline const Foam::faMesh& Foam::regionModels::regionFaModel::regionMesh() const
     if (!regionMeshPtr_)
     {
         FatalErrorInFunction
-            << "Region mesh not available"
+            << "No finite-area mesh (" << areaName_ << ") available"
             << abort(FatalError);
     }
 
@@ -47,7 +47,7 @@ inline Foam::faMesh& Foam::regionModels::regionFaModel::regionMesh()
     if (!regionMeshPtr_)
     {
         FatalErrorInFunction
-            << "Region mesh not available"
+            << "No finite-area mesh (" << areaName_ << ") available"
             << abort(FatalError);
     }
 
@@ -64,6 +64,7 @@ Foam::regionModels::regionFaModel::outputProperties() const
             << "outputProperties dictionary not available"
             << abort(FatalError);
     }
+
     return *outputPropertiesPtr_;
 }
 
@@ -101,7 +102,7 @@ inline bool Foam::regionModels::regionFaModel::isRegionPatch
     const label patchi
 ) const
 {
-    return primaryPatchIDs().found(patchi);
+    return primaryPatchIDs().contains(patchi);
 }
 
 
