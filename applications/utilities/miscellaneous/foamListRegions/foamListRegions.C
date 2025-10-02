@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2017-2020 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,6 +45,9 @@ Note
 #include "Time.H"
 #include "regionProperties.H"
 
+// Same as faMesh::prefix() but without additional linkage
+constexpr const char* const faMeshPrefix = "finite-area";
+
 using namespace Foam;
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -53,7 +56,8 @@ int main(int argc, char *argv[])
 {
     argList::addNote
     (
-        "List regions from constant/regionProperties"
+        "List volume regions from constant/regionProperties,\n"
+        "or area regions from constant/finite-area/regionProperties"
     );
 
     argList::noBanner();
@@ -62,11 +66,42 @@ int main(int argc, char *argv[])
     argList::noFunctionObjects();  // Never use function objects
     // No profiling since there is no time loop
 
+    argList::addBoolOption
+    (
+        "finite-area",
+        "List constant/finite-area/regionProperties (if available)"
+    );
+
+    argList::addDryRunOption
+    (
+        "Make reading optional and add verbosity"
+    );
+    argList::addVerboseOption("Additional verbosity");
+
     // Arguments are optional (non-mandatory)
     argList::noMandatoryArgs();
     argList::addArgument("regionType ... regionType");
 
     #include "setRootCase.H"
+
+    const bool dryRun = args.dryRun();
+    int optVerbose = args.verbose();
+
+    if (dryRun && !optVerbose)
+    {
+        ++optVerbose;
+    }
+
+    // Use finite-area regions
+    const bool doFiniteArea = args.found("finite-area");
+
+    IOobjectOption::readOption readOpt(IOobjectOption::MUST_READ);
+
+    if (dryRun || doFiniteArea)
+    {
+        // Always treat finite-area regionProperties as optional
+        readOpt = IOobjectOption::READ_IF_PRESENT;
+    }
 
     // Silent version of "createTime.H", without libraries
     Time runTime
@@ -77,7 +112,39 @@ int main(int argc, char *argv[])
         false   // no enableLibs
     );
 
-    regionProperties rp(runTime);
+    regionProperties regionProps;
+    if (doFiniteArea)
+    {
+        regionProps = regionProperties(runTime, faMeshPrefix, readOpt);
+
+        if (regionProps.empty())
+        {
+            InfoErr<< "No finite-area region types" << nl;
+        }
+        else if (optVerbose)
+        {
+            InfoErr
+                << "Have " << regionProps.size()
+                << " finite-area region types, "
+                << regionProps.count() << " regions" << nl << nl;
+        }
+    }
+    else
+    {
+        regionProps = regionProperties(runTime, readOpt);
+
+        if (regionProps.empty())
+        {
+            // Probably only occurs with -dry-run option
+            InfoErr<< "No region types" << nl;
+        }
+        else if (optVerbose)
+        {
+            InfoErr
+                << "Have " << regionProps.size() << " region types, "
+                << regionProps.count() << " regions" << nl << nl;
+        }
+    }
 
     // We now handle checking args and general sanity etc.
     wordList regionTypes;
@@ -98,7 +165,7 @@ int main(int argc, char *argv[])
 
             if (uniq.insert(regType))
             {
-                if (rp.found(regType))
+                if (regionProps.contains(regType))
                 {
                     ++nTypes;
                 }
@@ -113,13 +180,13 @@ int main(int argc, char *argv[])
     }
     else
     {
-        regionTypes = rp.sortedToc();
+        regionTypes = regionProps.sortedToc();
     }
 
 
     for (const word& regionType : regionTypes)
     {
-        const wordList& regionNames = rp[regionType];
+        const wordList& regionNames = regionProps[regionType];
 
         for (const word& regionName : regionNames)
         {

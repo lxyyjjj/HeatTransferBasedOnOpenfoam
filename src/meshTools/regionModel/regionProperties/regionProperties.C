@@ -29,6 +29,7 @@ License
 #include "regionProperties.H"
 #include "IOdictionary.H"
 #include "Time.H"
+#include "wordRes.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -125,6 +126,45 @@ Foam::wordList Foam::regionProperties::sortedNames() const
     }
 
     Foam::sort(list);
+
+    return list;
+}
+
+
+Foam::wordList
+Foam::regionProperties::names(const wordRes& matcher) const
+{
+    wordList list;
+    label total = 0;
+
+    if (!matcher.empty())
+    {
+        total = this->count();
+    }
+
+    if (!total)
+    {
+        return list;
+    }
+
+    list.resize(total);
+    total = 0;
+
+    const HashTable<wordList>& props = *this;
+
+    for (const auto& iter : props.csorted())
+    {
+        for (const word& name : iter.val())
+        {
+            if (matcher(name))
+            {
+                list[total] = name;
+                ++total;
+            }
+        }
+    }
+
+    list.resize(total);
 
     return list;
 }

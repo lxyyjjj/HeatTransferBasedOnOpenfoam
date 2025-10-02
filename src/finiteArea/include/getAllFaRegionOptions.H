@@ -5,24 +5,25 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2021-2025 OpenCFD Ltd.
+    Copyright (C) 2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
 
 Description
-    Gets single or multiple region names based on command-line options:
-    (-all-regions | -regions | -regions)
+    Gets single or multiple area region names based on command-line options:
+    (-all-area-regions | -area-regions | -area-region)
 
 Priority
-    1. -all-regions (-allRegions)
-    2. -regions = specify multiple regions to select, or a single region
-    3. -region = specify a single region
+    1. -all-area-regions
+    2. -area-regions = specify multiple area regions to select,
+        or a single area region
+    3. -area-region = specify a single area region
 
 Note
-    There is no semantical difference between "-regions name"
-    and "-region name".
-    If regionProperties is missing (or empty) and the "-regions"
+    There is no semantical difference between "-area-regions name"
+    and "-area-region name".
+    If regionProperties is missing (or empty) and the "-area-regions"
     option is supplied with literal names, these will be used directly
     instead of being used to filter the regionProperties.
 
@@ -36,27 +37,28 @@ Required Variables
     - runTime [Time]
 
 Provides Variables
-    - regionNames [wordList]
+    - areaRegionNames [wordList]
 
 See Also
-    addAllRegionOptions.H
+    addAllFaRegionOptions.H
 
 \*---------------------------------------------------------------------------*/
 
-wordList regionNames;
+wordList areaRegionNames;
 {
     // Local alias
-    auto& names = regionNames;
+    auto& names = areaRegionNames;
     // Exit or fallback if nothing matches
-    constexpr bool exitOnNoMatches = true;
+    constexpr bool exitOnNoMatches = false;
 
-    if (args.found("all-regions"))
+    if (args.found("all-area-regions"))
     {
         names =
         (
             Foam::regionProperties
             (
                 runTime,
+                "finite-area",  // ie, faMesh::prefix()
                 IOobjectOption::READ_IF_PRESENT
             ).names()
         );
@@ -64,26 +66,26 @@ wordList regionNames;
         if (names.empty())
         {
             InfoErr
-                << "Warning: No regionProperties, "
+                << "Warning: No finite-area regionProperties, "
                    "assume default region" << nl << endl;
         }
         else
         {
-            Info<< "Using all regions: "
+            Info<< "Using all area-regions: "
                 << flatOutput(names) << nl;
         }
     }
     else if
     (
         wordRes select;
-        args.readListIfPresent<wordRe>("regions", select)
+        args.readListIfPresent<wordRe>("area-regions", select)
     )
     {
         select.uniq();  // Normally a no-op
 
         if (select.size() == 1 && select.front().isLiteral())
         {
-            // Identical to -region NAME
+            // Identical to -area-region NAME
             names.resize(1);
             names.front() = select.front();
         }
@@ -94,6 +96,7 @@ wordList regionNames;
                 Foam::regionProperties
                 (
                     runTime,
+                    "finite-area",  // ie, faMesh::prefix()
                     IOobjectOption::READ_IF_PRESENT
                 ).names()
             );
@@ -127,7 +130,7 @@ wordList regionNames;
                 else
                 {
                     names = wordList(names, indices);
-                    Info<< "Using regions: "
+                    Info<< "Using area-regions: "
                         << flatOutput(names) << nl;
                 }
             }
@@ -149,12 +152,11 @@ wordList regionNames;
                 if (nGood)
                 {
                     names.resize(nGood);
-
                     InfoErr
-                        << "Warning: No regionProperties, "
+                        << "Warning: No finite-area regionProperties, "
                            "using specified regions" << nl;
 
-                    Info<< "Using regions: "
+                    Info<< "Using area-regions: "
                         << flatOutput(names) << nl;
                 }
                 else
@@ -163,16 +165,16 @@ wordList regionNames;
                     names.front() = Foam::polyMesh::defaultRegion;
 
                     InfoErr
-                        << "Warning: No regionProperties, "
+                        << "Warning: No finite-area regionProperties, "
                            "assume default region" << nl << endl;
                 }
             }
         }
     }
-    else if (args.found("region"))
+    else if (args.found("area-region"))
     {
         names.resize(1);
-        names.front() = args.get<word>("region");
+        names.front() = args.get<word>("area-region");
     }
 
     // Fallback to defaultRegion

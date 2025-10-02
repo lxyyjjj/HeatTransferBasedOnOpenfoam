@@ -5,43 +5,43 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2021-2025 OpenCFD Ltd.
+    Copyright (C) 2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
 
 Description
-    Add multi-region command-line options: -allRegions, -regions, -region
+    Add multi-region command-line options:
+    -all-area-regions, -area-regions, -area-region
 
 Required Classes
     - Foam::argList
 
 See Also
-    getAllRegionOptions.H
+    getAllFaRegionOptions.H
 
 \*---------------------------------------------------------------------------*/
 
 {
     Foam::argList::addBoolOption
     (
-        "all-regions",
-        "Use all regions in regionProperties"
+        "all-area-regions",
+        "Use all regions in finite-area regionProperties"
     );
-    Foam::argList::addOptionCompat("all-regions", { "allRegions", -2506 });
 
     Foam::argList::addOption
     (
-        "regions",
+        "area-regions",
         "wordRes",
-        "Use specified mesh region. Eg, -regions gas\n"
-        "Or from regionProperties.  Eg, -regions '(gas \"solid.*\")'"
+        "Use specified area region. Eg, -area-regions film\n"
+        "Or from regionProperties.  Eg, -area-regions '(film \"solid.*\")'"
     );
 
     Foam::argList::addOption
     (
-        "region",
+        "area-region",
         "name",
-        "Use specified mesh region. Eg, -region gas"
+        "Specify area-mesh region. Eg, -region shell"
     );
 }
 

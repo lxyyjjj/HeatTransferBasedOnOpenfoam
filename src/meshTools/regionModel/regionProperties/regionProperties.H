@@ -65,6 +65,7 @@ namespace Foam
 
 // Forward Declarations
 class Time;
+class wordRes;
 
 /*---------------------------------------------------------------------------*\
                        Class regionProperties Declaration
@@ -75,6 +76,24 @@ class regionProperties
     public HashTable<wordList>
 {
 public:
+
+    // Generated Methods
+
+        //- Default construct
+        regionProperties() = default;
+
+        //- Copy construct
+        regionProperties(const regionProperties&) = default;
+
+        //- Move construct
+        regionProperties(regionProperties&&) = default;
+
+        //- Copy assignment
+        regionProperties& operator=(const regionProperties&) = default;
+
+        //- Move assignment
+        regionProperties& operator=(regionProperties&&) = default;
+
 
     // Constructors
 
@@ -105,11 +124,18 @@ public:
         //- Total count of all region names.
         label count() const;
 
-        //- The region names. Sorted by region type.
+        //- The names of the region types (sorted)
+        auto types() const { return HashTable<wordList>::sortedToc(); }
+
+        //- The region names (sorted by region type)
         wordList names() const;
 
         //- The region names in sorted order.
         wordList sortedNames() const;
+
+        //- The region names (sorted by region type) for all matches
+        //  \returns an empty list for an empty matcher
+        wordList names(const wordRes& matcher) const;
 };
 
 
