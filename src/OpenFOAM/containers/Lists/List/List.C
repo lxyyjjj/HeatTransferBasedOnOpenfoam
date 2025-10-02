@@ -48,16 +48,12 @@ void Foam::List<T>::resize_copy(label count, const label len)
         T* old = this->v_;
         const label oldLen = this->size_;
 
-        if (count > len)
-        {
-            count = len;        // The count truncated by the new length
-        }
+        // The count truncated by the new length?
+        count = std::min(count, len);
 
         // Extra safety, probably not necessary:
-        // if (count > oldLen)
-        // {
-        //     count = oldLen;  // The count truncated by the old length
-        // }
+        // The count truncated by the old length?
+        // // count = std::min(count, oldLen);
 
         if (count > 0)
         {
@@ -102,6 +98,8 @@ void Foam::List<T>::resize_copy(label count, const label len)
 
 template<class T>
 Foam::List<T>::List(const label len)
+:
+    UList<T>()
 {
     if (FOAM_UNLIKELY(len < 0))
     {
@@ -120,6 +118,8 @@ Foam::List<T>::List(const label len)
 
 template<class T>
 Foam::List<T>::List(const label len, const T& val)
+:
+    UList<T>()
 {
     if (FOAM_UNLIKELY(len < 0))
     {
@@ -139,6 +139,8 @@ Foam::List<T>::List(const label len, const T& val)
 
 template<class T>
 Foam::List<T>::List(const label len, Foam::zero)
+:
+    UList<T>()
 {
     if (FOAM_UNLIKELY(len < 0))
     {
@@ -185,6 +187,8 @@ Foam::List<T>::List(Foam::one, Foam::zero)
 
 template<class T>
 Foam::List<T>::List(const UList<T>& list)
+:
+    UList<T>()
 {
     if (!list.empty())
     {
@@ -196,6 +200,8 @@ Foam::List<T>::List(const UList<T>& list)
 
 template<class T>
 Foam::List<T>::List(const List<T>& list)
+:
+    UList<T>()
 {
     if (!list.empty())
     {
@@ -207,6 +213,8 @@ Foam::List<T>::List(const List<T>& list)
 
 template<class T>
 Foam::List<T>::List(List<T>& list, bool reuse)
+:
+    UList<T>()
 {
     if (reuse)
     {
@@ -226,6 +234,8 @@ Foam::List<T>::List(List<T>& list, bool reuse)
 
 template<class T>
 Foam::List<T>::List(const UList<T>& list, const labelUList& indices)
+:
+    UList<T>()
 {
     if (!indices.empty())
     {
@@ -242,6 +252,8 @@ Foam::List<T>::List
     const UList<T>& list,
     const FixedList<label,N>& indices
 )
+:
+    UList<T>()
 {
     // if (!FixedList::empty()) is always true
     {
@@ -261,6 +273,8 @@ Foam::List<T>::List(const FixedList<T, N>& list)
 
 template<class T>
 Foam::List<T>::List(const UPtrList<T>& list)
+:
+    UList<T>()
 {
     if (!list.empty())
     {
@@ -273,6 +287,8 @@ Foam::List<T>::List(const UPtrList<T>& list)
 template<class T>
 template<class Addr>
 Foam::List<T>::List(const IndirectListBase<T, Addr>& list)
+:
+    UList<T>()
 {
     if (!list.empty())
     {
@@ -292,6 +308,8 @@ Foam::List<T>::List(std::initializer_list<T> list)
 template<class T>
 template<int SizeMin>
 Foam::List<T>::List(DynamicList<T, SizeMin>&& list)
+:
+    UList<T>()
 {
     transfer(list);
 }

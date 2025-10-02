@@ -52,7 +52,7 @@ inline Foam::PtrDynList<T, SizeMin>::PtrDynList(const label len)
 template<class T, int SizeMin>
 inline Foam::PtrDynList<T, SizeMin>::PtrDynList
 (
-    const std::pair<label,label>& sizing
+    std::pair<label,label> sizing
 )
 :
     PtrList<T>(std::max(sizing.first, sizing.second)),

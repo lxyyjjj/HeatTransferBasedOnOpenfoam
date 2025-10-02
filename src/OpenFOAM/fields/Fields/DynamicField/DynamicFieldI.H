@@ -64,13 +64,10 @@ inline void Foam::DynamicField<T, SizeMin>::doCapacity_copy
     }
 
     // Addressable length, possibly truncated by new capacity
-    const label currLen = Foam::min(List<T>::size(), newCapacity);
+    const label currLen = std::min(List<T>::size(), newCapacity);
 
     // The count truncated by the new addressable range
-    if (count > currLen)
-    {
-        count = currLen;
-    }
+    count = std::min(count, currLen);
 
     // Consistent allocated sizing
     List<T>::setAddressableSize(capacity_);
@@ -101,11 +98,8 @@ inline void Foam::DynamicField<T, SizeMin>::doReserve_copy
         // Preserve addressed size
         const label currLen = List<T>::size();
 
-        // The count truncated by the addressable range
-        if (count > currLen)
-        {
-            count = currLen;
-        }
+        // The count truncated by the new addressable range
+        count = std::min(count, currLen);
 
         // Consistent allocated sizing
         List<T>::setAddressableSize(capacity_);
@@ -152,7 +146,7 @@ inline Foam::DynamicField<T, SizeMin>::DynamicField(const label initialCapacity)
 template<class T, int SizeMin>
 inline Foam::DynamicField<T, SizeMin>::DynamicField
 (
-    const std::pair<label,label>& sizing
+    std::pair<label,label> sizing
 )
 :
     Field<T>(std::max(sizing.first, sizing.second)),

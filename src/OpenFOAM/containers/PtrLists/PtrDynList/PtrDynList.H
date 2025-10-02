@@ -80,7 +80,7 @@ public:
         inline explicit PtrDynList(const label len);
 
         //- Construct with given size and capacity
-        inline explicit PtrDynList(const std::pair<label,label>& sizing);
+        inline explicit PtrDynList(std::pair<label,label> sizing);
 
         //- Copy construct using 'clone()' method on each element
         inline PtrDynList(const PtrDynList<T, SizeMin>& list);

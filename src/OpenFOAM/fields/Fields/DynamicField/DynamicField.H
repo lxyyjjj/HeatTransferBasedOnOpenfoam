@@ -100,7 +100,7 @@ public:
         inline explicit DynamicField(const label initialCapacity);
 
         //- Construct with given size and capacity
-        inline explicit DynamicField(const std::pair<label,label>& sizing);
+        inline explicit DynamicField(std::pair<label,label> sizing);
 
         //- Construct given size and initial value
         inline DynamicField(const label len, const T& val);

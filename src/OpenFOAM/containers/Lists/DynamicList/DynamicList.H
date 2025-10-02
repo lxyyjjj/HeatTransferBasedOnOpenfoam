@@ -116,7 +116,7 @@ public:
         inline explicit DynamicList(const label initialCapacity);
 
         //- Construct with given size and capacity
-        inline explicit DynamicList(const std::pair<label,label>& sizing);
+        inline explicit DynamicList(std::pair<label,label> sizing);
 
         //- Construct with given size and value for all elements.
         inline DynamicList(const label len, const T& val);

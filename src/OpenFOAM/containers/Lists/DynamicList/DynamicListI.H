@@ -66,13 +66,10 @@ inline void Foam::DynamicList<T, SizeMin>::doCapacity_copy
     }
 
     // Addressable length, possibly truncated by new capacity
-    const label currLen = Foam::min(List<T>::size(), newCapacity);
+    const label currLen = std::min(List<T>::size(), newCapacity);
 
     // The count truncated by the new addressable range
-    if (count > currLen)
-    {
-        count = currLen;
-    }
+    count = std::min(count, currLen);
 
     // Consistent allocated sizing
     List<T>::setAddressableSize(capacity_);
@@ -104,10 +101,7 @@ inline void Foam::DynamicList<T, SizeMin>::doReserve_copy
         const label currLen = List<T>::size();
 
         // The count truncated by the addressable range
-        if (count > currLen)
-        {
-            count = currLen;
-        }
+        count = std::min(count, currLen);
 
         // Consistent allocated sizing
         List<T>::setAddressableSize(capacity_);
@@ -155,7 +149,7 @@ inline Foam::DynamicList<T, SizeMin>::DynamicList(const label initialCapacity)
 template<class T, int SizeMin>
 inline Foam::DynamicList<T, SizeMin>::DynamicList
 (
-    const std::pair<label,label>& sizing
+    std::pair<label,label> sizing
 )
 :
     List<T>(std::max(sizing.first, sizing.second)),

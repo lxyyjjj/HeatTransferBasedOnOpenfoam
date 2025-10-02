@@ -88,6 +88,8 @@ inline Foam::List<T>::List
     InputIterator inputEnd,  // (unused)
     const label len
 )
+:
+    UList<T>()
 {
     if (len > 0)
     {
