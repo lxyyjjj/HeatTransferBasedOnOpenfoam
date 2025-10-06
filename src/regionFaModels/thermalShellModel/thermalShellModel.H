@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2022 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -92,7 +92,7 @@ protected:
         //- Name of the temperature field
         word TName_;
 
-        //- Primary region temperature
+        //- Primary (volume) region temperature
         const volScalarField& Tp_;
 
         //- Shell temperature
@@ -157,31 +157,20 @@ public:
 
     // Member Functions
 
-        // Access
+        //- Return primary (volume) region temperature
+        const volScalarField& Tp() const noexcept { return Tp_; }
 
-            //- Return primary region temperature
-            const volScalarField& Tp() const noexcept
-            {
-                return Tp_;
-            }
+        //- Return shell temperature
+        const areaScalarField& T() const noexcept { return T_; }
 
-            //- Return shell temperature
-            const areaScalarField& T() const noexcept
-            {
-                return T_;
-            }
-
-            //- Return faOptions
-            Foam::fa::options& faOptions() noexcept
-            {
-                return faOptions_;
-            }
+        //- Return faOptions
+        Foam::fa::options& faOptions() noexcept { return faOptions_; }
 
 
-        // Evolution
+    // Evolution
 
-            //- Pre-evolve region
-            virtual void preEvolveRegion();
+        //- Pre-evolve region
+        virtual void preEvolveRegion();
 };
 
 

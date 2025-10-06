@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2022 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -167,43 +167,26 @@ public:
 
     // Member Functions
 
-        // Access
+       //- Return primary region pa
+       const volScalarField& pa() const noexcept { return pa_; }
 
-            //- Return primary region pa
-            const volScalarField& pa() const noexcept
-            {
-                return pa_;
-            }
+       //- Return shell displacement
+       const areaScalarField& w() const noexcept { return w_; }
 
-            //- Return shell displacement
-            const areaScalarField& w() const noexcept
-            {
-                return w_;
-            }
+       //- Return shell acceleration
+       const areaScalarField& a() const noexcept { return a_; }
 
-            //- Return shell acceleration
-            const areaScalarField& a() const noexcept
-            {
-                return a_;
-            }
+       //- Return faOptions
+       Foam::fa::options& faOptions() noexcept { return faOptions_; }
 
-            //- Return faOptions
-            Foam::fa::options& faOptions() noexcept
-            {
-                return faOptions_;
-            }
-
-            //- Return solid properties
-            const solidProperties& solid() const noexcept
-            {
-                return solid_;
-            }
+       //- Return solid properties
+       const solidProperties& solid() const noexcept { return solid_; }
 
 
-        // Evolution
+   // Evolution
 
-            //- Pre-evolve region
-            virtual void preEvolveRegion();
+       //- Pre-evolve region
+       virtual void preEvolveRegion();
 };
 
 

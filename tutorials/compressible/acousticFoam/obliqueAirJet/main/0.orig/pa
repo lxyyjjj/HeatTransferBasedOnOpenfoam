@@ -1,7 +1,7 @@
 /*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\    /   O peration     | Version:  v2506                                 |
+|  \\    /   O peration     | Version:  v2512                                 |
 |   \\  /    A nd           | Website:  www.openfoam.com                      |
 |    \\/     M anipulation  |                                                 |
 \*---------------------------------------------------------------------------*/
@@ -29,22 +29,16 @@ boundaryField
 
     window
     {
-        type                vibrationShell;
-        active              true;
-        p                   pa;
+        type            vibrationShell;
+        active          true;
+        p               pa;
 
         solid
         {
-            W                   20; //Not used
-            rho                 2500;
-
-            kappa               200;
-            Cp                  600;
-            Hf                  0;
-            emissivity          0;
-
-            E                   7e10;
-            nu                  0.22;
+            // Mechanical properties
+            rho     2500;
+            E       7e10;
+            nu      0.22;
         }
 
         region                vibrationShell;
@@ -55,7 +49,7 @@ boundaryField
         f2             0;
 
         value          $internalField;
-   }
+    }
 
     wall
     {
