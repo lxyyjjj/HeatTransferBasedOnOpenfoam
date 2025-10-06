@@ -109,31 +109,92 @@ Foam::fa::optionList::optionList
 
 void Foam::fa::optionList::reset(const dictionary& dict)
 {
-    // Count number of active faOptions
+    // Count number of possible faOptions
     label count = 0;
-    for (const entry& dEntry : dict)
+
+    // Reject sub-dictionary entries that have an "area" entry that
+    // conflicts with the expected name
+
+    const word& expectedName = polyMesh::regionName(areaName_);
+
+    const auto accept = [&](const dictionary& d)
     {
-        if (dEntry.isDict())
+        if (expectedName.empty())
         {
-            ++count;
+            return true;
+        }
+        else if (auto* is = d.findStream("area", keyType::LITERAL))
+        {
+            const auto& tok = is->front();
+            return
+            (
+                tok.isStringType()
+             && fa::option::sameRegionNames(expectedName, tok.stringToken())
+            );
+        }
+        else
+        {
+            return true;
+        }
+    };
+
+
+    for (const entry& e : dict)
+    {
+        if (const auto* dictptr = e.dictPtr())
+        {
+            if (!accept(*dictptr))
+            {
+                // Produce a conspicuous warning message
+
+                auto& err = IOWarningInFunction(*dictptr) << nl
+                    << incrIndent
+                    << indent
+                    << "Ignoring faOption entry: " << e.keyword() << nl
+                    << indent << "which has an inconsistent 'area' entry." << nl
+                    << indent << nl
+                    << incrIndent
+                    << indent << "expected : " << expectedName << nl
+                    << indent << "found    : ";
+
+                if (auto* is = dictptr->findStream("area", keyType::LITERAL))
+                {
+                    err << is->front();
+                }
+
+                err << decrIndent << nl << nl
+                    << indent
+                    << "It is either located in the wrong faOptions" << nl
+                    << indent
+                    << "or the 'area' entry should be removed." << nl
+                    << decrIndent << nl << endl;
+            }
+            else
+            {
+                ++count;
+            }
         }
     }
 
-    this->resize(count);
+    this->resize_null(count);
 
     count = 0;
-    for (const entry& dEntry : dict)
-    {
-        if (dEntry.isDict())
-        {
-            const word& name = dEntry.keyword();
-            const dictionary& sourceDict = dEntry.dict();
 
-            this->set
-            (
-                count++,
-                option::New(name, sourceDict, mesh_)
-            );
+    for (const entry& e : dict)
+    {
+        if (const auto* dictptr = e.dictPtr())
+        {
+            if (accept(*dictptr))
+            {
+                const word& name = e.keyword();
+                const auto& coeffs = *dictptr;
+
+                this->set
+                (
+                    count++,
+                    fa::option::New(name, coeffs, mesh_, areaName_)
+                );
+            }
         }
     }
 }

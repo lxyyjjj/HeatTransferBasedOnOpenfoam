@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2022 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -65,10 +65,11 @@ Foam::fa::externalHeatFluxSource::externalHeatFluxSource
     const word& sourceName,
     const word& modelType,
     const dictionary& dict,
-    const fvMesh& m
+    const fvMesh& m,
+    const word& defaultAreaName
 )
 :
-    fa::faceSetOption(sourceName, modelType, dict, m),
+    fa::faceSetOption(sourceName, modelType, dict, m, defaultAreaName),
     mode_(operationModeNames.get("mode", dict)),
     TName_(dict.getOrDefault<word>("T", "T")),
     Q_(nullptr),

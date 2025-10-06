@@ -40,6 +40,9 @@ Usage
         // Mandatory entries (runtime modifiable)
         region            <regionName>;
 
+        // Optional entry (unmodifiable)
+        area              <areaName>;
+
         // Optional entries (unmodifiable/runtime modifiable)
         <faOption>Coeffs
         {
@@ -56,6 +59,7 @@ Usage
     \table
       Property         | Description                   | Type  | Reqd | Dflt
       type             | Name of operand faOption      | word  | yes  | -
+      area             | Name of finite-area mesh      | word  | no   | region0
       region           | Name of operand region        | word  | yes  | -
       \<faOption\>Coeffs | Dictionary containing settings of <!--
                     --> the selected faOption settings | dictionary | no | -
@@ -174,9 +178,10 @@ public:
                 const word& name,
                 const word& modelType,
                 const dictionary& dict,
-                const fvMesh& mesh
+                const fvMesh& mesh,
+                const word& areaName
             ),
-            (name, modelType, dict, mesh)
+            (name, modelType, dict, mesh, areaName)
         );
 
 
@@ -188,7 +193,9 @@ public:
             const word& name,
             const word& modelType,
             const dictionary& dict,
-            const fvMesh& mesh
+            const fvMesh& mesh,
+            //! The expected finite-area mesh name
+            const word& defaultAreaName = word()
         );
 
         //- Return clone
@@ -205,28 +212,33 @@ public:
             //- Reference to the mesh
             const fvMesh& mesh_;
 
-            //- Name
+            //- The option name
             const word& name_;
+
+            //- The default area name
+            const word& area_;
 
         public:
 
             iNew
             (
                 const fvMesh& mesh,
-                const word& name
-            )
+                const word& name,
+                const word& defaultAreaName
+            ) noexcept
             :
                 mesh_(mesh),
-                name_(name)
+                name_(name),
+                area_(defaultAreaName)
             {}
 
             autoPtr<option> operator()(Istream& is) const
             {
                 const dictionary dict(is);
 
-                return autoPtr<option>
+                return autoPtr<fa::option>
                 (
-                    option::New(name_, dict, mesh_)
+                    fa::option::New(name_, dict, mesh_, area_)
                 );
             }
         };
@@ -239,7 +251,9 @@ public:
         (
             const word& name,
             const dictionary& dict,
-            const fvMesh& mesh
+            const fvMesh& mesh,
+            //! The expected finite-area mesh name
+            const word& defaultAreaName = word()
         );
 
 

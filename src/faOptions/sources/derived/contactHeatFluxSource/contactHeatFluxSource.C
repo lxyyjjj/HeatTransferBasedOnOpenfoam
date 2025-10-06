@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2022 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,10 +51,11 @@ Foam::fa::contactHeatFluxSource::contactHeatFluxSource
     const word& sourceName,
     const word& modelType,
     const dictionary& dict,
-    const fvMesh& mesh
+    const fvMesh& mesh,
+    const word& defaultAreaName
 )
 :
-    fa::faceSetOption(sourceName, modelType, dict, mesh),
+    fa::faceSetOption(sourceName, modelType, dict, mesh, defaultAreaName),
     TName_(dict.getOrDefault<word>("T", "T")),
     TprimaryName_(dict.get<word>("Tprimary")),
     Tprimary_(mesh_.lookupObject<volScalarField>(TprimaryName_)),
