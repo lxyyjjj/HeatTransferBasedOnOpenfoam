@@ -329,6 +329,15 @@ inline Foam::fileName Foam::IOobject::globalObjectPath() const
 }
 
 
+inline Foam::fileName Foam::IOobject::objectPath
+(
+    IOobjectOption::Layout layout
+) const
+{
+    return path(layout)/name();
+}
+
+
 // Error Handling
 
 inline bool Foam::IOobject::good() const noexcept

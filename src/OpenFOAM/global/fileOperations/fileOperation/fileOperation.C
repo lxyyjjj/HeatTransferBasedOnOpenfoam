@@ -1091,7 +1091,15 @@ Foam::IOobject Foam::fileOperation::findInstance
     enum failureCodes { FAILED_STOPINST = 1, FAILED_CONSTINST = 2 };
     int failed(0);
 
-    instantList ts = time.times();
+    // The timeDirs
+    instantList ts
+    (
+        this->findTimes
+        (
+            time.path(),  // time.path(layout)
+            time.constant()
+        )
+    );
 
     {
         label instIndex = ts.size()-1;
@@ -1099,7 +1107,7 @@ Foam::IOobject Foam::fileOperation::findInstance
         // Backward search for first time that is <= startValue
         for (; instIndex >= 0; --instIndex)
         {
-            if (ts[instIndex].value() <= startValue)
+            if (ts[instIndex] <= startValue)
             {
                 break;
             }

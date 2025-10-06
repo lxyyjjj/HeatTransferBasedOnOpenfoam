@@ -578,6 +578,9 @@ public:
         //- Return the Time::globalCaseName()
         const fileName& globalCaseName() const noexcept;
 
+        //- Return the Time::caseName() - normal or global
+        const fileName& caseName(IOobjectOption::Layout) const noexcept;
+
         //- Read access to instance path component
         inline const fileName& instance() const noexcept;
 
@@ -600,6 +603,9 @@ public:
         //- The complete global path for the object (with instance, local,...)
         fileName globalPath() const;
 
+        //- The complete path (normal or global) for the object
+        fileName path(IOobjectOption::Layout) const;
+
         //- The complete path with alternative instance and local
         fileName path
         (
@@ -614,11 +620,23 @@ public:
             const fileName& local = fileName::null
         ) const;
 
+        //- The complete path (normal or global)
+        //- with alternative instance and local
+        fileName path
+        (
+            IOobjectOption::Layout,
+            const word& instance,
+            const fileName& local = fileName::null
+        ) const;
+
         //- The complete path + object name
         inline fileName objectPath() const;
 
         //- The complete global path + object name
         inline fileName globalObjectPath() const;
+
+        //- The complete path (normal or global) + object name
+        inline fileName objectPath(IOobjectOption::Layout) const;
 
         //- The object path relative to the root
         fileName objectRelPath() const;

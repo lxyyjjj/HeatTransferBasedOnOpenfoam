@@ -79,8 +79,11 @@ int main(int argc, char *argv[])
     }
 
     Info<< nl << "times:" << times << nl;
-    sort(times);
+
+    labelList order(Foam::sortedOrder(times));
+    Foam::sort(times);
     Info<< "Sorted:" << times << nl;
+    Info<< "order:" << flatOutput(order) << nl;
 
     for (const scalar val : { -0.5, 5.0, 18.0, 25.0, 450.0, 480.0 })
     {
@@ -105,9 +108,28 @@ int main(int argc, char *argv[])
     files.emplace_back(10, "ten");
 
     Info<< nl << "files:" << files << nl;
-    sort(files);
+    Foam::sort(files);
     Info<< "Sorted:" << files << nl;
 
+
+    {
+        const auto& a = times[3];
+        scalar b = 10;
+        Info<< "compare (" << a << ") <= (" << b << ")  => "
+            << a.less_equal(10) << nl;
+        Info<< "compare (" << a << ") >= (" << b << ")  => "
+            << a.greater_equal(10) << nl;
+    }
+
+    {
+        const auto& a = times[3];
+        const auto& b = files[4];
+        Info<< "compare (" << a << ") <= (" << b << ")  => "
+            << (a <= b) << nl;
+
+        Info<< "compare (" << a << ") >= (" << b << ")  => "
+            << (a >= b) << nl;
+    }
 
     Info<< "\nEnd\n" << endl;
 

@@ -187,14 +187,17 @@ Foam::fileOperations::masterUncollatedFileOperation::filePathInfo
 
         // Check for approximately same time. E.g. if time = 1e-2 and
         // directory is 0.01 (due to different time formats)
-        const auto pathFnd = times_.cfind(io.time().path());
 
-        if (search && pathFnd.good())
+        if
+        (
+            const auto* instPtr = times_.get(io.time().path());
+            search && instPtr
+        )
         {
             newInstancePath =
                 Time::findInstancePath
                 (
-                    *pathFnd(),
+                    *instPtr,  // instantList (cached)
                     instant(io.instance())
                 );
 
@@ -1492,7 +1495,15 @@ Foam::fileOperations::masterUncollatedFileOperation::findInstance
     enum failureCodes { FAILED_STOPINST = 1, FAILED_CONSTINST = 2 };
     int failed(0);
 
-    instantList ts = time.times();
+    // The timeDirs
+    instantList ts
+    (
+        this->findTimes
+        (
+            time.path(),  // time.path(layout)
+            time.constant()
+        )
+    );
 
     // if (Pstream::master(comm_))
     if (Pstream::master(UPstream::worldComm))
@@ -1506,7 +1517,7 @@ Foam::fileOperations::masterUncollatedFileOperation::findInstance
         // Backward search for first time that is <= startValue
         for (; instIndex >= 0; --instIndex)
         {
-            if (ts[instIndex].value() <= startValue)
+            if (ts[instIndex] <= startValue)
             {
                 break;
             }
@@ -2283,16 +2294,15 @@ Foam::instantList Foam::fileOperations::masterUncollatedFileOperation::findTimes
     const word& constantName
 ) const
 {
-    const auto iter = times_.cfind(directory);
-    if (iter.good())
+    if (const auto* instPtr = times_.get(directory); instPtr)
     {
         if (debug)
         {
             Pout<< "masterUncollatedFileOperation::findTimes :"
-                << " Found " << iter.val()->size() << " cached times" << nl
+                << " Found " << instPtr->size() << " cached times" << nl
                 << "    for directory:" << directory << endl;
         }
-        return *(iter.val());
+        return *instPtr;
     }
     else
     {
@@ -2350,9 +2360,7 @@ void Foam::fileOperations::masterUncollatedFileOperation::setTime
     // Mutable access to instant list for modification and sorting
     // - cannot use auto type deduction here
 
-    auto iter = times_.find(tm.path());
-
-    if (iter.good())
+    if (auto iter = times_.find(tm.path()); iter.good())
     {
         DynamicList<instant>& times = *(iter.val());
 
@@ -2372,16 +2380,9 @@ void Foam::fileOperations::masterUncollatedFileOperation::setTime
 
         if (times.size() <= startIdx || times.last() < timeNow)
         {
-            times.append(timeNow);
+            times.push_back(timeNow);
         }
-        else if
-        (
-            findSortedIndex
-            (
-                SubList<instant>(times, times.size()-startIdx, startIdx),
-                timeNow
-            ) < 0
-        )
+        else if (findSortedIndex(times, timeNow, startIdx) < 0)
         {
             if (debug)
             {
@@ -2390,12 +2391,9 @@ void Foam::fileOperations::masterUncollatedFileOperation::setTime
                     << " for case:" << tm.path() << endl;
             }
 
-            times.append(timeNow);
+            times.push_back(timeNow);
 
-            SubList<instant> realTimes
-            (
-                times, times.size()-startIdx, startIdx
-            );
+            auto realTimes = times.slice(startIdx);
             Foam::stableSort(realTimes);
         }
     }

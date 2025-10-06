@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2019 OpenFOAM Foundation
-    Copyright (C) 2016-2024 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,14 +42,13 @@ SourceFiles
 #define Foam_Time_H
 
 #include "TimePaths.H"
+#include "TimeState.H"
 #include "objectRegistry.H"
 #include "unwatchedIOdictionary.H"
 #include "FIFOStack.H"
 #include "clock.H"
 #include "cpuTime.H"
-#include "TimeState.H"
 #include "Switch.H"
-#include "instantList.H"
 #include "Enum.H"
 #include "typeInfo.H"
 #include "dlLibraryTable.H"
@@ -377,7 +376,7 @@ public:
 
     // TimeState Functions
 
-        //- Return the current time name
+        //- The current time name
         using TimeState::timeName;
 
         //- Return a time name for the given scalar time value
@@ -390,27 +389,20 @@ public:
         //- Use name from objectRegistry, not TimePaths
         using objectRegistry::name;
 
-        //- Return the rootPath
+        //- The root path
         using TimePaths::rootPath;
 
-        //- Return global case name
+        //- The global case name
         using TimePaths::globalCaseName;
 
-        //- Return case name
+        //- The case name
         using TimePaths::caseName;
 
-        //- Return path = rootPath/caseName. Same as TimePaths::path()
-        fileName path() const
-        {
-            return TimePaths::rootPath()/TimePaths::caseName();
-        }
+        //- The path for the case = rootPath/caseName
+        using TimePaths::path;
 
-        //- Return global path for the case = rootPath/globalCaseName.
-        //- Same as TimePaths::globalPath()
-        fileName globalPath() const
-        {
-            return TimePaths::rootPath()/TimePaths::globalCaseName();
-        }
+        //- The global path for the case = rootPath/globalCaseName
+        using TimePaths::globalPath;
 
         //- Return current time path = path/timeName
         fileName timePath() const
@@ -422,6 +414,12 @@ public:
         fileName globalTimePath() const
         {
             return TimePaths::globalPath()/TimeState::timeName();
+        }
+
+        //- Return current time path (case or global)
+        fileName timePath(IOobjectOption::Layout layout) const
+        {
+            return TimePaths::path(layout)/TimeState::timeName();
         }
 
 
