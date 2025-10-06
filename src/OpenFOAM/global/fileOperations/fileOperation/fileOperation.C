@@ -320,7 +320,11 @@ Foam::fileMonitor& Foam::fileOperation::monitor() const
     {
         monitorPtr_.reset
         (
-            new fileMonitor(IOobject::fileModificationChecking_masterOnly())
+            new fileMonitor
+            (
+                IOobject::fileModificationChecking == IOobject::inotify
+             || IOobject::fileModificationChecking == IOobject::inotifyMaster
+            )
         );
     }
     return *monitorPtr_;
