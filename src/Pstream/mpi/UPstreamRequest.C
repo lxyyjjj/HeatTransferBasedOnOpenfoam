@@ -42,7 +42,7 @@ Foam::UPstream::Request::Request() noexcept
 
 bool Foam::UPstream::Request::good() const noexcept
 {
-    return MPI_REQUEST_NULL != PstreamUtils::Cast::to_mpi(*this);
+    return (MPI_REQUEST_NULL != PstreamUtils::Cast::to_mpi(*this));
 }
 
 
@@ -99,7 +99,7 @@ void Foam::UPstream::addRequest(UPstream::Request& req)
 
     {
         MPI_Request request = PstreamUtils::Cast::to_mpi(req);
-        if (MPI_REQUEST_NULL != request)
+        if (MPI_REQUEST_NULL != request)  // Active handle is mandatory
         {
             PstreamGlobals::outstandingRequests_.push_back(request);
         }
@@ -116,8 +116,7 @@ void Foam::UPstream::cancelRequest(const label i)
     if
     (
         !UPstream::parRun()
-     || i < 0
-     || i >= PstreamGlobals::outstandingRequests_.size()
+     || (i < 0 || i >= PstreamGlobals::outstandingRequests_.size())
     )
     {
         return;
@@ -170,12 +169,14 @@ void Foam::UPstream::cancelRequests(UList<UPstream::Request>& requests)
             MPI_Cancel(&request);
             MPI_Request_free(&request);
         }
-        req = UPstream::Request(MPI_REQUEST_NULL);  // Now inactive
     }
+
+    // Everything handled, reset all to MPI_REQUEST_NULL
+    requests = UPstream::Request(MPI_REQUEST_NULL);
 }
 
 
-void Foam::UPstream::removeRequests(const label pos, label len)
+void Foam::UPstream::removeRequests(label pos, label len)
 {
     // No-op for non-parallel, no pending requests or out-of-range
     if
@@ -258,12 +259,14 @@ void Foam::UPstream::freeRequests(UList<UPstream::Request>& requests)
             // }
             MPI_Request_free(&request);
         }
-        req = UPstream::Request(MPI_REQUEST_NULL);  // Now inactive
     }
+
+    // Everything handled, reset all to MPI_REQUEST_NULL
+    requests = UPstream::Request(MPI_REQUEST_NULL);
 }
 
 
-void Foam::UPstream::waitRequests(const label pos, label len)
+void Foam::UPstream::waitRequests(label pos, label len)
 {
     // No-op for non-parallel, no pending requests or out-of-range
     if
@@ -289,7 +292,7 @@ void Foam::UPstream::waitRequests(const label pos, label len)
     }
     // Have count >= 1
 
-    auto* waitRequests = (PstreamGlobals::outstandingRequests_.data() + pos);
+    auto* mpiRequests = (PstreamGlobals::outstandingRequests_.data() + pos);
 
     if (UPstream::debug)
     {
@@ -302,7 +305,7 @@ void Foam::UPstream::waitRequests(const label pos, label len)
     if (count == 1)
     {
         // On success: sets request to MPI_REQUEST_NULL
-        if (MPI_Wait(waitRequests, MPI_STATUS_IGNORE))
+        if (MPI_Wait(mpiRequests, MPI_STATUS_IGNORE))
         {
             FatalErrorInFunction
                 << "MPI_Wait returned with error"
@@ -312,7 +315,7 @@ void Foam::UPstream::waitRequests(const label pos, label len)
     else if (count > 1)
     {
         // On success: sets each request to MPI_REQUEST_NULL
-        if (MPI_Waitall(count, waitRequests, MPI_STATUSES_IGNORE))
+        if (MPI_Waitall(count, mpiRequests, MPI_STATUSES_IGNORE))
         {
             FatalErrorInFunction
                 << "MPI_Waitall returned with error"
@@ -346,16 +349,17 @@ void Foam::UPstream::waitRequests(UList<UPstream::Request>& requests)
     // Looks ugly but is legitimate since UPstream::Request is an intptr_t,
     // which is always large enough to hold an MPI_Request (int or pointer)
 
-    label count = 0;
-    auto* waitRequests = reinterpret_cast<MPI_Request*>(requests.data());
+    int count = 0;
+    auto* mpiRequests = reinterpret_cast<MPI_Request*>(requests.data());
 
+    // Transcribe, but pre-filter to eliminate inactive requests
     for (auto& req : requests)
     {
         MPI_Request request = PstreamUtils::Cast::to_mpi(req);
 
         if (MPI_REQUEST_NULL != request)  // Apply some prefiltering
         {
-            waitRequests[count] = request;
+            mpiRequests[count] = request;
             ++count;
         }
     }
@@ -369,7 +373,7 @@ void Foam::UPstream::waitRequests(UList<UPstream::Request>& requests)
     profilingPstream::beginTiming();
 
     // On success: sets each request to MPI_REQUEST_NULL
-    if (MPI_Waitall(count, waitRequests, MPI_STATUSES_IGNORE))
+    if (MPI_Waitall(count, mpiRequests, MPI_STATUSES_IGNORE))
     {
         FatalErrorInFunction
             << "MPI_Waitall returned with error"
@@ -383,7 +387,7 @@ void Foam::UPstream::waitRequests(UList<UPstream::Request>& requests)
 }
 
 
-bool Foam::UPstream::waitAnyRequest(const label pos, label len)
+bool Foam::UPstream::waitAnyRequest(label pos, label len)
 {
     // No-op for non-parallel, no pending requests or out-of-range
     if
@@ -407,7 +411,7 @@ bool Foam::UPstream::waitAnyRequest(const label pos, label len)
     }
     // Have count >= 1
 
-    auto* waitRequests = (PstreamGlobals::outstandingRequests_.data() + pos);
+    auto* mpiRequests = (PstreamGlobals::outstandingRequests_.data() + pos);
 
     if (UPstream::debug)
     {
@@ -419,7 +423,7 @@ bool Foam::UPstream::waitAnyRequest(const label pos, label len)
 
     // On success: sets request to MPI_REQUEST_NULL
     int index = MPI_UNDEFINED;
-    if (MPI_Waitany(count, waitRequests, &index, MPI_STATUS_IGNORE))
+    if (MPI_Waitany(count, mpiRequests, &index, MPI_STATUS_IGNORE))
     {
         FatalErrorInFunction
             << "MPI_Waitany returned with error"
@@ -440,7 +444,7 @@ bool Foam::UPstream::waitAnyRequest(const label pos, label len)
 
 bool Foam::UPstream::waitSomeRequests
 (
-    const label pos,
+    label pos,
     label len,
     DynamicList<int>* indices
 )
@@ -468,7 +472,7 @@ bool Foam::UPstream::waitSomeRequests
     }
     // Have count >= 1
 
-    auto* waitRequests = (PstreamGlobals::outstandingRequests_.data() + pos);
+    auto* mpiRequests = (PstreamGlobals::outstandingRequests_.data() + pos);
 
     if (UPstream::debug)
     {
@@ -497,7 +501,7 @@ bool Foam::UPstream::waitSomeRequests
         MPI_Waitsome
         (
             count,
-            waitRequests,
+            mpiRequests,
            &outcount,
             (indices ? indices->data() : tmpIndices.data()),
             MPI_STATUSES_IGNORE
@@ -543,13 +547,13 @@ bool Foam::UPstream::waitSomeRequests
     // Looks ugly but is legitimate since UPstream::Request is an intptr_t,
     // which is always large enough to hold an MPI_Request (int or pointer)
 
-    label count = 0;
-    auto* waitRequests = reinterpret_cast<MPI_Request*>(requests.data());
+    const int count = static_cast<int>(requests.size());
+    auto* mpiRequests = reinterpret_cast<MPI_Request*>(requests.data());
 
-    for (auto& req : requests)
+    // Transcribe without changing locations
+    for (int i = 0; i < count; ++i)
     {
-        waitRequests[count] = PstreamUtils::Cast::to_mpi(req);
-        ++count;
+        mpiRequests[i] = PstreamUtils::Cast::to_mpi(requests[i]);
     }
 
     // Local temporary storage, or return via calling parameter
@@ -578,7 +582,7 @@ bool Foam::UPstream::waitSomeRequests
         MPI_Waitsome
         (
             count,
-            waitRequests,
+            mpiRequests,
            &outcount,
             (indices ? indices->data() : tmpIndices.data()),
             MPI_STATUSES_IGNORE
@@ -612,7 +616,7 @@ bool Foam::UPstream::waitSomeRequests
     {
         for (label i = requests.size()-1; i >= 0; --i)
         {
-            requests[i] = UPstream::Request(waitRequests[i]);
+            requests[i] = UPstream::Request(mpiRequests[i]);
         }
     }
 
@@ -620,7 +624,7 @@ bool Foam::UPstream::waitSomeRequests
 }
 
 
-Foam::label Foam::UPstream::waitAnyRequest(UList<UPstream::Request>& requests)
+int Foam::UPstream::waitAnyRequest(UList<UPstream::Request>& requests)
 {
     // No-op for non-parallel or no pending requests
     if (!UPstream::parRun() || requests.empty())
@@ -631,23 +635,22 @@ Foam::label Foam::UPstream::waitAnyRequest(UList<UPstream::Request>& requests)
     // Looks ugly but is legitimate since UPstream::Request is an intptr_t,
     // which is always large enough to hold an MPI_Request (int or pointer)
 
-    label count = 0;
-    auto* waitRequests = reinterpret_cast<MPI_Request*>(requests.data());
+    const int count = static_cast<int>(requests.size());
+    auto* mpiRequests = reinterpret_cast<MPI_Request*>(requests.data());
 
     // Transcribe UPstream::Request into MPI_Request
     // - do not change locations within the list since these are relevant
     //   for the return index.
-    for (auto& req : requests)
+    for (int i = 0; i < count; ++i)
     {
-        waitRequests[count] = PstreamUtils::Cast::to_mpi(req);
-        ++count;
+        mpiRequests[i] = PstreamUtils::Cast::to_mpi(requests[i]);
     }
 
     profilingPstream::beginTiming();
 
     // On success: sets request to MPI_REQUEST_NULL
     int index = MPI_UNDEFINED;
-    if (MPI_Waitany(count, waitRequests, &index, MPI_STATUS_IGNORE))
+    if (MPI_Waitany(count, mpiRequests, &index, MPI_STATUS_IGNORE))
     {
         FatalErrorInFunction
             << "MPI_Waitany returned with error"
@@ -664,15 +667,9 @@ Foam::label Foam::UPstream::waitAnyRequest(UList<UPstream::Request>& requests)
     // Transcribe MPI_Request back into UPstream::Request
     // - do in reverse order - see note in finishedRequests()
     {
-        for (label i = count-1; i >= 0; --i)
+        for (label i = requests.size()-1; i >= 0; --i)
         {
-            requests[i] = UPstream::Request(waitRequests[i]);
-        }
-
-        // Trailing portion
-        for (label i = count; i < requests.size(); ++i)
-        {
-            requests[i] = UPstream::Request(MPI_REQUEST_NULL);
+            requests[i] = UPstream::Request(mpiRequests[i]);
         }
     }
 
@@ -695,16 +692,16 @@ Foam::label Foam::UPstream::waitAnyRequest(UList<UPstream::Request>& requests)
 ///     }
 ///
 ///     int count = 0;
-///     MPI_Request waitRequests[2];
+///     MPI_Request mpiRequests[2];
 ///
-///     waitRequests[count] = PstreamUtils::Cast::to_mpi(req0);
-///     if (MPI_REQUEST_NULL != waitRequests[count])
+///     mpiRequests[count] = PstreamUtils::Cast::to_mpi(req0);
+///     if (MPI_REQUEST_NULL != mpiRequests[count])
 ///     {
 ///         ++count;
 ///     }
 ///
-///     waitRequests[count] = PstreamUtils::Cast::to_mpi(req1);
-///     if (MPI_REQUEST_NULL != waitRequests[count])
+///     mpiRequests[count] = PstreamUtils::Cast::to_mpi(req1);
+///     if (MPI_REQUEST_NULL != mpiRequests[count])
 ///     {
 ///         ++count;
 ///     }
@@ -721,11 +718,25 @@ Foam::label Foam::UPstream::waitAnyRequest(UList<UPstream::Request>& requests)
 ///     profilingPstream::beginTiming();
 ///
 ///     // On success: sets each request to MPI_REQUEST_NULL
-///     if (MPI_Waitall(count, waitRequests, MPI_STATUSES_IGNORE))
+///     if (count == 1)
 ///     {
-///         FatalErrorInFunction
-///             << "MPI_Waitall returned with error"
-///             << Foam::abort(FatalError);
+///         // On success: sets request to MPI_REQUEST_NULL
+///         if (MPI_Wait(mpiRequests, MPI_STATUS_IGNORE))
+///         {
+///             FatalErrorInFunction
+///                 << "MPI_Wait returned with error"
+///                 << Foam::abort(FatalError);
+///         }
+///     }
+///     else   // (count > 1)
+///     {
+///         // On success: sets each request to MPI_REQUEST_NULL
+///         if (MPI_Waitall(count, mpiRequests, MPI_STATUSES_IGNORE))
+///         {
+///             FatalErrorInFunction
+///                 << "MPI_Waitall returned with error"
+///                 << Foam::abort(FatalError);
+///         }
 ///     }
 ///
 ///     profilingPstream::addWaitTime();
@@ -738,8 +749,7 @@ void Foam::UPstream::waitRequest(const label i)
     if
     (
         !UPstream::parRun()
-     || i < 0
-     || i >= PstreamGlobals::outstandingRequests_.size()
+     || (i < 0 || i >= PstreamGlobals::outstandingRequests_.size())
     )
     {
         return;
@@ -810,15 +820,27 @@ void Foam::UPstream::waitRequest(UPstream::Request& req)
 }
 
 
+bool Foam::UPstream::activeRequest(const label i)
+{
+    return
+    (
+        (i >= 0 && i < PstreamGlobals::outstandingRequests_.size())
+     && (MPI_REQUEST_NULL != PstreamGlobals::outstandingRequests_[i])
+    );
+}
+
+
+bool Foam::UPstream::activeRequest(const UPstream::Request& req)
+{
+    // Same as UPstream::Request::active()
+    return (MPI_REQUEST_NULL != PstreamUtils::Cast::to_mpi(req));
+}
+
+
 bool Foam::UPstream::finishedRequest(const label i)
 {
-    // No-op for non-parallel, or out-of-range (eg, placeholder indices)
-    if
-    (
-        !UPstream::parRun()
-     || i < 0
-     || i >= PstreamGlobals::outstandingRequests_.size()
-    )
+    // No-op for non-parallel
+    if (!UPstream::parRun())
     {
         return true;
     }
@@ -829,19 +851,25 @@ bool Foam::UPstream::finishedRequest(const label i)
             << i << endl;
     }
 
-    auto& request = PstreamGlobals::outstandingRequests_[i];
+    // NB: call MPI_Test() even with out-of-range or an inactive handle.
+    // This allows MPI to progress behind the scenes if it wishes.
 
-    // Fast-path (no-op) for null request
-    if (MPI_REQUEST_NULL == request)
+    int flag = 0;
+    if (i < 0 || i >= PstreamGlobals::outstandingRequests_.size())
     {
-        return true;
+        auto& request = PstreamGlobals::outstandingRequests_[i];
+
+        // On success: sets request to MPI_REQUEST_NULL
+        MPI_Test(&request, &flag, MPI_STATUS_IGNORE);
+    }
+    else
+    {
+        // Pass a dummy request (for progress side-effect)
+        MPI_Request request = MPI_REQUEST_NULL;
+        MPI_Test(&request, &flag, MPI_STATUS_IGNORE);
     }
 
-    // On success: sets request to MPI_REQUEST_NULL
-    int flag = 0;
-    MPI_Test(&request, &flag, MPI_STATUS_IGNORE);
-
-    return flag != 0;
+    return (flag != 0);
 }
 
 
@@ -855,36 +883,36 @@ bool Foam::UPstream::finishedRequest(UPstream::Request& req)
 
     MPI_Request request = PstreamUtils::Cast::to_mpi(req);
 
-    // Fast-path (no-op) for null request
-    if (MPI_REQUEST_NULL == request)
-    {
-        return true;
-    }
+    // NB: call MPI_Test() even with an inactive handle.
+    // This allows MPI to progress behind the scenes if it wishes.
 
     int flag = 0;
     MPI_Test(&request, &flag, MPI_STATUS_IGNORE);
 
-    if (flag)
-    {
-        // Success: now inactive
-        req = UPstream::Request(MPI_REQUEST_NULL);
-    }
+    // Sync values
+    req = UPstream::Request(request);
 
-    return flag != 0;
+    return (flag != 0);
 }
 
 
-bool Foam::UPstream::finishedRequests(const label pos, label len)
+bool Foam::UPstream::finishedRequests(label pos, label len)
 {
-    // No-op for non-parallel, or out-of-range (eg, placeholder indices)
+    // No-op for non-parallel
+    if (!UPstream::parRun())
+    {
+        return true;
+    }
+
+    // Out-of-range (eg, placeholder indices)
     if
     (
-        !UPstream::parRun()
-     || (pos < 0 || pos >= PstreamGlobals::outstandingRequests_.size())
+        (pos < 0 || pos >= PstreamGlobals::outstandingRequests_.size())
      || !len
     )
     {
-        return true;
+        pos = 0;
+        len = 0;
     }
 
     label count = (PstreamGlobals::outstandingRequests_.size() - pos);
@@ -904,29 +932,33 @@ bool Foam::UPstream::finishedRequests(const label pos, label len)
             << " requests starting at " << pos << endl;
     }
 
-    auto* waitRequests = (PstreamGlobals::outstandingRequests_.data() + pos);
+    auto* mpiRequests = (PstreamGlobals::outstandingRequests_.data() + pos);
 
     int flag = 1;
 
-    if (count == 1)
+    if (count <= 0)
     {
-        // Fast-path (no-op) for single null request
-        if (MPI_REQUEST_NULL == *waitRequests)
-        {
-            return true;
-        }
+        // No requests
+
+        // Pass a dummy request (for progress side-effect)
+        MPI_Request request = MPI_REQUEST_NULL;
+        MPI_Test(&request, &flag, MPI_STATUS_IGNORE);
+    }
+    else if (count == 1)
+    {
+        // Single request
 
         // On success: sets request to MPI_REQUEST_NULL
-        MPI_Test(waitRequests, &flag, MPI_STATUS_IGNORE);
+        MPI_Test(mpiRequests, &flag, MPI_STATUS_IGNORE);
     }
-    else if (count > 1)
+    else  // (count > 1)
     {
         // On success: sets each request to MPI_REQUEST_NULL
         // On failure: no request is modified
-        MPI_Testall(count, waitRequests, &flag, MPI_STATUSES_IGNORE);
+        MPI_Testall(count, mpiRequests, &flag, MPI_STATUSES_IGNORE);
     }
 
-    return flag != 0;
+    return (flag != 0);
 }
 
 
@@ -941,59 +973,53 @@ bool Foam::UPstream::finishedRequests(UList<UPstream::Request>& requests)
     // Looks ugly but is legitimate since UPstream::Request is an intptr_t,
     // which is always large enough to hold an MPI_Request (int or pointer)
 
-    label count = 0;
-    auto* waitRequests = reinterpret_cast<MPI_Request*>(requests.data());
+    const int count = static_cast<int>(requests.size());
+    auto* mpiRequests = reinterpret_cast<MPI_Request*>(requests.data());
 
-    for (auto& req : requests)
+    // Transcribe
+    for (int i = 0; i < count; ++i)
     {
-        MPI_Request request = PstreamUtils::Cast::to_mpi(req);
+        mpiRequests[i] = PstreamUtils::Cast::to_mpi(requests[i]);
+    }
 
-        if (MPI_REQUEST_NULL != request)  // Apply some prefiltering
+
+    // NB: call MPI_Test() even with an inactive handle.
+    // This allows MPI to progress behind the scenes if it wishes.
+
+    int flag = 1;
+    if (count <= 0)
+    {
+        // No requests
+
+        // Pass a dummy request (for progress side-effect)
+        MPI_Request request = MPI_REQUEST_NULL;
+        MPI_Test(&request, &flag, MPI_STATUS_IGNORE);
+    }
+    else if (count == 1)
+    {
+        // Single request
+
+        // On success: sets request to MPI_REQUEST_NULL
+        MPI_Test(mpiRequests, &flag, MPI_STATUS_IGNORE);
+    }
+    else  // (count > 1)
+    {
+        // On success: sets each request to MPI_REQUEST_NULL
+        // On failure: no request is modified
+        MPI_Testall(count, mpiRequests, &flag, MPI_STATUSES_IGNORE);
+    }
+
+
+    // Transcribe MPI_Request back into UPstream::Request
+    // - do in reverse order - see note in finishedRequests()
+    {
+        for (label i = requests.size()-1; i >= 0; --i)
         {
-            waitRequests[count] = request;
-            ++count;
+            requests[i] = UPstream::Request(mpiRequests[i]);
         }
     }
 
-    if (!count)
-    {
-        // No active handles
-        return true;
-    }
-
-    // On success: sets each request to MPI_REQUEST_NULL
-    // On failure: no request is modified
-    int flag = 0;
-    MPI_Testall(count, waitRequests, &flag, MPI_STATUSES_IGNORE);
-
-    if (flag)
-    {
-        // Success: reset all requests to MPI_REQUEST_NULL
-        requests = UPstream::Request(MPI_REQUEST_NULL);
-    }
-    else
-    {
-        // Not all done. Recover wrapped representation but in reverse order
-        // since sizeof(MPI_Request) can be smaller than
-        // sizeof(UPstream::Request::value_type)
-        // eg, mpich has MPI_Request as 'int'
-        //
-        // This is uglier that we'd like, but much better than allocating
-        // and freeing a scratch buffer each time we query things.
-
-        for (label i = count-1; i >= 0; --i)
-        {
-            requests[i] = UPstream::Request(waitRequests[i]);
-        }
-
-        // Trailing portion
-        for (label i = count; i < requests.size(); ++i)
-        {
-            requests[i] = UPstream::Request(MPI_REQUEST_NULL);
-        }
-    }
-
-    return flag != 0;
+    return (flag != 0);
 }
 
 
@@ -1008,29 +1034,29 @@ bool Foam::UPstream::finishedRequestPair(label& req0, label& req1)
     }
 
     bool anyActive = false;
-    MPI_Request waitRequests[2];
+    MPI_Request mpiRequests[2];
 
     // No-op for out-of-range (eg, placeholder indices)
 
     if (req0 >= 0 && req0 < PstreamGlobals::outstandingRequests_.size())
     {
-        waitRequests[0] = PstreamGlobals::outstandingRequests_[req0];
+        mpiRequests[0] = PstreamGlobals::outstandingRequests_[req0];
     }
     else
     {
-        waitRequests[0] = MPI_REQUEST_NULL;
+        mpiRequests[0] = MPI_REQUEST_NULL;
     }
 
     if (req1 >= 0 && req1 < PstreamGlobals::outstandingRequests_.size())
     {
-        waitRequests[1] = PstreamGlobals::outstandingRequests_[req1];
+        mpiRequests[1] = PstreamGlobals::outstandingRequests_[req1];
     }
     else
     {
-        waitRequests[1] = MPI_REQUEST_NULL;
+        mpiRequests[1] = MPI_REQUEST_NULL;
     }
 
-    if (MPI_REQUEST_NULL != waitRequests[0])  // An active handle
+    if (MPI_REQUEST_NULL != mpiRequests[0])  // An active handle
     {
         anyActive = true;
     }
@@ -1039,7 +1065,7 @@ bool Foam::UPstream::finishedRequestPair(label& req0, label& req1)
         req0 = -1;
     }
 
-    if (MPI_REQUEST_NULL != waitRequests[1])  // An active handle
+    if (MPI_REQUEST_NULL != mpiRequests[1])  // An active handle
     {
         anyActive = true;
     }
@@ -1064,7 +1090,7 @@ bool Foam::UPstream::finishedRequestPair(label& req0, label& req1)
         MPI_Testsome
         (
             2,
-            waitRequests,
+            mpiRequests,
            &outcount,
             indices,
             MPI_STATUSES_IGNORE
@@ -1085,12 +1111,12 @@ bool Foam::UPstream::finishedRequestPair(label& req0, label& req1)
 
         if (req0 >= 0)
         {
-            PstreamGlobals::outstandingRequests_[req0] = waitRequests[0];
+            PstreamGlobals::outstandingRequests_[req0] = mpiRequests[0];
         }
 
         if (req1 >= 0)
         {
-            PstreamGlobals::outstandingRequests_[req1] = waitRequests[1];
+            PstreamGlobals::outstandingRequests_[req1] = mpiRequests[1];
         }
 
         // Flag indices as 'done'
@@ -1108,7 +1134,7 @@ bool Foam::UPstream::finishedRequestPair(label& req0, label& req1)
         {
             if (req0 >= 0)
             {
-                PstreamGlobals::outstandingRequests_[req0] = waitRequests[0];
+                PstreamGlobals::outstandingRequests_[req0] = mpiRequests[0];
                 req0 = -1;
             }
         }
@@ -1116,7 +1142,7 @@ bool Foam::UPstream::finishedRequestPair(label& req0, label& req1)
         {
             if (req1 >= 0)
             {
-                PstreamGlobals::outstandingRequests_[req1] = waitRequests[1];
+                PstreamGlobals::outstandingRequests_[req1] = mpiRequests[1];
                 req1 = -1;
             }
         }
@@ -1137,17 +1163,17 @@ void Foam::UPstream::waitRequestPair(label& req0, label& req1)
     }
 
     int count = 0;
-    MPI_Request waitRequests[2];
+    MPI_Request mpiRequests[2];
 
     // No-op for out-of-range (eg, placeholder indices)
     // Prefilter inactive handles
 
     if (req0 >= 0 && req0 < PstreamGlobals::outstandingRequests_.size())
     {
-        waitRequests[count] = PstreamGlobals::outstandingRequests_[req0];
+        mpiRequests[count] = PstreamGlobals::outstandingRequests_[req0];
         PstreamGlobals::outstandingRequests_[req0] = MPI_REQUEST_NULL;
 
-        if (MPI_REQUEST_NULL != waitRequests[count])  // An active handle
+        if (MPI_REQUEST_NULL != mpiRequests[count])  // An active handle
         {
             ++count;
         }
@@ -1155,10 +1181,10 @@ void Foam::UPstream::waitRequestPair(label& req0, label& req1)
 
     if (req1 >= 0 && req1 < PstreamGlobals::outstandingRequests_.size())
     {
-        waitRequests[count] = PstreamGlobals::outstandingRequests_[req1];
+        mpiRequests[count] = PstreamGlobals::outstandingRequests_[req1];
         PstreamGlobals::outstandingRequests_[req1] = MPI_REQUEST_NULL;
 
-        if (MPI_REQUEST_NULL != waitRequests[count])  // An active handle
+        if (MPI_REQUEST_NULL != mpiRequests[count])  // An active handle
         {
             ++count;
         }
@@ -1177,7 +1203,7 @@ void Foam::UPstream::waitRequestPair(label& req0, label& req1)
     profilingPstream::beginTiming();
 
     // On success: sets each request to MPI_REQUEST_NULL
-    if (MPI_Waitall(count, waitRequests, MPI_STATUSES_IGNORE))
+    if (MPI_Waitall(count, mpiRequests, MPI_STATUSES_IGNORE))
     {
         FatalErrorInFunction
             << "MPI_Waitall returned with error"

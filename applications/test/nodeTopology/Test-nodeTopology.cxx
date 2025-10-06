@@ -54,8 +54,11 @@ int main(int argc, char *argv[])
         "int",
         "Num of cores to simulate (default: 4)"
     );
+    argList::addBoolOption("scatter", "Use scatter arrows");
 
     #include "setRootCase.H"
+
+    const bool optScatterGraph = args.found("scatter");
 
     label nProcs = UPstream::nProcs(UPstream::worldComm);
 
@@ -128,25 +131,50 @@ int main(int argc, char *argv[])
         auto& os = Info.stream();
 
         os << "// node topology graph:" << nl;
-        os.beginBlock("graph");
+
+        std::string arrow;
+        if (optScatterGraph)
+        {
+            arrow = " -> ";
+            os.beginBlock("digraph");
+        }
+        else
+        {
+            arrow = " -- ";
+            os.beginBlock("graph");
+        }
 
         // Prefer left-to-right layout for large graphs
-        os << indent << "rankdir=LR" << nl;
+        os << indent << "rankdir=LR" << nl << nl;
 
         const label numNodes = interNodeOffsets.size()-1;
 
+        // The master
+        os  << indent
+            << "0 [label=\"master\", style=filled, fillcolor=lightgray];"
+            << nl << nl;
+
         // First level are the inter-node connections
         {
-            os  << indent << 0 << " -- " << token::LBRACE;
+            os  << indent
+                << "// inter-node: " << flatOutput(interNodeOffsets) << nl;
 
-            for (label nodei = 1; nodei < numNodes; ++nodei)
+            os  << indent
+                << 0 << arrow.data() << nl;
+
+            os.beginBlock();
+
+            os  << indent << "rank=same; node [shape=box];" << nl << nl;
+
+            os  << indent;
+            for (label nodei = 0; nodei < numNodes; ++nodei)
             {
-                os  << ' ' << interNodeOffsets[nodei];
+                if (nodei) os << ' ';
+                os  << "node" << nodei;
             }
 
-            os  << token::SPACE << token::RBRACE
-                << "  // inter-node: " << flatOutput(interNodeOffsets)
-                << nl;
+            os  << nl;
+            os.endBlock() << nl;
         }
 
         // Next level are the local-node connections
@@ -155,8 +183,9 @@ int main(int argc, char *argv[])
             const auto firstProc = interNodeOffsets[nodei];
             const auto lastProc = interNodeOffsets[nodei+1];
 
-            os  << indent << firstProc << " -- " << token::DQUOTE
-                << (firstProc+1) << ".." << (lastProc-1)
+            os  << indent << "node" << nodei << arrow.data()
+                << token::DQUOTE
+                << firstProc << ".." << (lastProc-1)
                 << token::DQUOTE << nl;
         }
 

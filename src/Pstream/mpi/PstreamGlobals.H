@@ -41,7 +41,7 @@ SourceFiles
 
 #include "DynamicList.H"
 #include "FixedList.H"
-#include "UPstream.H"  // For UPstream::Request
+// UPstream, UPstream::Request, UPstream::Window, ...
 #include "openfoam_mpi.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -185,11 +185,7 @@ Foam::label Foam::AMIInterpolation::calcDistribution
             }
             else if (inCommGroup)
             {
-                if
-                (
-                    currComm >= 0
-                 && ListOps::equal(subProcs, UPstream::procID(currComm))
-                )
+                if (UPstream::sameProcs(currComm, subProcs))
                 {
                     // Keep geomComm
                     if (debug)
