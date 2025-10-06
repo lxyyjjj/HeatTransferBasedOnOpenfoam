@@ -230,7 +230,12 @@ void Foam::fvMeshDistribute::saveInternalFields
 
     forAll(fields, fieldi)
     {
-        iflds.set(fieldi, fields[fieldi].primitiveField().clone());
+        // Bypass DynamicField level, save as Field
+        iflds.set
+        (
+            fieldi,
+            static_cast<const Field<T>&>(fields[fieldi]).clone()
+        );
     }
 }
 
