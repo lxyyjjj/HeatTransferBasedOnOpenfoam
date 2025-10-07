@@ -488,7 +488,7 @@ public:
             if (data && (count > 0) && in_range(pos))
             {
                 // Restrict to intersection with current content
-                if (span_tellp() <= std::streampos(pos+count))
+                if (span_tellp() <= pos+std::streampos(count))
                 {
                     count = (span_tellp() - pos);
                 }

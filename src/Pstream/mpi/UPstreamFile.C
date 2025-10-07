@@ -35,10 +35,8 @@ License
 // Has _c() version?
 #undef Foam_UPstream_largeCountFile
 
-#if defined(OMPI_MAJOR_VERSION)
-    #if (OMPI_MAJOR_VERSION >= 5)
-        #define Foam_UPstream_largeCountFile
-    #endif
+#if (MPI_VERSION >= 4)
+#define Foam_UPstream_largeCountFile
 #endif
 
 // Macros for calling versions with or without '_c'
