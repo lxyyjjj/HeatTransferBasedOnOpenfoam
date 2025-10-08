@@ -25,6 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "UPstreamWindow.H"
 #include "PstreamGlobals.H"
 #include "profilingPstream.H"
 

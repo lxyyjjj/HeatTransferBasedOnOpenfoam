@@ -533,6 +533,52 @@ private:
         static void freeCommunicatorComponents(const label index);
 
 
+    // Private implementation helpers
+
+        //- Test for communicator equality.
+        //  True if they have the same index or address the same ranks
+        static bool sameProcs_impl(int comm1, int comm2)
+        {
+            return
+            (
+                (comm1 == comm2) ||
+                (
+                    // With guard against bad index
+                    (comm1 >= 0 && comm1 <= procIDs_.size())
+                 && (comm2 >= 0 && comm2 <= procIDs_.size())
+                 && (procIDs_[comm1] == procIDs_[comm2])
+                )
+            );
+        }
+
+        //- Test equality of communicator procs with the given list of ranks
+        template<typename IntType>
+        static bool sameProcs_impl
+        (
+            int communicator,
+            const UList<IntType>& procs
+        )
+        {
+            return
+            (
+                // With guard against bad index
+                (communicator >= 0 && communicator <= procIDs_.size())
+             && ListOps::equal(procIDs_[communicator], procs)
+            );
+        }
+
+        //- Test the equality of two lists of ranks
+        template<typename Type1, typename Type2>
+        static bool sameProcs_impl
+        (
+            const UList<Type1>& procs1,
+            const UList<Type2>& procs2
+        )
+        {
+            return ListOps::equal(procs1, procs2);
+        }
+
+
 protected:
 
     // Protected Member Functions
@@ -1061,7 +1107,7 @@ public:
         //
         //  \param pos starting position within the internal list of requests
         //  \param len length of slice to remove (negative = until the end)
-        static void removeRequests(const label pos, label len = -1);
+        static void removeRequests(label pos, label len = -1);
 
         //- Non-blocking comms: free outstanding request.
         //- Corresponds to MPI_Request_free()
@@ -1085,7 +1131,7 @@ public:
         //
         //  \param pos starting position within the internal list of requests
         //  \param len length of slice to check (negative = until the end)
-        static void waitRequests(const label pos, label len = -1);
+        static void waitRequests(label pos, label len = -1);
 
         //- Wait until all requests have finished.
         //- Corresponds to MPI_Waitall()
@@ -1103,7 +1149,7 @@ public:
         //
         //  \param pos starting position within the internal list of requests
         //  \param len length of slice to check (negative = until the end)
-        static bool waitAnyRequest(const label pos, label len = -1);
+        static bool waitAnyRequest(label pos, label len = -1);
 
         //- Wait until some requests (from position onwards) have finished.
         //- Corresponds to MPI_Waitsome()
@@ -1122,7 +1168,7 @@ public:
         //      when calling within a loop.
         static bool waitSomeRequests
         (
-            const label pos,
+            label pos,
             label len = -1,
             DynamicList<int>* indices = nullptr
         );
@@ -1148,7 +1194,7 @@ public:
         //- Corresponds to MPI_Waitany()
         //  Returns -1 if parRun() == false, or the list is empty,
         //  or if all the requests have already been handled
-        static label waitAnyRequest(UList<UPstream::Request>& requests);
+        static int waitAnyRequest(UList<UPstream::Request>& requests);
 
         //- Wait until request i has finished.
         //- Corresponds to MPI_Wait()
@@ -1161,6 +1207,14 @@ public:
         //- Corresponds to MPI_Wait()
         //  A no-op if parRun() == false or for a null-request
         static void waitRequest(UPstream::Request& req);
+
+        //- Is request \p i active (!= MPI_REQUEST_NULL)?
+        //  False if there are no pending requests,
+        //  or if the index is out-of-range (0 to nRequests)
+        static bool activeRequest(const label i);
+
+        //- Is request active (!= MPI_REQUEST_NULL)?
+        static bool activeRequest(const UPstream::Request& req);
 
         //- Non-blocking comms: has request i finished?
         //- Corresponds to MPI_Test()
@@ -1185,7 +1239,7 @@ public:
         //
         //  \param pos starting position within the internal list of requests
         //  \param len length of slice to check (negative = until the end)
-        static bool finishedRequests(const label pos, label len = -1);
+        static bool finishedRequests(label pos, label len = -1);
 
         //- Non-blocking comms: have all requests finished?
         //- Corresponds to MPI_Testall()
@@ -1288,6 +1342,43 @@ public:
         static List<int>& procID(int communicator)
         {
             return procIDs_[communicator];
+        }
+
+
+        //- Test for communicator equality.
+        //  True if they have the same index or address the same ranks
+        static bool sameProcs(int communicator1, int communicator2)
+        {
+            return sameProcs_impl(communicator1, communicator2);
+        }
+
+        //- Test equality of communicator procs with the given list of ranks.
+        //- Includes a guard for the communicator index.
+        template
+        <
+            typename T1,
+            typename = std::void_t
+            <std::enable_if_t<std::is_integral_v<T1>>>
+        >
+        static bool sameProcs(int communicator, const UList<T1>& procs)
+        {
+            return sameProcs_impl(communicator, procs);
+        }
+
+        //- Test the equality of two lists of ranks
+        template
+        <
+            typename T1,
+            typename T2,
+            typename = std::void_t
+            <
+                std::enable_if_t<std::is_integral_v<T1>>,
+                std::enable_if_t<std::is_integral_v<T2>>
+            >
+        >
+        static bool sameProcs(const UList<T1>& procs1, const UList<T2>& procs2)
+        {
+            return sameProcs_impl(procs1, procs2);
         }
 
 
@@ -1997,6 +2088,8 @@ public:
 
     // Member Functions
 
+    // Access
+
         //- Return raw value
         value_type value() const noexcept { return value_; }
 
@@ -2005,6 +2098,9 @@ public:
         {
             return reinterpret_cast<const void*>(value_);
         }
+
+
+    // Query
 
         //- True if not equal to MPI_COMM_NULL
         bool good() const noexcept;
@@ -2094,6 +2190,8 @@ public:
 
     // Member Functions
 
+    // Access
+
         //- Return raw value
         value_type value() const noexcept { return value_; }
 
@@ -2103,23 +2201,37 @@ public:
             return reinterpret_cast<const void*>(value_);
         }
 
+
+    // Basics
+
         //- True if not equal to MPI_REQUEST_NULL
         bool good() const noexcept;
 
         //- Reset to default constructed value (MPI_REQUEST_NULL)
         void reset() noexcept;
 
-        //- Same as calling UPstream::cancelRequest()
-        void cancel() { UPstream::cancelRequest(*this); }
-
-        //- Same as calling UPstream::freeRequest()
-        void free() { UPstream::freeRequest(*this); }
+        //- True if request is active (!= MPI_REQUEST_NULL)
+        //- Same as good(). Same as calling UPstream::activeRequest()
+        bool active() const noexcept { return good(); }
 
         //- Same as calling UPstream::finishedRequest()
+        //  Uses MPI_Test()
         bool finished() { return UPstream::finishedRequest(*this); }
 
-        //- Same as calling UPstream::waitRequest()
+        //- Same as calling UPstream::waitRequest().
+        //  Uses MPI_Wait()
         void wait() { UPstream::waitRequest(*this); }
+
+
+    // Other
+
+        //- Same as calling UPstream::cancelRequest().
+        //  Uses MPI_Cancel(), MPI_Request_free()
+        void cancel() { UPstream::cancelRequest(*this); }
+
+        //- Same as calling UPstream::freeRequest().
+        //  Uses MPI_Request_free()
+        void free() { UPstream::freeRequest(*this); }
 };
 
 
@@ -2137,6 +2249,9 @@ Ostream& operator<<(Ostream&, const UPstream::commsStruct&);
 // Traits, nested classes etc
 #include "UPstreamTraits.H"
 #include "UPstreamWindow.H"
+
+// Locally include the following where required:
+//   - UPstreamFile.H
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

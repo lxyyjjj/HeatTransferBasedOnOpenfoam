@@ -33,6 +33,7 @@ Description
 #define Foam_UPstreamMPI_H
 
 #include "UPstream.H"
+#include "UPstreamWindow.H"
 
 // Include MPI without any C++ bindings
 #ifndef MPICH_SKIP_MPICXX

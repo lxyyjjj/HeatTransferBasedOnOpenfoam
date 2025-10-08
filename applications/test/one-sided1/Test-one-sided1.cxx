@@ -38,6 +38,7 @@ Description
 #include "SubField.H"
 #include "vector.H"
 #include "IOstreams.H"
+#include "UPstreamWindow.H"
 
 using namespace Foam;
 
