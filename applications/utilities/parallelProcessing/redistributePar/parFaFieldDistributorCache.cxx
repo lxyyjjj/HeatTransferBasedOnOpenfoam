@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2022 OpenCFD Ltd.
+    Copyright (C) 2022-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -55,15 +55,14 @@ void Foam::parFaFieldDistributorCache::redistributeAndWrite
 }
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-void Foam::parFaFieldDistributorCache::read
+template<class BoolListType>
+void Foam::parFaFieldDistributorCache::readImpl
 (
     const Time& baseRunTime,
     const fileName& proc0CaseName,
     const bool decompose,  // i.e. read from undecomposed case
 
-    const boolList& areaMeshOnProc,
+    const BoolListType& areaMeshOnProc,
     refPtr<fileOperation>& readHandler,
     const fileName& areaMeshInstance,
     faMesh& mesh
@@ -75,14 +74,14 @@ void Foam::parFaFieldDistributorCache::read
     autoPtr<faMeshSubset> subsetterPtr;
 
     // Missing an area mesh somewhere?
-    if (areaMeshOnProc.found(false))
+    if (!areaMeshOnProc.all())
     {
         const bool oldParRun = UPstream::parRun(false);
         const int oldCache = fileOperation::cacheLevel(0);
 
         // A zero-sized mesh with boundaries.
         // This is used to create zero-sized fields.
-        subsetterPtr.reset(new faMeshSubset(mesh, zero{}));
+        subsetterPtr.reset(new faMeshSubset(mesh, Foam::zero{}));
 
         fileOperation::cacheLevel(oldCache);
         UPstream::parRun(oldParRun);  // Restore parallel state
@@ -159,6 +158,60 @@ void Foam::parFaFieldDistributorCache::read
     doFieldReading(sphericalTensorEdgeFields_);
     doFieldReading(symmTensorEdgeFields_);
     #undef doFieldReading
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void Foam::parFaFieldDistributorCache::read
+(
+    const Time& baseRunTime,
+    const fileName& proc0CaseName,
+    const bool decompose,  // i.e. read from undecomposed case
+
+    const bitSet& areaMeshOnProc,
+    refPtr<fileOperation>& readHandler,
+    const fileName& areaMeshInstance,
+    faMesh& mesh
+)
+{
+    readImpl
+    (
+        baseRunTime,
+        proc0CaseName,
+        decompose,
+
+        areaMeshOnProc,
+        readHandler,
+        areaMeshInstance,
+        mesh
+    );
+}
+
+
+void Foam::parFaFieldDistributorCache::read
+(
+    const Time& baseRunTime,
+    const fileName& proc0CaseName,
+    const bool decompose,  // i.e. read from undecomposed case
+
+    const boolUList& areaMeshOnProc,
+    refPtr<fileOperation>& readHandler,
+    const fileName& areaMeshInstance,
+    faMesh& mesh
+)
+{
+    readImpl
+    (
+        baseRunTime,
+        proc0CaseName,
+        decompose,
+
+        areaMeshOnProc,
+        readHandler,
+        areaMeshInstance,
+        mesh
+    );
 }
 
 
