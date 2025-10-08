@@ -90,7 +90,7 @@ Foam::pointFieldDecomposer::decomposeField
 template<class GeoField>
 void Foam::pointFieldDecomposer::decomposeFields
 (
-    const PtrList<GeoField>& fields
+    const UPtrList<GeoField>& fields
 ) const
 {
     for (const auto& fld : fields)

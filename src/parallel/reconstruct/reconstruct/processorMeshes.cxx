@@ -30,8 +30,8 @@ License
 #include "Time.H"
 #include "IndirectList.H"
 #include "primitiveMesh.H"
-#include "OSspecific.H"
 #include "pointMesh.H"
+#include "OSspecific.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -47,16 +47,19 @@ void Foam::processorMeshes::read()
 {
     // Make sure to clear (and hence unregister) any previously loaded meshes
     // and fields
-    pBoundaryProcAddressing_.free();
-    pMeshes_.free();
 
-    boundaryProcAddressing_.free();
-    cellProcAddressing_.free();
-    faceProcAddressing_.free();
-    pointProcAddressing_.free();
-    meshes_.free();
+    const label numProc = databases_.size();
 
-    forAll(databases_, proci)
+    pBoundaryProcAddressing_.resize_null(numProc);
+    pMeshes_.resize_null(numProc);
+
+    boundaryProcAddressing_.resize_null(numProc);
+    cellProcAddressing_.resize_null(numProc);
+    faceProcAddressing_.resize_null(numProc);
+    pointProcAddressing_.resize_null(numProc);
+    meshes_.resize_null(numProc);
+
+    for (label proci = 0; proci < numProc; ++proci)
     {
         meshes_.emplace_set
         (
@@ -104,11 +107,7 @@ void Foam::processorMeshes::read()
         pMeshes_.set
         (
             proci,
-            new pointMesh
-            (
-                meshes_[proci],
-                IOobject::READ_IF_PRESENT
-            )
+            new pointMesh(meshes_[proci], IOobjectOption::READ_IF_PRESENT)
         );
 
         pBoundaryProcAddressing_.set
@@ -122,9 +121,9 @@ void Foam::processorMeshes::read()
                     meshes_[proci].facesInstance(),
                     polyMesh::meshSubDir/pointMesh::meshSubDir,
                     pMeshes_[proci].thisDb(),
-                    IOobject::READ_IF_PRESENT,
-                    IOobject::NO_WRITE,
-                    IOobject::NO_REGISTER
+                    IOobjectOption::READ_IF_PRESENT,
+                    IOobjectOption::NO_WRITE,
+                    IOobjectOption::NO_REGISTER
                 ),
                 boundaryProcAddressing_[proci]
             )
@@ -137,19 +136,12 @@ void Foam::processorMeshes::read()
 
 Foam::processorMeshes::processorMeshes
 (
-    PtrList<Time>& databases,
+    const UPtrList<Time>& databases,
     const word& meshName
 )
 :
-    meshName_(meshName),
-    databases_(databases),
-    meshes_(databases.size()),
-    pointProcAddressing_(databases.size()),
-    faceProcAddressing_(databases.size()),
-    cellProcAddressing_(databases.size()),
-    boundaryProcAddressing_(databases.size()),
-    pMeshes_(databases.size()),
-    pBoundaryProcAddressing_(databases.size())
+    meshName_(meshName.empty() ? polyMesh::defaultRegion : meshName),
+    databases_(databases)
 {
     read();
 }
@@ -161,7 +153,9 @@ Foam::polyMesh::readUpdateState Foam::processorMeshes::readUpdate()
 {
     polyMesh::readUpdateState stat = polyMesh::UNCHANGED;
 
-    forAll(databases_, proci)
+    const label numProc = meshes_.size();
+
+    for (label proci = 0; proci < numProc; ++proci)
     {
         // Check if any new meshes need to be read.
         polyMesh::readUpdateState procStat = meshes_[proci].readUpdate();
@@ -210,43 +204,34 @@ Foam::polyMesh::readUpdateState Foam::processorMeshes::readUpdate()
 
 void Foam::processorMeshes::reconstructPoints(fvMesh& mesh)
 {
-    // Read the field for all the processors
-    PtrList<pointIOField> procsPoints(meshes_.size());
-
-    forAll(meshes_, proci)
-    {
-        procsPoints.set
-        (
-            proci,
-            new pointIOField
-            (
-                IOobject
-                (
-                    "points",
-                    meshes_[proci].time().timeName(),
-                    polyMesh::meshSubDir,
-                    meshes_[proci].thisDb(),
-                    IOobject::MUST_READ,
-                    IOobject::NO_WRITE,
-                    IOobject::NO_REGISTER
-                )
-            )
-        );
-    }
-
-    // Create the new points
+    // The new points
     vectorField newPoints(mesh.nPoints());
 
-    forAll(meshes_, proci)
-    {
-        const vectorField& procPoints = procsPoints[proci];
+    // Read the "points" field for each processor
+    const label numProc = meshes_.size();
 
-        const labelList& pointProcAddr = pointProcAddressing_[proci];
+    for (label proci = 0; proci < numProc; ++proci)
+    {
+        pointIOField procPoints
+        (
+            IOobject
+            (
+                "points",
+                meshes_[proci].time().timeName(),
+                polyMesh::meshSubDir,
+                meshes_[proci].thisDb(),
+                IOobject::MUST_READ,
+                IOobject::NO_WRITE,
+                IOobject::NO_REGISTER
+            )
+        );
+
+        const labelUList& pointProcAddr = pointProcAddressing_[proci];
 
         if (pointProcAddr.size() != procPoints.size())
         {
             FatalErrorInFunction
-                << "problem :"
+                << "problem [proc=" << proci << "] :"
                 << " pointProcAddr:" << pointProcAddr.size()
                 << " procPoints:" << procPoints.size()
                 << abort(FatalError);

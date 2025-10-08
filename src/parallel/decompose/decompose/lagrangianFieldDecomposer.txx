@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2017 OpenFOAM Foundation
-    Copyright (C) 2022 OpenCFD Ltd.
+    Copyright (C) 2022-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,6 +30,64 @@ License
 #include "IOobjectList.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+void Foam::lagrangianFieldDecomposer::readFields
+(
+    const label cloudi,
+    const IOobjectList& lagrangianObjects,
+    PtrList<PtrList<IOField<Type>>>& lagrangianFields
+)
+{
+    // Lagrangian field objects
+    const UPtrList<const IOobject> fieldObjects
+    (
+        lagrangianObjects.csorted<IOField<Type>>()
+    );
+
+
+    auto& cloudFields =
+        lagrangianFields.emplace_set(cloudi, fieldObjects.size());
+
+    forAll(fieldObjects, fieldi)
+    {
+        cloudFields.emplace_set(fieldi, fieldObjects[fieldi]);
+    }
+}
+
+
+template<class Type>
+void Foam::lagrangianFieldDecomposer::readFieldFields
+(
+    const label cloudi,
+    const IOobjectList& lagrangianObjects,
+    PtrList<PtrList<CompactIOField<Field<Type>>>>& lagrangianFields
+)
+{
+    // Lagrangian field objects
+    UPtrList<const IOobject> fieldObjects
+    (
+        lagrangianObjects.cobjects<IOField<Field<Type>>>()
+    );
+
+    // Lagrangian field-field objects
+    fieldObjects.push_back
+    (
+        lagrangianObjects.cobjects<CompactIOField<Field<Type>>>()
+    );
+
+    Foam::sort(fieldObjects, nameOp<IOobject>());
+
+
+    auto& cloudFields =
+        lagrangianFields.emplace_set(cloudi, fieldObjects.size());
+
+    forAll(fieldObjects, fieldi)
+    {
+        cloudFields.emplace_set(fieldi, fieldObjects[fieldi]);
+    }
+}
+
 
 template<class Type>
 Foam::tmp<Foam::IOField<Type>>
@@ -89,10 +147,10 @@ template<class GeoField>
 void Foam::lagrangianFieldDecomposer::decomposeFields
 (
     const word& cloudName,
-    const PtrList<GeoField>& fields
+    const UPtrList<GeoField>& fields
 ) const
 {
-    const bool existsOnProc = (particleIndices_.size() > 0);
+    const bool existsOnProc = (!particleIndices_.empty());
 
     for (const GeoField& fld : fields)
     {
@@ -105,10 +163,10 @@ template<class GeoField>
 void Foam::lagrangianFieldDecomposer::decomposeFieldFields
 (
     const word& cloudName,
-    const PtrList<GeoField>& fields
+    const UPtrList<GeoField>& fields
 ) const
 {
-    const bool existsOnProc = (particleIndices_.size() > 0);
+    const bool existsOnProc = (!particleIndices_.empty());
 
     for (const GeoField& fld : fields)
     {

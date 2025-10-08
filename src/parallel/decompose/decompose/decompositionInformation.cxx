@@ -55,7 +55,7 @@ void Foam::decompositionInformation::populate
     {
         const label ownProc = decomp[celli];
 
-        labelList& subdist = distrib_[ownProc];
+        labelUList& subdist = distrib_[ownProc];
 
         // Number of cells
         ++subdist[ownProc];
@@ -80,7 +80,7 @@ void Foam::decompositionInformation::populate
 
     forAll(distrib_, ownProc)
     {
-        const labelList& subdist = distrib_[ownProc];
+        const labelUList& subdist = distrib_[ownProc];
 
         cellsCount[ownProc] = subdist[ownProc];
 
@@ -172,7 +172,7 @@ void Foam::decompositionInformation::printDetails(Ostream& os) const
 
     forAll(distrib_, ownProc)
     {
-        const labelList& subdist = distrib_[ownProc];
+        const labelUList& subdist = distrib_[ownProc];
 
         // First pass:
         label neighCount = 0;

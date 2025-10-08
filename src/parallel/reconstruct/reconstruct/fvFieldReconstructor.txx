@@ -40,7 +40,7 @@ Foam::tmp<Foam::DimensionedField<Type, Foam::volMesh>>
 Foam::fvFieldReconstructor::reconstructField
 (
     const IOobject& fieldObject,
-    const PtrList<DimensionedField<Type, volMesh>>& procFields
+    const UPtrList<DimensionedField<Type, volMesh>>& procFields
 ) const
 {
     // Create the internalField
@@ -48,7 +48,7 @@ Foam::fvFieldReconstructor::reconstructField
 
     forAll(procMeshes_, proci)
     {
-        const DimensionedField<Type, volMesh>& procField = procFields[proci];
+        const auto& procField = procFields[proci];
 
         // Set the cell values in the reconstructed field
         internalField.rmap
@@ -77,7 +77,7 @@ Foam::tmp<Foam::GeometricField<Type, Foam::fvPatchField, Foam::volMesh>>
 Foam::fvFieldReconstructor::reconstructField
 (
     const IOobject& fieldObject,
-    const PtrList<GeometricField<Type, fvPatchField, volMesh>>& procFields
+    const UPtrList<GeometricField<Type, fvPatchField, volMesh>>& procFields
 ) const
 {
     // Create the internalField
@@ -255,7 +255,7 @@ Foam::tmp<Foam::GeometricField<Type, Foam::fvsPatchField, Foam::surfaceMesh>>
 Foam::fvFieldReconstructor::reconstructField
 (
     const IOobject& fieldObject,
-    const PtrList<GeometricField<Type, fvsPatchField, surfaceMesh>>& procFields
+    const UPtrList<GeometricField<Type, fvsPatchField, surfaceMesh>>& procFields
 ) const
 {
     // Create the internalField

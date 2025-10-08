@@ -38,10 +38,10 @@ int Foam::lagrangianReconstructor::verbose_ = 1;
 
 Foam::lagrangianReconstructor::lagrangianReconstructor
 (
-    const fvMesh& mesh,
-    const PtrList<fvMesh>& procMeshes,
-    const PtrList<labelIOList>& faceProcAddressing,
-    const PtrList<labelIOList>& cellProcAddressing
+    const polyMesh& mesh,
+    const UPtrList<fvMesh>& procMeshes,
+    const UPtrList<labelIOList>& faceProcAddressing,
+    const UPtrList<labelIOList>& cellProcAddressing
 )
 :
     mesh_(mesh),

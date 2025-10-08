@@ -101,7 +101,7 @@ public:
     static void decompose
     (
         const pointFieldDecomposer& decomposer,
-        const PtrList<GeoField>& fields,
+        const UPtrList<GeoField>& fields,
         bool report
     )
     {
@@ -161,13 +161,13 @@ Foam::pointFieldDecomposer::fieldsCache::~fieldsCache()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool Foam::pointFieldDecomposer::fieldsCache::empty() const
+bool Foam::pointFieldDecomposer::fieldsCache::empty() const noexcept
 {
     return (!cache_ || cache_->empty());
 }
 
 
-Foam::label Foam::pointFieldDecomposer::fieldsCache::size() const
+Foam::label Foam::pointFieldDecomposer::fieldsCache::size() const noexcept
 {
     return (cache_ ? cache_->size() : label(0));
 }

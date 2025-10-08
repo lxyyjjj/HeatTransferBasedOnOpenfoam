@@ -295,7 +295,7 @@ Foam::fvFieldDecomposer::decomposeField
 template<class GeoField>
 void Foam::fvFieldDecomposer::decomposeFields
 (
-    const PtrList<GeoField>& fields
+    const UPtrList<GeoField>& fields
 ) const
 {
     for (const auto& fld : fields)

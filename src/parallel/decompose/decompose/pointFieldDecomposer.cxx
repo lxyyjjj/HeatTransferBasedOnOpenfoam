@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2016 OpenFOAM Foundation
-    Copyright (C) 2021 OpenCFD Ltd.
+    Copyright (C) 2021-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,21 +34,16 @@ Foam::pointFieldDecomposer::patchFieldDecomposer::patchFieldDecomposer
 (
     const pointPatch& completeMeshPatch,
     const pointPatch& procMeshPatch,
-    const labelList& directAddr
+    const labelUList& directAddr
 )
 :
-    pointPatchFieldMapperPatchRef
-    (
-        completeMeshPatch,
-        procMeshPatch
-    ),
     directAddressing_(procMeshPatch.size(), -1),
     hasUnmapped_(false)
 {
     // Create the inverse-addressing of the patch point labels.
     labelList pointMap(completeMeshPatch.boundaryMesh().mesh().size(), -1);
 
-    const labelList& completeMeshPatchPoints = completeMeshPatch.meshPoints();
+    const labelUList& completeMeshPatchPoints = completeMeshPatch.meshPoints();
 
     forAll(completeMeshPatchPoints, pointi)
     {
@@ -57,7 +52,7 @@ Foam::pointFieldDecomposer::patchFieldDecomposer::patchFieldDecomposer
 
     // Use the inverse point addressing to create the addressing table for this
     // patch
-    const labelList& procMeshPatchPoints = procMeshPatch.meshPoints();
+    const labelUList& procMeshPatchPoints = procMeshPatch.meshPoints();
 
     forAll(procMeshPatchPoints, pointi)
     {
@@ -66,7 +61,7 @@ Foam::pointFieldDecomposer::patchFieldDecomposer::patchFieldDecomposer
     }
 
     // Check that all the patch point addresses are set
-    if (directAddressing_.size() && min(directAddressing_) < 0)
+    if (directAddressing_.contains(-1))
     {
         hasUnmapped_ = true;
 
@@ -79,17 +74,15 @@ Foam::pointFieldDecomposer::patchFieldDecomposer::patchFieldDecomposer
 
 Foam::pointFieldDecomposer::pointFieldDecomposer
 (
-    const Foam::zero,
+    Foam::zero,
     const pointMesh& procMesh,
-    const labelList& pointAddressing,
-    const labelList& boundaryAddressing
+    const labelUList& pointAddressing,
+    const labelUList& boundaryAddressing
 )
 :
     procMesh_(procMesh),
     pointAddressing_(pointAddressing),
-    boundaryAddressing_(boundaryAddressing),
-    // Mappers
-    patchFieldDecomposerPtrs_()
+    boundaryAddressing_(boundaryAddressing)
 {}
 
 
@@ -97,13 +90,13 @@ Foam::pointFieldDecomposer::pointFieldDecomposer
 (
     const pointMesh& completeMesh,
     const pointMesh& procMesh,
-    const labelList& pointAddressing,
-    const labelList& boundaryAddressing
+    const labelUList& pointAddressing,
+    const labelUList& boundaryAddressing
 )
 :
     pointFieldDecomposer
     (
-        zero{},
+        Foam::zero{},
         procMesh,
         pointAddressing,
         boundaryAddressing
@@ -115,7 +108,7 @@ Foam::pointFieldDecomposer::pointFieldDecomposer
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool Foam::pointFieldDecomposer::empty() const
+bool Foam::pointFieldDecomposer::empty() const noexcept
 {
     return patchFieldDecomposerPtrs_.empty();
 }
@@ -132,9 +125,9 @@ void Foam::pointFieldDecomposer::reset
     const pointMesh& completeMesh
 )
 {
-    clear();
     const label nMappers = procMesh_.boundary().size();
-    patchFieldDecomposerPtrs_.resize(nMappers);
+
+    patchFieldDecomposerPtrs_.resize_null(nMappers);
 
     forAll(boundaryAddressing_, patchi)
     {

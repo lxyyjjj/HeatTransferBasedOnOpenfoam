@@ -40,10 +40,10 @@ int Foam::fvFieldReconstructor::verbose_ = 1;
 Foam::fvFieldReconstructor::fvFieldReconstructor
 (
     fvMesh& mesh,
-    const PtrList<fvMesh>& procMeshes,
-    const PtrList<labelIOList>& faceProcAddressing,
-    const PtrList<labelIOList>& cellProcAddressing,
-    const PtrList<labelIOList>& boundaryProcAddressing
+    const UPtrList<fvMesh>& procMeshes,
+    const UPtrList<labelIOList>& faceProcAddressing,
+    const UPtrList<labelIOList>& cellProcAddressing,
+    const UPtrList<labelIOList>& boundaryProcAddressing
 )
 :
     mesh_(mesh),

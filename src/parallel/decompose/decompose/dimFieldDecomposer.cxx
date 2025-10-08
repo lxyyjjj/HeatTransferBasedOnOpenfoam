@@ -33,7 +33,7 @@ License
 Foam::dimFieldDecomposer::dimFieldDecomposer
 (
     const fvMesh& procMesh,
-    const labelList& cellAddressing
+    const labelUList& cellAddressing
 )
 :
     procMesh_(procMesh),
@@ -45,8 +45,8 @@ Foam::dimFieldDecomposer::dimFieldDecomposer
 (
     const fvMesh& /* unused: completeMesh */,
     const fvMesh& procMesh,
-    const labelList& /* unused: faceAddressing */,
-    const labelList& cellAddressing
+    const labelUList& /* unused: faceAddressing */,
+    const labelUList& cellAddressing
 )
 :
     procMesh_(procMesh),

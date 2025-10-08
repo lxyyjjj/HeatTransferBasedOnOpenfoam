@@ -160,10 +160,7 @@ Foam::lagrangianFieldDecomposer::fieldsCache::fieldsCache()
 {}
 
 
-Foam::lagrangianFieldDecomposer::fieldsCache::fieldsCache
-(
-    const label nClouds
-)
+Foam::lagrangianFieldDecomposer::fieldsCache::fieldsCache(label nClouds)
 :
     cache_(new privateCache)
 {
@@ -180,13 +177,13 @@ Foam::lagrangianFieldDecomposer::fieldsCache::~fieldsCache()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool Foam::lagrangianFieldDecomposer::fieldsCache::empty() const
+bool Foam::lagrangianFieldDecomposer::fieldsCache::empty() const noexcept
 {
     return (!cache_ || cache_->empty());
 }
 
 
-Foam::label Foam::lagrangianFieldDecomposer::fieldsCache::size() const
+Foam::label Foam::lagrangianFieldDecomposer::fieldsCache::size() const noexcept
 {
     return (cache_ ? cache_->size() : label(0));
 }
@@ -198,10 +195,7 @@ void Foam::lagrangianFieldDecomposer::fieldsCache::clear()
 }
 
 
-void Foam::lagrangianFieldDecomposer::fieldsCache::resize
-(
-    const label nClouds
-)
+void Foam::lagrangianFieldDecomposer::fieldsCache::resize(label nClouds)
 {
     if (cache_)
     {

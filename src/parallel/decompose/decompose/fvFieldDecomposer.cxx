@@ -135,22 +135,17 @@ processorSurfacePatchFieldDecomposer
 
 Foam::fvFieldDecomposer::fvFieldDecomposer
 (
-    const Foam::zero,
+    Foam::zero,
     const fvMesh& procMesh,
-    const labelList& faceAddressing,
-    const labelList& cellAddressing,
-    const labelList& boundaryAddressing
+    const labelUList& faceAddressing,
+    const labelUList& cellAddressing,
+    const labelUList& boundaryAddressing
 )
 :
     procMesh_(procMesh),
     faceAddressing_(faceAddressing),
     cellAddressing_(cellAddressing),
-    boundaryAddressing_(boundaryAddressing),
-    // Mappers
-    patchFieldDecomposerPtrs_(),
-    processorVolPatchFieldDecomposerPtrs_(),
-    processorSurfacePatchFieldDecomposerPtrs_(),
-    faceSign_()
+    boundaryAddressing_(boundaryAddressing)
 {}
 
 
@@ -158,14 +153,14 @@ Foam::fvFieldDecomposer::fvFieldDecomposer
 (
     const fvMesh& completeMesh,
     const fvMesh& procMesh,
-    const labelList& faceAddressing,
-    const labelList& cellAddressing,
-    const labelList& boundaryAddressing
+    const labelUList& faceAddressing,
+    const labelUList& cellAddressing,
+    const labelUList& boundaryAddressing
 )
 :
     fvFieldDecomposer
     (
-        zero{},
+        Foam::zero{},
         procMesh,
         faceAddressing,
         cellAddressing,
@@ -178,19 +173,19 @@ Foam::fvFieldDecomposer::fvFieldDecomposer
 
 Foam::fvFieldDecomposer::fvFieldDecomposer
 (
-    const List<labelRange>& boundaryRanges,
+    const UList<labelRange>& boundaryRanges,
     const labelUList& faceOwner,
     const labelUList& faceNeighbour,
 
     const fvMesh& procMesh,
-    const labelList& faceAddressing,
-    const labelList& cellAddressing,
-    const labelList& boundaryAddressing
+    const labelUList& faceAddressing,
+    const labelUList& cellAddressing,
+    const labelUList& boundaryAddressing
 )
 :
     fvFieldDecomposer
     (
-        zero{},
+        Foam::zero{},
         procMesh,
         faceAddressing,
         cellAddressing,
@@ -203,7 +198,7 @@ Foam::fvFieldDecomposer::fvFieldDecomposer
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool Foam::fvFieldDecomposer::empty() const
+bool Foam::fvFieldDecomposer::empty() const noexcept
 {
     return patchFieldDecomposerPtrs_.empty();
 }
@@ -220,17 +215,17 @@ void Foam::fvFieldDecomposer::clear()
 
 void Foam::fvFieldDecomposer::reset
 (
-    const List<labelRange>& boundaryRanges,
+    const UList<labelRange>& boundaryRanges,
     const labelUList& faceOwner,
     const labelUList& faceNeighbour
 )
 {
-    clear();
     const label nMappers = procMesh_.boundary().size();
-    patchFieldDecomposerPtrs_.resize(nMappers);
-    processorVolPatchFieldDecomposerPtrs_.resize(nMappers);
-    processorSurfacePatchFieldDecomposerPtrs_.resize(nMappers);
-    faceSign_.resize(nMappers);
+
+    patchFieldDecomposerPtrs_.resize_null(nMappers);
+    processorVolPatchFieldDecomposerPtrs_.resize_null(nMappers);
+    processorSurfacePatchFieldDecomposerPtrs_.resize_null(nMappers);
+    faceSign_.resize_null(nMappers);
 
     forAll(boundaryAddressing_, patchi)
     {
@@ -270,10 +265,7 @@ void Foam::fvFieldDecomposer::reset
             processorSurfacePatchFieldDecomposerPtrs_.set
             (
                 patchi,
-                new processorSurfacePatchFieldDecomposer
-                (
-                    static_cast<const labelUList&>(localPatchSlice)
-                )
+                new processorSurfacePatchFieldDecomposer(localPatchSlice)
             );
 
             faceSign_.set
@@ -296,12 +288,12 @@ void Foam::fvFieldDecomposer::reset
 
 void Foam::fvFieldDecomposer::reset(const fvMesh& completeMesh)
 {
-    clear();
     const label nMappers = procMesh_.boundary().size();
-    patchFieldDecomposerPtrs_.resize(nMappers);
-    processorVolPatchFieldDecomposerPtrs_.resize(nMappers);
-    processorSurfacePatchFieldDecomposerPtrs_.resize(nMappers);
-    faceSign_.resize(nMappers);
+
+    patchFieldDecomposerPtrs_.resize_null(nMappers);
+    processorVolPatchFieldDecomposerPtrs_.resize_null(nMappers);
+    processorSurfacePatchFieldDecomposerPtrs_.resize_null(nMappers);
+    faceSign_.resize_null(nMappers);
 
     forAll(boundaryAddressing_, patchi)
     {
@@ -340,10 +332,7 @@ void Foam::fvFieldDecomposer::reset(const fvMesh& completeMesh)
             processorSurfacePatchFieldDecomposerPtrs_.set
             (
                 patchi,
-                new processorSurfacePatchFieldDecomposer
-                (
-                    static_cast<const labelUList&>(localPatchSlice)
-                )
+                new processorSurfacePatchFieldDecomposer(localPatchSlice)
             );
 
             faceSign_.set
