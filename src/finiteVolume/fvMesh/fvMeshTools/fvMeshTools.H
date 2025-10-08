@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2012-2016 OpenFOAM Foundation
-    Copyright (C) 2015-2023 OpenCFD Ltd.
+    Copyright (C) 2015-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -218,7 +218,7 @@ public:
     static autoPtr<mapDistributePolyMesh> readProcAddressing
     (
         const fvMesh& procMesh,
-        const autoPtr<fvMesh>& baseMeshPtr
+        const fvMesh* baseMeshPtr
     );
 
     //- Write addressing if decomposing (1 to many) or reconstructing
@@ -227,10 +227,23 @@ public:
     (
         const fvMesh& procMesh,
         const mapDistributePolyMesh& map,
+        //! running in decompose vs reconstruct mode
         const bool decompose,
-        const fileName& writeHandlerInstance,
+        //! the instance for maps
+        const fileName& writeInstance,
+        //! The output file handler
         refPtr<fileOperation>& writeHandler
     );
+
+
+    // Housekeeping
+
+        //- Read procAddressing components (reconstructing)
+        static autoPtr<mapDistributePolyMesh> readProcAddressing
+        (
+            const fvMesh& procMesh,
+            const autoPtr<fvMesh>& baseMeshPtr
+        );
 };
 
 

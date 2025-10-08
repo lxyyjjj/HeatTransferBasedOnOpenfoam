@@ -31,7 +31,6 @@ License
 #include "dictionary.H"
 #include "labelIOList.H"
 #include "processorFaPatch.H"
-#include "faMesh.H"
 #include "OSspecific.H"
 #include "Map.H"
 #include "SLList.H"
@@ -42,9 +41,10 @@ License
 
 void Foam::faMeshDecomposition::distributeFaces()
 {
-    const word& polyMeshRegionName = mesh().name();
+    const word& polyMeshRegionName = faMesh::mesh().name();
 
-    Info<< "\nCalculating distribution of finiteArea faces" << endl;
+    Info<< "\nCalculating distribution of finite-area faces ["
+        << polyMesh::regionName(areaName_) << "]" << endl;
 
     cpuTime decompositionTime;
 
@@ -69,7 +69,7 @@ void Foam::faMeshDecomposition::distributeFaces()
             )
         );
 
-        IOobject ioAddr
+        IOobject ioFvAddr
         (
             "procAddressing",
             "constant",
@@ -82,8 +82,11 @@ void Foam::faMeshDecomposition::distributeFaces()
 
 
         // faceProcAddressing (polyMesh)
-        ioAddr.rename("faceProcAddressing");
-        labelIOList fvFaceProcAddressing(ioAddr);
+        ioFvAddr.resetHeader("faceProcAddressing");
+        const labelList fvFaceProcAddressing
+        (
+            labelIOList::readContents(ioFvAddr)
+        );
 
         labelHashSet faceProcAddressingHash;
         faceProcAddressingHash.reserve(fvFaceProcAddressing.size());
@@ -99,20 +102,17 @@ void Foam::faMeshDecomposition::distributeFaces()
         if (hasGlobalFaceZones_)
         {
             // owner (polyMesh)
-            ioAddr.rename("owner");
-            const label ownerSize = labelIOList(ioAddr).size();
+            ioFvAddr.resetHeader("owner");
+            const label ownerSize = labelIOList::readContentsSize(ioFvAddr);
 
-            for (int i = 0; i < ownerSize; ++i)
+            for (label i = 0; i < ownerSize; ++i)
             {
                 faceProcAddressingHash.insert(fvFaceProcAddressing[i]);
             }
         }
         else
         {
-            faceProcAddressingHash.insert
-            (
-                static_cast<labelList&>(fvFaceProcAddressing)
-            );
+            faceProcAddressingHash.insert(fvFaceProcAddressing);
         }
 
         forAll(faceLabels(), facei)
@@ -137,16 +137,18 @@ void Foam::faMeshDecomposition::distributeFaces()
 
 Foam::faMeshDecomposition::faMeshDecomposition
 (
+    const word& areaName,
     const polyMesh& mesh,
     const label nProcessors,
     const dictionary& params
 )
 :
-    faMesh(mesh),
+    faMesh(areaName, mesh),
+    areaName_(areaName.empty() ? polyMesh::defaultRegion : areaName),
     nProcs_(nProcessors),
     distributed_(false),
     hasGlobalFaceZones_(false),
-    faceToProc_(nFaces()),
+    faceToProc_(faMesh::nFaces()),
     procFaceLabels_(nProcs_),
     procMeshEdgesMap_(nProcs_),
     procNInternalEdges_(nProcs_, Zero),
@@ -166,6 +168,23 @@ Foam::faMeshDecomposition::faMeshDecomposition
 {
     updateParameters(params);
 }
+
+
+Foam::faMeshDecomposition::faMeshDecomposition
+(
+    const polyMesh& mesh,
+    const label nProcessors,
+    const dictionary& params
+)
+:
+    faMeshDecomposition
+    (
+        polyMesh::defaultRegion,
+        mesh,
+        nProcessors,
+        params
+    )
+{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -188,9 +207,10 @@ void Foam::faMeshDecomposition::decomposeMesh()
     // Decide which cell goes to which processor
     distributeFaces();
 
-    const word& polyMeshRegionName = mesh().name();
+    const word& polyMeshRegionName = faMesh::mesh().name();
 
-    Info<< "\nDistributing faces to processors" << endl;
+    Info<< "\nDistributing faces to processors ["
+        << polyMesh::regionName(areaName_) << "]" << endl;
 
     labelList nLocalFaces(nProcs_, Zero);
 
@@ -267,16 +287,21 @@ void Foam::faMeshDecomposition::decomposeMesh()
 
 
         // pointProcAddressing (polyMesh)
-        ioAddr.rename("pointProcAddressing");
-        labelIOList fvPointProcAddressing(ioAddr);
+        ioAddr.resetHeader("pointProcAddressing");
+        const labelList fvPointProcAddressing
+        (
+            labelIOList::readContents(ioAddr)
+        );
 
         Map<label> fvFaceProcAddressingHash;
 
         {
             // faceProcAddressing (polyMesh)
-            ioAddr.rename("faceProcAddressing");
-            labelIOList fvFaceProcAddressing(ioAddr);
-
+            ioAddr.resetHeader("faceProcAddressing");
+            const labelList fvFaceProcAddressing
+            (
+                labelIOList::readContents(ioAddr)
+            );
             fvFaceProcAddressingHash = invertToMap(fvFaceProcAddressing);
         }
 
@@ -296,9 +321,10 @@ void Foam::faMeshDecomposition::decomposeMesh()
                 ).val();
         }
 
-        // Create processor finite area mesh
+        // Create processor finite-area mesh
         faMesh procMesh
         (
+            areaName_,
             procFvMesh,
             labelList(procFaceLabels_[procI])
         );
@@ -315,18 +341,12 @@ void Foam::faMeshDecomposition::decomposeMesh()
             edgesHash.insert(patch.edges()[edgei], edgesHash.size());
         }
 
-        forAll(boundary(), patchi)
+        for (const auto& fap : faMesh::boundary())
         {
-            // Include emptyFaPatch
-            const label size = boundary()[patchi].labelList::size();
-
-            for (label edgei=0; edgei < size; ++edgei)
+            // Also include emptyFaPatch etc
+            for (const label edgei : fap.edgeLabels())
             {
-                edgesHash.insert
-                (
-                    patch.edges()[boundary()[patchi][edgei]],
-                    edgesHash.size()
-                );
+                edgesHash.insert(patch.edges()[edgei], edgesHash.size());
             }
         }
 
@@ -518,6 +538,8 @@ void Foam::faMeshDecomposition::decomposeMesh()
 
         forAll(patches, patchI)
         {
+            const faPatch& fap = patches[patchI];
+
             // Reset size and start index for all processors
             forAll(procPatchSize_, procI)
             {
@@ -526,7 +548,7 @@ void Foam::faMeshDecomposition::decomposeMesh()
                     procEdgeList[procI].size();
             }
 
-            const label patchStart = patches[patchI].start();
+            const label patchStart = fap.start();
 
 //             if (!isA<cyclicFaPatch>(patches[patchI]))
             if (true)
@@ -1030,9 +1052,10 @@ void Foam::faMeshDecomposition::decomposeMesh()
             )
         );
 
-        // create finite area mesh
+        // Create processor finite-area mesh
         faMesh procMesh
         (
+            areaName_,
             procFvMesh,
             labelList(procFaceLabels_[procI])
         );
@@ -1101,9 +1124,9 @@ void Foam::faMeshDecomposition::decomposeMesh()
 }
 
 
-bool Foam::faMeshDecomposition::writeDecomposition()
+bool Foam::faMeshDecomposition::writeDecomposition() const
 {
-    const word& polyMeshRegionName = mesh().name();
+    const word& polyMeshRegionName = faMesh::mesh().name();
 
     Info<< "\nConstructing processor FA meshes" << endl;
 
@@ -1144,23 +1167,29 @@ bool Foam::faMeshDecomposition::writeDecomposition()
             )
         );
 
-        labelIOList fvBoundaryProcAddressing
+        IOobject ioFvAddr
         (
-            IOobject
-            (
-                "boundaryProcAddressing",
-                "constant",
-                polyMesh::meshSubDir,
-                procFvMesh,
-                IOobject::MUST_READ,
-                IOobject::NO_WRITE
-            )
+            "procAddressing",
+            "constant",
+            polyMesh::meshSubDir,
+            procFvMesh,
+            IOobject::MUST_READ,
+            IOobject::NO_WRITE,
+            IOobject::NO_REGISTER
+        );
+
+        // boundaryProcAddressing (polyMesh)
+        ioFvAddr.resetHeader("boundaryProcAddressing");
+        const labelList fvBoundaryProcAddressing
+        (
+            labelIOList::readContents(ioFvAddr)
         );
 
 
-        // Create finite area mesh
+        // Create processor finite-area mesh
         faMesh procMesh
         (
+            areaName_,
             procFvMesh,
             labelList(procFaceLabels_[procI])
         );
@@ -1303,7 +1332,6 @@ bool Foam::faMeshDecomposition::writeDecomposition()
         maxProcPatches = max(maxProcPatches, nProcPatches);
 
         // Write the addressing information
-
         IOobject ioAddr
         (
             "procAddressing",
@@ -1317,19 +1345,19 @@ bool Foam::faMeshDecomposition::writeDecomposition()
 
         // pointProcAddressing
         ioAddr.rename("pointProcAddressing");
-        IOList<label>::writeContents(ioAddr, procPatchPointAddressing_[procI]);
+        labelIOList::writeContents(ioAddr, procPatchPointAddressing_[procI]);
 
         // edgeProcAddressing
         ioAddr.rename("edgeProcAddressing");
-        IOList<label>::writeContents(ioAddr, procEdgeAddressing_[procI]);
+        labelIOList::writeContents(ioAddr, procEdgeAddressing_[procI]);
 
         // faceProcAddressing
         ioAddr.rename("faceProcAddressing");
-        IOList<label>::writeContents(ioAddr, procFaceAddressing_[procI]);
+        labelIOList::writeContents(ioAddr, procFaceAddressing_[procI]);
 
         // boundaryProcAddressing
         ioAddr.rename("boundaryProcAddressing");
-        IOList<label>::writeContents(ioAddr, procBoundaryAddressing_[procI]);
+        labelIOList::writeContents(ioAddr, procBoundaryAddressing_[procI]);
     }
 
 

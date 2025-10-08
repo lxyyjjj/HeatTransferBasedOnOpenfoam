@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2016-2017 Wikki Ltd
-    Copyright (C) 2022 OpenCFD Ltd.
+    Copyright (C) 2022-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,11 +39,11 @@ int Foam::faFieldReconstructor::verbose_ = 1;
 
 Foam::faFieldReconstructor::faFieldReconstructor
 (
-    faMesh& mesh,
-    const PtrList<faMesh>& procMeshes,
-    const PtrList<labelIOList>& edgeProcAddressing,
-    const PtrList<labelIOList>& faceProcAddressing,
-    const PtrList<labelIOList>& boundaryProcAddressing
+    const faMesh& mesh,
+    const UPtrList<faMesh>& procMeshes,
+    const UPtrList<labelIOList>& edgeProcAddressing,
+    const UPtrList<labelIOList>& faceProcAddressing,
+    const UPtrList<labelIOList>& boundaryProcAddressing
 )
 :
     mesh_(mesh),
