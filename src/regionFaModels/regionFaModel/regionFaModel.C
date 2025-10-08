@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2022 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,9 +27,8 @@ License
 
 #include "regionFaModel.H"
 #include "faMesh.H"
+#include "faMeshesRegistry.H"
 #include "Time.H"
-#include "mappedWallPolyPatch.H"
-#include "zeroGradientFvPatchFields.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -44,13 +43,109 @@ namespace regionModels
 const Foam::word
 Foam::regionModels::regionFaModel::regionFaModelName("regionFaModel");
 
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace
+{
+
+// Return IOobject with name qualified with region and area names
+Foam::IOobject createModelIOobject
+(
+    const Foam::polyMesh& mesh,
+    // const Foam::word& baseName, <- always regionFaModelName
+    const Foam::word& regionName,
+    const Foam::word& areaName
+)
+{
+    using namespace Foam;
+
+    // Default: regionFaModel.<regionName>
+    word objName = IOobject::groupName
+    (
+        Foam::regionModels::regionFaModel::regionFaModelName,
+        regionName
+    );
+
+    // Append '.<area-name>' or nothing
+    objName.ext(polyMesh::regionName(areaName));
+
+    return IOobject
+    (
+        objName,
+        mesh.time().constant(),
+        faMeshesRegistry::New(mesh).thisDb(),
+        IOobjectOption::NO_READ,
+        IOobjectOption::NO_WRITE,
+        IOobjectOption::REGISTER
+    );
+}
+
+
+// Return IOobject with name qualified with region and area names
+Foam::IOobject createPropertiesIOobject
+(
+    const Foam::polyMesh& mesh,
+    // const Foam::word& baseName, <- always regionFaModelName
+    const Foam::word& regionName,
+    const Foam::word& areaName
+)
+{
+    using namespace Foam;
+
+    const fileName uniformPath
+    (
+        word("uniform")
+      / Foam::regionModels::regionFaModel::regionFaModelName
+    );
+
+    const word objName
+    (
+        IOobject::groupName
+        (
+            (regionName + "OutputProperties"),
+            polyMesh::regionName(areaName)
+        )
+    );
+
+    // NOTE (2025-10-01):
+    // Cannot hold the OutputProperties within
+    //    - faMeshesRegistry::New(mesh).thisDb()
+    // since this produces a uniform path that we do not yet handle
+    //
+    // ->    "<time>/finite-area/uniform/regionFaModel/<model-region>"
+    // vs:   "<time>/uniform/regionFaModel/<model-region>"
+    //
+    // The difference being that we only look for 'uniform' at the
+    // first sub-level within the time directory when decomposing etc.
+
+    IOobject legacy
+    (
+        objName,
+        mesh.time().timeName(),
+        uniformPath/regionName,
+
+        // Not possible:  faMeshesRegistry::New(mesh).thisDb(),
+        mesh,  // Registered on volume mesh!
+
+        IOobjectOption::READ_IF_PRESENT,
+        IOobjectOption::NO_WRITE,
+        IOobjectOption::REGISTER
+    );
+
+    return legacy;
+}
+
+} // End anonymous namespace
+
+
 // * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
 
 void Foam::regionModels::regionFaModel::constructMeshObjects()
 {
     regionMeshPtr_.reset
     (
-        new faMesh(primaryMesh_)
+        new faMesh(areaName_, primaryMesh_)
     );
 }
 
@@ -66,20 +161,16 @@ void Foam::regionModels::regionFaModel::initialise()
 
     if (!outputPropertiesPtr_)
     {
-        const fileName uniformPath(word("uniform")/regionFaModelName);
-
         outputPropertiesPtr_.reset
         (
             new IOdictionary
             (
-                IOobject
+                createPropertiesIOobject
                 (
-                    regionName_ + "OutputProperties",
-                    time_.timeName(),
-                    uniformPath/regionName_,
                     primaryMesh_,
-                    IOobject::READ_IF_PRESENT,
-                    IOobject::NO_WRITE
+                    // regionFaModelName,
+                    regionName_,
+                    areaName_
                 )
             )
         );
@@ -126,13 +217,12 @@ Foam::regionModels::regionFaModel::regionFaModel
 :
     IOdictionary
     (
-        IOobject
+        createModelIOobject
         (
-            IOobject::groupName(regionFaModelName, dict.get<word>("region")),
-            mesh.time().constant(),
-            mesh.time(),
-            IOobject::NO_READ,
-            IOobject::NO_WRITE
+            mesh,
+            // regionFaModelName,
+            dict.get<word>("region"),
+            dict.getOrDefault<word>("area", polyMesh::defaultRegion)
         )
     ),
     primaryMesh_(mesh),
@@ -140,11 +230,9 @@ Foam::regionModels::regionFaModel::regionFaModel
     active_(dict.get<Switch>("active")),
     infoOutput_(false),
     modelName_(modelName),
-    regionMeshPtr_(nullptr),
-    coeffs_(dict.subOrEmptyDict(modelName + "Coeffs")),
-    outputPropertiesPtr_(nullptr),
-    vsmPtr_(nullptr),
-    regionName_(dict.get<word>("region"))
+    areaName_(dict.getOrDefault<word>("area", polyMesh::defaultRegion)),
+    regionName_(dict.get<word>("region")),
+    coeffs_(dict.subOrEmptyDict(modelName + "Coeffs"))
 {
     constructMeshObjects();
     initialise();
@@ -163,7 +251,8 @@ void Foam::regionModels::regionFaModel::evolve()
     if (active_)
     {
         Info<< "\nEvolving " << modelName_ << " for region "
-            << regionMesh().name() << endl;
+            << regionMesh().name() << " : "
+            << polyMesh::regionName(areaName_) << endl;
 
         preEvolveRegion();
 

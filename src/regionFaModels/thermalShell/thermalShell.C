@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2023 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -124,7 +124,8 @@ thermalShell::thermalShell
 :
     thermalShellModel(modelType, mesh, dict),
     nNonOrthCorr_(1),
-    thermo_(dict.subDict("thermo")),
+    // Only need/want thermal solid properties
+    thermo_(dict.subDict("thermo"), solidProperties::THERMAL),
     qs_
     (
         IOobject

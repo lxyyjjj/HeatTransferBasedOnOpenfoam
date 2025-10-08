@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2024 OpenCFD Ltd.
+    Copyright (C) 2024-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,7 +34,7 @@ License
 
 Foam::faMeshRegistry::faMeshRegistry
 (
-    const word& areaRegion,
+    const word& areaName,
     const polyMesh& mesh
 )
 :
@@ -42,7 +42,7 @@ Foam::faMeshRegistry::faMeshRegistry
     (
         IOobject
         (
-            areaRegion,
+            (areaName.empty() ? polyMesh::defaultRegion : areaName),
             faMeshesRegistry::New(mesh).thisDb(),
             IOobjectOption::NO_READ,
             IOobjectOption::AUTO_WRITE,

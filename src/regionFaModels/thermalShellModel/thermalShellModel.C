@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2023 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -64,11 +64,15 @@ thermalShellModel::thermalShellModel
         ),
         regionMesh()
     ),
-    faOptions_(Foam::fa::options::New(primaryMesh()))
+    faOptions_
+    (
+        Foam::fa::options::New(primaryMesh(), regionFaModel::areaName())
+    )
 {
     if (faOptions_.optionList::empty())
     {
-        Info << "No finite area options present" << endl;
+        Info<< "No finite area options present for area : "
+            << polyMesh::regionName(regionFaModel::areaName()) << endl;
     }
 }
 

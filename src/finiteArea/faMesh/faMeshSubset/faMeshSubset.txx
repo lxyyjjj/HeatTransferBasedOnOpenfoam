@@ -43,7 +43,7 @@ Foam::tmp
 >
 Foam::faMeshSubset::interpolate
 (
-    const GeometricField<Type, faPatchField, areaMesh>& vf,
+    const GeometricField<Type, faPatchField, areaMesh>& gf,
     const faMesh& sMesh,
     const bool allowUnmapped
 )
@@ -69,20 +69,20 @@ Foam::faMeshSubset::interpolate
     (
         IOobject
         (
-            "subset"+vf.name(),
+            "subset"+gf.name(),
             sMesh.time().timeName(),
             sMesh.thisDb(),
             IOobject::NO_READ,
             IOobject::NO_WRITE
         ),
         sMesh,
-        vf.dimensions(),
+        gf.dimensions(),
         Field<Type>(),
-        // Field<Type>(vf.primitiveField(), cellMap),
+        // Field<Type>(gf.primitiveField(), cellMap),
         patchFields
     );
     auto& result = tresult.ref();
-    result.oriented() = vf.oriented();
+    result.oriented() = gf.oriented();
 
 
     // 2. Change the faPatchFields to the correct type using a mapper
@@ -111,7 +111,7 @@ Foam::faMeshSubset::interpolate
             patchi,
             faPatchField<Type>::New
             (
-                vf.boundaryField()[patchi],
+                gf.boundaryField()[patchi],
                 subPatch,
                 result(),
                 mapper
@@ -151,7 +151,7 @@ Foam::tmp
 >
 Foam::faMeshSubset::interpolate
 (
-    const GeometricField<Type, faePatchField, edgeMesh>& vf,
+    const GeometricField<Type, faePatchField, edgeMesh>& gf,
     const faMesh& sMesh
 )
 {
@@ -176,24 +176,24 @@ Foam::faMeshSubset::interpolate
     (
         IOobject
         (
-            "subset"+vf.name(),
+            "subset"+gf.name(),
             sMesh.time().timeName(),
             sMesh.thisDb(),
             IOobject::NO_READ,
             IOobject::NO_WRITE
         ),
         sMesh,
-        vf.dimensions(),
+        gf.dimensions(),
         Field<Type>(),
         // Field<Type>
         // (
-        //     vf.primitiveField(),
+        //     gf.primitiveField(),
         //     SubList<label>(edgeMap, sMesh.nInternalEdges())
         // ),
         patchFields
     );
     auto& result = tresult.ref();
-    result.oriented() = vf.oriented();
+    result.oriented() = gf.oriented();
 
 
     // 2. Change the faePatchFields to the correct type using a mapper
@@ -214,7 +214,7 @@ Foam::faMeshSubset::interpolate
             patchi,
             faePatchField<Type>::New
             (
-                vf.boundaryField()[patchi],
+                gf.boundaryField()[patchi],
                 subPatch,
                 result(),
                 mapper
@@ -235,16 +235,16 @@ Foam::tmp
 >
 Foam::faMeshSubset::interpolate
 (
-    const GeometricField<Type, faPatchField, areaMesh>& vf,
+    const GeometricField<Type, faPatchField, areaMesh>& gf,
     const bool allowUnmapped
 ) const
 {
     if (subMeshPtr_)
     {
-        return interpolate(vf, *subMeshPtr_);
+        return interpolate(gf, *subMeshPtr_);
     }
 
-    return vf;
+    return gf;
 }
 
 
@@ -255,16 +255,16 @@ Foam::tmp
 >
 Foam::faMeshSubset::interpolate
 (
-    const GeometricField<Type, faePatchField, edgeMesh>& vf,
+    const GeometricField<Type, faePatchField, edgeMesh>& gf,
     const bool allowUnmapped
 ) const
 {
     if (subMeshPtr_)
     {
-        return interpolate(vf, *subMeshPtr_);
+        return interpolate(gf, *subMeshPtr_);
     }
 
-    return vf;
+    return gf;
 }
 
 

@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2022 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,6 +40,17 @@ namespace Foam
 }
 
 
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+bool Foam::fa::option::sameRegionNames(const word& name1, const word& name2)
+{
+    const auto& a = polyMesh::regionName(name1);
+    const auto& b = polyMesh::regionName(name2);
+
+    return (a.empty() || b.empty() || (a == b));
+}
+
+
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
 void Foam::fa::option::resetApplied()
@@ -56,7 +67,8 @@ Foam::fa::option::option
     const word& name,
     const word& modelType,
     const dictionary& dict,
-    const fvMesh& mesh
+    const fvMesh& mesh,
+    const word& defaultAreaName
 )
 :
     name_(name),
@@ -64,15 +76,28 @@ Foam::fa::option::option
     mesh_(mesh),
     dict_(dict),
     coeffs_(dict.optionalSubDict(modelType + "Coeffs")),
-    fieldNames_(),
-    applied_(),
+    areaName_(defaultAreaName),
     regionName_(dict.get<word>("region")),
-    regionMeshPtr_(nullptr),
-    vsmPtr_(nullptr),
     active_(dict.getOrDefault("active", true)),
     log(true)
 {
-    Log << incrIndent << indent << "Source: " << name_ << endl << decrIndent;
+    if (dict.readIfPresent("area", areaName_))
+    {
+        if (!sameRegionNames(areaName_, defaultAreaName))
+        {
+            // Produce a large warning message
+
+            IOWarningInFunction(dict) << nl
+                << "The faOption option \"" << name
+                << "\" has conflicting area specifications!" << nl
+                << "    expected : " << defaultAreaName << nl
+                << "    found    : " << areaName_ << nl;
+        }
+    }
+
+    Log << incrIndent << indent << "Source: " << name_
+        << " [" << polyMesh::regionName(areaName_) << ']' << endl
+        << decrIndent;
 }
 
 
@@ -82,13 +107,24 @@ Foam::autoPtr<Foam::fa::option> Foam::fa::option::New
 (
     const word& name,
     const dictionary& coeffs,
-    const fvMesh& mesh
+    const fvMesh& mesh,
+    const word& defaultAreaName
 )
 {
     const word modelType(coeffs.get<word>("type"));
 
+    word areaName(defaultAreaName);
+    coeffs.readIfPresent("area", areaName);
+
     Info<< indent
-        << "Selecting finite area options type " << modelType << endl;
+        << "Selecting finite-area option, type " << modelType
+        << " [" << polyMesh::regionName(areaName) << ']';
+
+    if (!sameRegionNames(areaName, defaultAreaName))
+    {
+        Info<< " != " << defaultAreaName << nl;
+    }
+    Info<< endl;
 
     mesh.time().libs().open
     (
@@ -110,7 +146,10 @@ Foam::autoPtr<Foam::fa::option> Foam::fa::option::New
         ) << exit(FatalIOError);
     }
 
-    return autoPtr<fa::option>(ctorPtr(name, modelType, coeffs, mesh));
+    return autoPtr<fa::option>
+    (
+        ctorPtr(name, modelType, coeffs, mesh, areaName)
+    );
 }
 
 

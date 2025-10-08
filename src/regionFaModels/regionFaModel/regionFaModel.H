@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2019-2022 OpenCFD Ltd.
+    Copyright (C) 2019-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -55,6 +55,7 @@ Usage
     \table
       Property   | Description                         | Type  | Reqd | Deflt
       region     | Name of operand region              | word  | yes  | -
+      area       | Name of the finite-area mesh        | word  | no   | region0
       active     | Flag to activate the model          | bool  | yes  | -
       infoOutput | Flag to activate information output | bool  | no   | false
     \endtable
@@ -117,6 +118,12 @@ protected:
         //- Model name
         const word modelName_;
 
+        //- The finite-area mesh name
+        word areaName_;
+
+        //- Region name
+        word regionName_;
+
         //- Pointer to the region mesh database
         autoPtr<faMesh> regionMeshPtr_;
 
@@ -128,9 +135,6 @@ protected:
 
         //- Volume/surface mapping
         autoPtr<volSurfaceMapping> vsmPtr_;
-
-        //- Region name
-        word regionName_;
 
 
 public:
@@ -180,6 +184,9 @@ public:
 
         //- Return the information flag
         Switch infoOutput() const noexcept { return infoOutput_; }
+
+        //- The finite-area mesh name (extracted from dictionary)
+        const word& areaName() const noexcept { return areaName_; }
 
         //- Return the model name
         const word& modelName() const noexcept { return modelName_; }

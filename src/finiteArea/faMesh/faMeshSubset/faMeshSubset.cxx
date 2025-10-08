@@ -56,19 +56,13 @@ bool Foam::faMeshSubset::checkHasSubMesh() const
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::faMeshSubset::faMeshSubset(const faMesh& baseMesh)
+Foam::faMeshSubset::faMeshSubset(const faMesh& baseMesh) noexcept
 :
-    baseMesh_(baseMesh),
-    subMeshPtr_(nullptr),
-    edgeFlipMapPtr_(nullptr),
-    pointMap_(),
-    faceMap_(),
-    cellMap_(),
-    patchMap_()
+    baseMesh_(baseMesh)
 {}
 
 
-Foam::faMeshSubset::faMeshSubset(const faMesh& baseMesh, const Foam::zero)
+Foam::faMeshSubset::faMeshSubset(const faMesh& baseMesh, Foam::zero)
 :
     faMeshSubset(baseMesh)
 {
@@ -96,16 +90,16 @@ void Foam::faMeshSubset::reset()
 }
 
 
-void Foam::faMeshSubset::reset(const Foam::zero)
+void Foam::faMeshSubset::reset(Foam::zero)
 {
     clear();
 
-    // Create zero-sized subMesh
+    // Create zero-sized subMesh. Retain the area-region name
     subMeshPtr_.reset
     (
-        new faMesh(baseMesh_, Foam::zero{})
+        new faMesh(baseMesh_.name(), baseMesh_, Foam::zero{})
     );
-    auto& newSubMesh = subMeshPtr_();
+    auto& newSubMesh = *subMeshPtr_;
 
 
     // Clone non-processor patches
