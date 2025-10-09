@@ -35,16 +35,17 @@ Foam::tmp<Foam::GeometricField<Type, Foam::pointPatchField, Foam::pointMesh>>
 Foam::pointFieldReconstructor::reconstructField
 (
     const IOobject& fieldObject,
-    const PtrList<GeometricField<Type, pointPatchField, pointMesh>>& procFields
+    const UPtrList<GeometricField<Type, pointPatchField, pointMesh>>& procFields
 ) const
 {
     typedef GeometricField<Type, pointPatchField, pointMesh> fieldType;
+    typedef pointPatchField<Type> patchFieldType;
 
     // Create the internalField
     Field<Type> internalField(mesh_.size());
 
     // Create the patch fields
-    PtrList<pointPatchField<Type>> patchFields(mesh_.boundary().size());
+    PtrList<patchFieldType> patchFields(mesh_.boundary().size());
 
 
     forAll(procMeshes_, proci)
@@ -75,11 +76,11 @@ Foam::pointFieldReconstructor::reconstructField
                     patchFields.set
                     (
                         curBPatch,
-                        pointPatchField<Type>::New
+                        patchFieldType::New
                         (
                             procField.boundaryField()[patchi],
                             mesh_.boundary()[curBPatch],
-                            pointPatchField<Type>::Internal::null(),
+                            patchFieldType::Internal::null(),
                             pointPatchFieldReconstructor
                             (
                                 mesh_.boundary()[curBPatch].size()

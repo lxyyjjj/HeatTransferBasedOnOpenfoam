@@ -265,7 +265,7 @@ void Foam::faFieldDecomposer::fieldsCache::readAllFields
 
 void Foam::faFieldDecomposer::fieldsCache::readAllFields
 (
-    const boolList& haveMeshOnProc,
+    const boolUList& haveMeshOnProc,
     const faMeshSubset* subsetter,
     const faMesh& mesh,
     IOobjectList& objects

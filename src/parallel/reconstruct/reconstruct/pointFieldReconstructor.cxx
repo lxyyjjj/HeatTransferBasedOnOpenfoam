@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2015 OpenFOAM Foundation
-    Copyright (C) 2022 OpenCFD Ltd.
+    Copyright (C) 2022-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,9 +39,9 @@ int Foam::pointFieldReconstructor::verbose_ = 1;
 Foam::pointFieldReconstructor::pointFieldReconstructor
 (
     const pointMesh& mesh,
-    const PtrList<pointMesh>& procMeshes,
-    const PtrList<labelIOList>& pointProcAddressing,
-    const PtrList<labelIOList>& boundaryProcAddressing
+    const UPtrList<pointMesh>& procMeshes,
+    const UPtrList<labelIOList>& pointProcAddressing,
+    const UPtrList<labelIOList>& boundaryProcAddressing
 )
 :
     mesh_(mesh),
@@ -59,14 +59,14 @@ Foam::pointFieldReconstructor::pointFieldReconstructor
     {
         const pointMesh& procMesh = procMeshes_[proci];
 
-        patchPointAddressing_[proci].setSize(procMesh.boundary().size());
+        patchPointAddressing_[proci].resize(procMesh.boundary().size());
 
         forAll(procMesh.boundary(), patchi)
         {
             if (boundaryProcAddressing_[proci][patchi] >= 0)
             {
                 labelList& procPatchAddr = patchPointAddressing_[proci][patchi];
-                procPatchAddr.setSize(procMesh.boundary()[patchi].size(), -1);
+                procPatchAddr.resize(procMesh.boundary()[patchi].size(), -1);
 
                 const labelList& patchPointLabels =
                     mesh_.boundary()[boundaryProcAddressing_[proci][patchi]]
@@ -90,7 +90,7 @@ Foam::pointFieldReconstructor::pointFieldReconstructor
                         ];
                 }
 
-                if (procPatchAddr.size() && min(procPatchAddr) < 0)
+                if (procPatchAddr.contains(-1))
                 {
                     FatalErrorInFunction
                         << "Incomplete patch point addressing"
@@ -112,11 +112,23 @@ Foam::label Foam::pointFieldReconstructor::reconstructAllFields
 {
     label nTotal = 0;
 
-    nTotal += reconstructPointFields<scalar>(objects, selected);
-    nTotal += reconstructPointFields<vector>(objects, selected);
-    nTotal += reconstructPointFields<symmTensor>(objects, selected);
-    nTotal += reconstructPointFields<sphericalTensor>(objects, selected);
-    nTotal += reconstructPointFields<tensor>(objects, selected);
+    do
+    {
+        #undef  doLocalCode
+        #define doLocalCode(Method)                                           \
+        {                                                                     \
+            nTotal += this->Method <scalar> (objects, selected);              \
+            nTotal += this->Method <vector> (objects, selected);              \
+            nTotal += this->Method <sphericalTensor> (objects, selected);     \
+            nTotal += this->Method <symmTensor> (objects, selected);          \
+            nTotal += this->Method <tensor> (objects, selected);              \
+        }
+
+        doLocalCode(reconstructPointFields);
+
+        #undef doLocalCode
+    }
+    while (false);
 
     return nTotal;
 }

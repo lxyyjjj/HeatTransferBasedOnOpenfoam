@@ -6,6 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,9 +24,6 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    Lagrangian field decomposer.
-
 \*---------------------------------------------------------------------------*/
 
 #include "lagrangianFieldDecomposer.H"
@@ -36,11 +34,11 @@ Foam::lagrangianFieldDecomposer::lagrangianFieldDecomposer
 (
     const polyMesh& mesh,
     const polyMesh& procMesh,
-    const labelList& faceProcAddressing,
-    const labelList& cellProcAddressing,
+    const labelUList& faceProcAddressing,
+    const labelUList& cellProcAddressing,
     const word& cloudName,
     const Cloud<indexedParticle>& lagrangianPositions,
-    const List<SLList<indexedParticle*>*>& cellParticles
+    const UList<SLList<indexedParticle*>*>& cellParticles
 )
 :
     procMesh_(procMesh),

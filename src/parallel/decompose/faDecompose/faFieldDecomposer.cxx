@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2016-2017 Wikki Ltd
-    Copyright (C) 2021-2024 OpenCFD Ltd.
+    Copyright (C) 2021-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -126,21 +126,17 @@ processorEdgePatchFieldDecomposer
 
 Foam::faFieldDecomposer::faFieldDecomposer
 (
-    const Foam::zero,
+    Foam::zero,
     const faMesh& procMesh,
-    const labelList& edgeAddressing,
-    const labelList& faceAddressing,
-    const labelList& boundaryAddressing
+    const labelUList& edgeAddressing,
+    const labelUList& faceAddressing,
+    const labelUList& boundaryAddressing
 )
 :
     procMesh_(procMesh),
     edgeAddressing_(edgeAddressing),
     faceAddressing_(faceAddressing),
-    boundaryAddressing_(boundaryAddressing),
-    // Mappers
-    patchFieldDecomposerPtrs_(),
-    processorAreaPatchFieldDecomposerPtrs_(),
-    processorEdgePatchFieldDecomposerPtrs_()
+    boundaryAddressing_(boundaryAddressing)
 {}
 
 
@@ -148,14 +144,14 @@ Foam::faFieldDecomposer::faFieldDecomposer
 (
     const faMesh& completeMesh,
     const faMesh& procMesh,
-    const labelList& edgeAddressing,
-    const labelList& faceAddressing,
-    const labelList& boundaryAddressing
+    const labelUList& edgeAddressing,
+    const labelUList& faceAddressing,
+    const labelUList& boundaryAddressing
 )
 :
     faFieldDecomposer
     (
-        zero{},
+        Foam::zero{},
         procMesh,
         edgeAddressing,
         faceAddressing,
@@ -169,19 +165,19 @@ Foam::faFieldDecomposer::faFieldDecomposer
 Foam::faFieldDecomposer::faFieldDecomposer
 (
     const label nTotalFaces,
-    const List<labelRange>& boundaryRanges,
+    const UList<labelRange>& boundaryRanges,
     const labelUList& edgeOwner,
     const labelUList& edgeNeigbour,
 
     const faMesh& procMesh,
-    const labelList& edgeAddressing,
-    const labelList& faceAddressing,
-    const labelList& boundaryAddressing
+    const labelUList& edgeAddressing,
+    const labelUList& faceAddressing,
+    const labelUList& boundaryAddressing
 )
 :
     faFieldDecomposer
     (
-        zero{},
+        Foam::zero{},
         procMesh,
         edgeAddressing,
         faceAddressing,
@@ -194,7 +190,7 @@ Foam::faFieldDecomposer::faFieldDecomposer
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool Foam::faFieldDecomposer::empty() const
+bool Foam::faFieldDecomposer::empty() const noexcept
 {
     return patchFieldDecomposerPtrs_.empty();
 }
@@ -211,16 +207,16 @@ void Foam::faFieldDecomposer::clear()
 void Foam::faFieldDecomposer::reset
 (
     const label nTotalFaces,
-    const List<labelRange>& boundaryRanges,
+    const UList<labelRange>& boundaryRanges,
     const labelUList& edgeOwner,
     const labelUList& edgeNeigbour
 )
 {
-    clear();
     const label nMappers = procMesh_.boundary().size();
-    patchFieldDecomposerPtrs_.resize(nMappers);
-    processorAreaPatchFieldDecomposerPtrs_.resize(nMappers);
-    processorEdgePatchFieldDecomposerPtrs_.resize(nMappers);
+
+    patchFieldDecomposerPtrs_.resize_null(nMappers);
+    processorAreaPatchFieldDecomposerPtrs_.resize_null(nMappers);
+    processorEdgePatchFieldDecomposerPtrs_.resize_null(nMappers);
 
     forAll(boundaryAddressing_, patchi)
     {
@@ -282,11 +278,11 @@ void Foam::faFieldDecomposer::reset
 
 void Foam::faFieldDecomposer::reset(const faMesh& completeMesh)
 {
-    clear();
     const label nMappers = procMesh_.boundary().size();
-    patchFieldDecomposerPtrs_.resize(nMappers);
-    processorAreaPatchFieldDecomposerPtrs_.resize(nMappers);
-    processorEdgePatchFieldDecomposerPtrs_.resize(nMappers);
+
+    patchFieldDecomposerPtrs_.resize_null(nMappers);
+    processorAreaPatchFieldDecomposerPtrs_.resize_null(nMappers);
+    processorEdgePatchFieldDecomposerPtrs_.resize_null(nMappers);
 
     // Create weightings now - needed for proper parallel synchronization
     //// (void)completeMesh.weights();

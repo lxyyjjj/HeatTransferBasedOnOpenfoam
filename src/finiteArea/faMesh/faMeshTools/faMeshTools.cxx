@@ -32,7 +32,6 @@ License
 #include "edgeFields.H"
 #include "fileOperation.H"
 #include "BitOps.H"
-#include "ListOps.H"
 #include "polyMesh.H"
 #include "processorFaPatch.H"
 
@@ -432,12 +431,12 @@ Foam::faMeshTools::loadOrCreateMesh_impl
     }
     else if (readHandlerPtr && haveLocalMesh)
     {
-        const label numProcs = UPstream::nProcs(UPstream::worldComm);
+        const label numWorldProcs = UPstream::nProcs(UPstream::worldComm);
+        const label realWorldComm = UPstream::worldComm;
 
         const labelList meshProcIds(BitOps::sortedToc(haveMesh));
 
         UPstream::communicator newCommunicator;
-        const label oldWorldComm = UPstream::commWorld();
 
         auto& readHandler = *readHandlerPtr;
         auto oldHandler = fileOperation::fileHandler(readHandler);
@@ -447,13 +446,13 @@ Foam::faMeshTools::loadOrCreateMesh_impl
         // Instead allocate a new communicator for everyone with a mesh
 
         // Comparing global ranks in the communicator.
-
-        if (ListOps::equal(meshProcIds, UPstream::procID(fileHandler().comm())))
+        if (UPstream::sameProcs(fileHandler().comm(), meshProcIds))
         {
+            const_cast<fileOperation&>(fileHandler()).nProcs(numWorldProcs);
             // Can use the handler communicator as is.
             UPstream::commWorld(fileHandler().comm());
         }
-        else if (UPstream::nProcs(fileHandler().comm()) != numProcs)
+        else if (UPstream::nProcs(fileHandler().comm()) != numWorldProcs)
         {
             // Need a new communicator for the fileHandler.
 
@@ -468,10 +467,10 @@ Foam::faMeshTools::loadOrCreateMesh_impl
         meshPtr = autoPtr<faMesh>::New(areaName, pMesh, false);
 
         readHandler = fileOperation::fileHandler(oldHandler);
-        UPstream::commWorld(oldWorldComm);
+        UPstream::commWorld(realWorldComm);
 
         // Reset mesh communicator to the real world comm
-        meshPtr().comm() = UPstream::commWorld();
+        meshPtr().comm() = realWorldComm;
     }
 
 

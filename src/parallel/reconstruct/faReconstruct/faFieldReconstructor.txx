@@ -28,7 +28,6 @@ License
 
 #include "faFieldReconstructor.H"
 #include "Time.H"
-#include "PtrList.H"
 #include "emptyFaPatch.H"
 #include "faPatchFields.H"
 #include "faePatchFields.H"
@@ -40,7 +39,7 @@ Foam::tmp<Foam::GeometricField<Type, Foam::faPatchField, Foam::areaMesh>>
 Foam::faFieldReconstructor::reconstructField
 (
     const IOobject& fieldObject,
-    const PtrList<GeometricField<Type, faPatchField, areaMesh>>& procFields
+    const UPtrList<GeometricField<Type, faPatchField, areaMesh>>& procFields
 ) const
 {
     // Create the internalField
@@ -271,7 +270,7 @@ Foam::tmp<Foam::GeometricField<Type, Foam::faePatchField, Foam::edgeMesh>>
 Foam::faFieldReconstructor::reconstructField
 (
     const IOobject& fieldObject,
-    const PtrList<GeometricField<Type, faePatchField, edgeMesh>>& procFields
+    const UPtrList<GeometricField<Type, faePatchField, edgeMesh>>& procFields
 ) const
 {
     // Create the internalField

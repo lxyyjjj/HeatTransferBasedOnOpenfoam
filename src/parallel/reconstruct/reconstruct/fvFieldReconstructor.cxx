@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2017 Wikki Ltd
+    Copyright (C) 2011-2016 OpenFOAM Foundation
     Copyright (C) 2022 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
@@ -26,38 +26,62 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "faFieldReconstructor.H"
-#include "areaFields.H"
-#include "edgeFields.H"
+#include "fvFieldReconstructor.H"
+#include "volFields.H"
+#include "surfaceFields.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-int Foam::faFieldReconstructor::verbose_ = 1;
+int Foam::fvFieldReconstructor::verbose_ = 1;
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::faFieldReconstructor::faFieldReconstructor
+Foam::fvFieldReconstructor::fvFieldReconstructor
 (
-    faMesh& mesh,
-    const PtrList<faMesh>& procMeshes,
-    const PtrList<labelIOList>& edgeProcAddressing,
-    const PtrList<labelIOList>& faceProcAddressing,
-    const PtrList<labelIOList>& boundaryProcAddressing
+    fvMesh& mesh,
+    const UPtrList<fvMesh>& procMeshes,
+    const UPtrList<labelIOList>& faceProcAddressing,
+    const UPtrList<labelIOList>& cellProcAddressing,
+    const UPtrList<labelIOList>& boundaryProcAddressing
 )
 :
     mesh_(mesh),
     procMeshes_(procMeshes),
-    edgeProcAddressing_(edgeProcAddressing),
     faceProcAddressing_(faceProcAddressing),
+    cellProcAddressing_(cellProcAddressing),
     boundaryProcAddressing_(boundaryProcAddressing),
     nReconstructed_(0)
-{}
+{
+    forAll(procMeshes_, proci)
+    {
+        const fvMesh& procMesh = procMeshes_[proci];
+        if
+        (
+            faceProcAddressing[proci].size() != procMesh.nFaces()
+         || cellProcAddressing[proci].size() != procMesh.nCells()
+         || boundaryProcAddressing[proci].size() != procMesh.boundary().size()
+        )
+        {
+            FatalErrorInFunction
+                << "Size of maps does not correspond to size of mesh"
+                << " for processor " << proci << endl
+                << "faceProcAddressing : " << faceProcAddressing[proci].size()
+                << " nFaces : " << procMesh.nFaces() << endl
+                << "cellProcAddressing : " << cellProcAddressing[proci].size()
+                << " nCell : " << procMesh.nCells() << endl
+                << "boundaryProcAddressing : "
+                << boundaryProcAddressing[proci].size()
+                << " nFaces : " << procMesh.boundary().size()
+                << exit(FatalError);
+        }
+    }
+}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Foam::label Foam::faFieldReconstructor::reconstructAllFields
+Foam::label Foam::fvFieldReconstructor::reconstructAllFields
 (
     const IOobjectList& objects,
     const wordRes& selected
@@ -77,8 +101,9 @@ Foam::label Foam::faFieldReconstructor::reconstructAllFields
             nTotal += this->Method <tensor> (objects, selected);              \
         }
 
-        doLocalCode(reconstructAreaFields);
-        doLocalCode(reconstructEdgeFields);
+        doLocalCode(reconstructInternalFields);
+        doLocalCode(reconstructVolumeFields);
+        doLocalCode(reconstructSurfaceFields);
 
         #undef doLocalCode
     }

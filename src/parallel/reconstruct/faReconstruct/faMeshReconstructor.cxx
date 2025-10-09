@@ -56,15 +56,7 @@ void Foam::faMeshReconstructor::calcAddressing
     faBoundaryProcAddr_ = identity(nPatches);
 
     // Mark processor patches
-    for
-    (
-        label patchi = procMesh_.boundary().nNonProcessor();
-        patchi < nPatches;
-        ++patchi
-    )
-    {
-        faBoundaryProcAddr_[patchi] = -1;
-    }
+    faBoundaryProcAddr_.slice(procMesh_.boundary().nNonProcessor()) = -1;
 
 
     // ------------------
@@ -112,13 +104,13 @@ void Foam::faMeshReconstructor::calcAddressing
 
         PstreamBuffers pBufs;
 
-        if (Pstream::master())
+        if (UPstream::master())
         {
             // Determine the respective local portions of the global ordering
 
             labelList procTargets(globalFaceNum.totalSize());
 
-            for (const label proci : Pstream::allProcs())
+            for (const label proci : UPstream::allProcs())
             {
                 labelList::subList
                 (
@@ -139,7 +131,7 @@ void Foam::faMeshReconstructor::calcAddressing
             }
 
             // Send the local portions
-            for (const int proci : Pstream::subProcs())
+            for (const int proci : UPstream::subProcs())
             {
                 SubList<label> localOrder
                 (
@@ -158,11 +150,11 @@ void Foam::faMeshReconstructor::calcAddressing
 
         pBufs.finishedScatters();
 
-        if (!Pstream::master())
+        if (!UPstream::master())
         {
             labelList localOrder;
 
-            UIPstream fromProc(Pstream::masterNo(), pBufs);
+            UIPstream fromProc(UPstream::masterNo(), pBufs);
             fromProc >> localOrder;
 
             faFaceProcAddr_ = labelList(faFaceProcAddr_, localOrder);
@@ -235,7 +227,7 @@ void Foam::faMeshReconstructor::calcAddressing
             tmpFaces,
             singlePatchProcFaces,
             UPstream::msgType(),
-            Pstream::commsTypes::scheduled
+            UPstream::commsTypes::scheduled
         );
 
         globalPointsPtr().gather
@@ -531,11 +523,11 @@ void Foam::faMeshReconstructor::createMesh()
 
     // Serial mesh - no parallel communication
 
-    const bool oldParRun = Pstream::parRun(false);
+    const bool oldParRun = UPstream::parRun(false);
 
     completeMesh.addFaPatches(completePatches);
 
-    Pstream::parRun(oldParRun);  // Restore parallel state
+    UPstream::parRun(oldParRun);  // Restore parallel state
 }
 
 
@@ -550,7 +542,7 @@ Foam::faMeshReconstructor::faMeshReconstructor
     procMesh_(procMesh),
     errors_(0)
 {
-    if (!Pstream::parRun())
+    if (!UPstream::parRun())
     {
         FatalErrorInFunction
             << "Can only be called in parallel!!" << nl
@@ -612,7 +604,7 @@ Foam::faMeshReconstructor::faMeshReconstructor
     procMesh_(procMesh),
     errors_(0)
 {
-    if (!Pstream::parRun())
+    if (!UPstream::parRun())
     {
         FatalErrorInFunction
             << "Can only be called in parallel!!" << nl
@@ -681,10 +673,10 @@ void Foam::faMeshReconstructor::writeAddressing() const
 void Foam::faMeshReconstructor::writeAddressing
 (
     const IOobject& io,
-    const labelList& faBoundaryProcAddr,
-    const labelList& faFaceProcAddr,
-    const labelList& faPointProcAddr,
-    const labelList& faEdgeProcAddr
+    const labelUList& faBoundaryProcAddr,
+    const labelUList& faFaceProcAddr,
+    const labelUList& faPointProcAddr,
+    const labelUList& faEdgeProcAddr
 )
 {
     // Write copies

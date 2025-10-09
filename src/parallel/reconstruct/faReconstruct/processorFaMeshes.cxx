@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2016-2017 Wikki Ltd
-    Copyright (C) 2022-2023 OpenCFD Ltd.
+    Copyright (C) 2022-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,17 +37,23 @@ void Foam::processorFaMeshes::read()
     // Make sure to clear (and hence unregister) any previously loaded meshes
     // and fields
 
-    boundaryProcAddressing_.free();
-    faceProcAddressing_.free();
-    edgeProcAddressing_.free();
-    pointProcAddressing_.free();
-    meshes_.free();
+    const label numProc = volMeshes_.size();
 
+    boundaryProcAddressing_.resize_null(numProc);
+    faceProcAddressing_.resize_null(numProc);
+    edgeProcAddressing_.resize_null(numProc);
+    pointProcAddressing_.resize_null(numProc);
+    meshes_.resize_null(numProc);
 
-    forAll(fvMeshes_, proci)
+    for (label proci = 0; proci < numProc; ++proci)
     {
         // Construct from polyMesh IO information
-        meshes_.emplace_set(proci, fvMeshes_[proci]);
+
+        meshes_.set
+        (
+            proci,
+            new faMesh(areaName_, volMeshes_[proci])
+        );
 
         // Read the addressing information
 
@@ -91,15 +97,12 @@ void Foam::processorFaMeshes::read()
 
 Foam::processorFaMeshes::processorFaMeshes
 (
-    const UPtrList<fvMesh>& procFvMeshes
+    const UPtrList<fvMesh>& procVolMeshes,
+    const word& areaName
 )
 :
-    fvMeshes_(procFvMeshes),
-    meshes_(procFvMeshes.size()),
-    pointProcAddressing_(meshes_.size()),
-    edgeProcAddressing_(meshes_.size()),
-    faceProcAddressing_(meshes_.size()),
-    boundaryProcAddressing_(meshes_.size())
+    areaName_(areaName.empty() ? polyMesh::defaultRegion : areaName),
+    volMeshes_(procVolMeshes)
 {
     read();
 }

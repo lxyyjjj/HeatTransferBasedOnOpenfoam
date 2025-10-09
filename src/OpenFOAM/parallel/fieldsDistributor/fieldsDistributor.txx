@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2022-2024 OpenCFD Ltd.
+    Copyright (C) 2022-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -209,7 +209,7 @@ void Foam::fieldsDistributor::readFieldsImpl
         {
             const word& name = masterNames[i];
             IOobject& io = *objects[name];
-            io.writeOpt(IOobject::AUTO_WRITE);
+            io.writeOpt(IOobjectOption::AUTO_WRITE);
 
             // Load field (but not oldTime)
             readField(io, mesh, i, fields);
@@ -244,7 +244,7 @@ void Foam::fieldsDistributor::readFieldsImpl
         {
             const word& name = masterNames[i];
             IOobject& io = *objects[name];
-            io.writeOpt(IOobject::AUTO_WRITE);
+            io.writeOpt(IOobjectOption::AUTO_WRITE);
 
             // Load field (but not oldTime)
             readField(io, mesh, i, fields);
@@ -318,9 +318,9 @@ void Foam::fieldsDistributor::readFieldsImpl
         "none",
         mesh.time().timeName(),
         mesh.thisDb(),
-        IOobject::NO_READ,
-        IOobject::AUTO_WRITE,
-        IOobject::REGISTER
+        IOobjectOption::NO_READ,
+        IOobjectOption::AUTO_WRITE,
+        IOobjectOption::REGISTER
     );
 
     forAll(fieldDicts, i)
@@ -415,6 +415,31 @@ void Foam::fieldsDistributor::readFields
 template<class GeoField, class MeshSubsetter>
 void Foam::fieldsDistributor::readFields
 (
+    const bitSet& haveMeshOnProc,
+    const typename GeoField::Mesh& mesh,
+    const autoPtr<MeshSubsetter>& subsetter,
+    IOobjectList& allObjects,
+    PtrList<GeoField>& fields,
+    const bool deregister
+)
+{
+    readFieldsImpl
+    (
+        nullptr,  // readHandler
+        haveMeshOnProc,
+        subsetter.get(),
+
+        mesh,
+        allObjects,
+        fields,
+        deregister
+    );
+}
+
+
+template<class GeoField, class MeshSubsetter>
+void Foam::fieldsDistributor::readFields
+(
     const boolUList& haveMeshOnProc,
     const typename GeoField::Mesh& mesh,
     const autoPtr<MeshSubsetter>& subsetter,
@@ -426,6 +451,32 @@ void Foam::fieldsDistributor::readFields
     readFieldsImpl
     (
         nullptr,  // readHandler
+        haveMeshOnProc,
+        subsetter.get(),
+
+        mesh,
+        allObjects,
+        fields,
+        deregister
+    );
+}
+
+
+template<class GeoField, class MeshSubsetter>
+void Foam::fieldsDistributor::readFields
+(
+    const bitSet& haveMeshOnProc,
+    refPtr<fileOperation>& readHandler,
+    const typename GeoField::Mesh& mesh,
+    const autoPtr<MeshSubsetter>& subsetter,
+    IOobjectList& allObjects,
+    PtrList<GeoField>& fields,
+    const bool deregister
+)
+{
+    readFieldsImpl
+    (
+       &readHandler,
         haveMeshOnProc,
         subsetter.get(),
 
