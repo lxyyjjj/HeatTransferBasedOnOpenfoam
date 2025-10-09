@@ -304,7 +304,7 @@ Description
 
         if (nVolFields || withMeshIds)
         {
-            for (vtk::patchWriter& writer : patchWriters)
+            for (auto& writer : patchWriters)
             {
                 // Optionally with (patchID, procID) fields
                 writer.beginCellData
@@ -416,7 +416,7 @@ Description
         internalWriter->close();
     }
 
-    for (vtk::patchWriter& writer : patchWriters)
+    for (auto& writer : patchWriters)
     {
         writer.close();
     }
