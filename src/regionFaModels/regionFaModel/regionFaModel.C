@@ -234,6 +234,33 @@ Foam::regionModels::regionFaModel::regionFaModel
     regionName_(dict.get<word>("region")),
     coeffs_(dict.subOrEmptyDict(modelName + "Coeffs"))
 {
+    // Suffix hint for variable names
+    if
+    (
+        coeffs_.readIfPresent("suffixing", suffixHint_)
+     || dict.readIfPresent("suffixing", suffixHint_)
+    )
+    {
+        Switch sw = Switch::find(suffixHint_);
+
+        if (sw.good())
+        {
+            if (!sw)  // No suffix
+            {
+                suffixHint_.clear();
+            }
+        }
+        else if (suffixHint_ == "default")
+        {
+            sw = true;
+        }
+
+        if (sw)  // Default (region) suffix
+        {
+            suffixHint_ = '_' + regionName_;
+        }
+    }
+
     constructMeshObjects();
     initialise();
 
@@ -250,9 +277,14 @@ void Foam::regionModels::regionFaModel::evolve()
 {
     if (active_)
     {
-        Info<< "\nEvolving " << modelName_ << " for region "
-            << regionMesh().name() << " : "
-            << polyMesh::regionName(areaName_) << endl;
+        Info<< "\nEvolving " << modelName_
+            << " for region " << regionMesh().name();
+
+        if (!polyMesh::regionName(areaName_).empty())
+        {
+            Info<< " [" << areaName_ << "]";
+        }
+        Info<< endl;
 
         preEvolveRegion();
 
@@ -265,7 +297,7 @@ void Foam::regionModels::regionFaModel::evolve()
         {
             Info<< incrIndent;
             info();
-            Info<< endl << decrIndent;
+            Info<< decrIndent << endl;
         }
     }
 }

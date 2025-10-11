@@ -126,6 +126,7 @@ cleanFaMesh()
         ('')  ;;                # Ignore empty option
         (--)  shift; break ;;   # Stop option parsing
 
+        (-region=*) region="${1#*=}" ;;
         (-region)   region="$2"; shift ;;
         (*) break ;;
         esac
@@ -184,6 +185,7 @@ cleanPolyMesh()
         ('')  ;;                # Ignore empty option
         (--)  shift; break ;;   # Stop option parsing
 
+        (-region=*) region="${1#*=}" ;;
         (-region)   region="$2"; shift ;;
         (*) break ;;
         esac
