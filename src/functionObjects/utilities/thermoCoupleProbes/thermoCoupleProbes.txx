@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2022 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,7 +42,8 @@ void Foam::functionObjects::thermoCoupleProbes::writeValues
 
         os  << setw(w) << timeValue;
 
-        forAll(*this, probei)
+        const pointField& probes = probeModel().probeLocations();
+        forAll(probes, probei)
         {
             // if (includeOutOfBounds_ || processor_[probei] != -1)
             {
