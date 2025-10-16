@@ -855,7 +855,7 @@ bool Foam::UPstream::finishedRequest(const label i)
     // This allows MPI to progress behind the scenes if it wishes.
 
     int flag = 0;
-    if (i < 0 || i >= PstreamGlobals::outstandingRequests_.size())
+    if (i >= 0 && i < PstreamGlobals::outstandingRequests_.size())
     {
         auto& request = PstreamGlobals::outstandingRequests_[i];
 
