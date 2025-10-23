@@ -7,6 +7,7 @@
 -------------------------------------------------------------------------------
     Copyright (C) 2024,2025 M. Janssens
     Copyright (C) 2025 OpenCFD Ltd.
+    Copyright (C) 2025 Advanced Micro Devices, Inc.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,7 +40,9 @@ SourceFiles
 #define Foam_ListExpression_H
 
 #include <cassert>
-#include <execution>
+#if __has_include(<execution>)
+    #include <execution>
+#endif
 #include "List.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -87,8 +90,10 @@ public:
         #if defined(__APPLE__) && defined(__clang__)
         // Currently not working (2025-10-06) with par_unseq. Works with
         // sequential.
-        #else
+        #elif __has_include(<execution>)
         std::execution::par_unseq,
+        #else
+        // Execution policy not supported
         #endif
         static_cast<E const&>(*this).cbegin(),
         static_cast<E const&>(*this).cend(),
@@ -127,7 +132,7 @@ public:
         elems_(std::move(elems.data()))
     {}
 
-    // Construct from initializer list 
+    // Construct from initializer list
     ListWrap(std::initializer_list<T> elems)
     :
         elems_(elems)
@@ -149,14 +154,14 @@ public:
 
     // Access underlying data
     const auto& data() const
-    { 
-        return elems_; 
+    {
+        return elems_;
     }
 
     // Access underlying data
     auto& data()
-    { 
-        return elems_; 
+    {
+        return elems_;
     }
 
     value_type operator[](const label i) const
@@ -255,14 +260,14 @@ public:
 
     // Access underlying data
     const auto& data() const
-    { 
-        return elems_; 
+    {
+        return elems_;
     }
 
     // Access underlying data
     auto& data()
-    { 
-        return elems_; 
+    {
+        return elems_;
     }
 
     value_type operator[](const label i) const
@@ -327,8 +332,8 @@ public:
 
     // returns the underlying data
     const auto& data() const
-    { 
-        return elems_; 
+    {
+        return elems_;
     }
 
     value_type operator[](const label i) const
@@ -446,7 +451,7 @@ public:
             return (base_ >= it.base_);
         }
 
-    // Compound assignment 
+    // Compound assignment
 
         const_iterator& operator+=(const difference_type n)
         {
@@ -903,11 +908,11 @@ public:                                                                        \
         ConstIter base_;                                                       \
                                                                                \
         const_iterator(ConstIter it) : base_(it) {}                            \
-        auto operator*() const                                           \
+        auto operator*() const                                                 \
         {                                                                      \
             return BaseFunc(*base_);                                           \
         }                                                                      \
-        auto operator[](const difference_type i) const                   \
+        auto operator[](const difference_type i) const                         \
         {                                                                      \
             return BaseFunc(base_[i]);                                         \
         }                                                                      \
@@ -1184,7 +1189,7 @@ public:                                                                        \
             uIter_(uIter),                                                     \
             vIter_(vIter)                                                      \
         {}                                                                     \
-        auto operator*() const                                                   \
+        auto operator*() const                                                 \
         {                                                                      \
             return BaseFunc(*uIter_, *vIter_);                                 \
         }                                                                      \
@@ -1855,7 +1860,7 @@ public:
     }
 
     value_type operator[](label i) const
-    {    
+    {
         const label vec_index =
             std::upper_bound
             (
@@ -1884,7 +1889,7 @@ public:
         using pointer     = this_type::const_pointer;
         using reference   = this_type::const_reference;
 
-        const this_type& base_; 
+        const this_type& base_;
         label index_;
 
         const_iterator(const this_type& base, const label index)
@@ -1982,7 +1987,7 @@ public:
             return (index_ >= it.index_);
         }
 
-    // Compound assignment 
+    // Compound assignment
 
         const_iterator& operator+=(const difference_type n)
         {
@@ -2041,12 +2046,12 @@ class ListsRefWrap
 
 public:
     static constexpr bool is_leaf = false;  //true;
-    
+
     using value_type = typename V::value_type;  //T;
     typedef ListsRefWrap<V> this_type;
 
     ListsRefWrap() = delete;
-    
+
     ListsRefWrap(UList<V*>& d)
     :
         data(d)
@@ -2106,7 +2111,7 @@ public:
         return (*data[ve.first()])[ve.second()];
     }
     value_type& operator[](const label i)
-    {    
+    {
         const auto ve(whichVecElem(i));
         auto& elems = *data[ve.first()];
         return elems[ve.second()];
@@ -2128,7 +2133,7 @@ public:
         using pointer     = this_type::const_pointer;
         using reference   = this_type::const_reference;
 
-        const this_type& base_; 
+        const this_type& base_;
         label index_;
 
         const_iterator(const this_type& base, const label index)
@@ -2231,7 +2236,7 @@ public:
             return (index_ >= it.index_);
         }
 
-    // Compound assignment 
+    // Compound assignment
 
         const_iterator& operator+=(const difference_type n)
         {
@@ -2261,7 +2266,7 @@ public:
         using pointer     = this_type::pointer;
         using reference   = this_type::reference;
 
-        this_type& base_; 
+        this_type& base_;
         label index_;
 
         iterator(this_type& base, const label index)
@@ -2372,7 +2377,7 @@ public:
             return (index_ >= it.index_);
         }
 
-    // Compound assignment 
+    // Compound assignment
 
         iterator& operator+=(const difference_type n)
         {
