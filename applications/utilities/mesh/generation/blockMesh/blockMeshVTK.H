@@ -107,10 +107,12 @@ const polyMesh& topoMesh = topoMeshPtr();
     const auto& patches = topoMesh.boundaryMesh();
     const label nBndFaces = topoMesh.nBoundaryFaces();
 
+    const faceList allPatchFaces(patches.faces());
+
     vtk::surfaceWriter writer
     (
         topoMesh.points(),
-        faceList(patches.faces()),
+        allPatchFaces,
         vtk::formatType::INLINE_ASCII,
         runTime.path()/"blockFaces"
     );
