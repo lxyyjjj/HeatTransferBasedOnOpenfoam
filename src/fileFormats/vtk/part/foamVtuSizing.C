@@ -453,7 +453,7 @@ void Foam::vtk::vtuSizing::resetShapes
             nVertLabels_ += shape.size();
 
             // Guess for number of addressed points
-            nPoints_ = max(nPoints_, max(shape));
+            nPoints_ = Foam::max(nPoints_, shape.max());
         }
         else
         {

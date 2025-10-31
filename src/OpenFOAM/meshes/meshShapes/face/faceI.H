@@ -270,7 +270,7 @@ inline void Foam::face::operator+=(const label vertexOffset)
 {
     if (vertexOffset)
     {
-        for (label& vrt : static_cast<labelList&>(*this))
+        for (auto& vrt : static_cast<labelList&>(*this))
         {
             vrt += vertexOffset;
         }
