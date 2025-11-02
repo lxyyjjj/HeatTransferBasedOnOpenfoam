@@ -68,9 +68,9 @@ inline Switch readSwitch(const std::string& str)
 }
 
 
-void printInfo(const Switch& sw)
+void printInfo(Switch sw)
 {
-    Info<< "Switch " << sw.c_str() << " (enum=" << label(sw.type()) << ")\n";
+    Info<< "Switch " << sw.c_str() << " (enum=" << int(sw.type()) << ")\n";
 }
 
 
@@ -320,8 +320,8 @@ int main(int argc, char *argv[])
 
         for (const word& k : { "key", "key1", "key2" , "key3" })
         {
-            Switch sw1(k, dict, Switch::YES);
-            Switch sw2(k, dict, Switch::NO);
+            Switch sw1(k, dict, Switch::switchType::YES);
+            Switch sw2(k, dict, Switch::switchType::NO);
 
             Info<< nl;
             printInfo(sw1);
@@ -429,7 +429,7 @@ int main(int argc, char *argv[])
         );
     }
 
-    if (true)
+    if constexpr (true)
     {
         #ifdef WM_DP
         typedef float otherType;

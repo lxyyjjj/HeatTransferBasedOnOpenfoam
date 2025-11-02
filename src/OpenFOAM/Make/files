@@ -35,7 +35,7 @@ parallel/processorTopology/processorTopology.C
 
 bools = primitives/bools
 $(bools)/bool/bool.C
-$(bools)/Switch/Switch.C
+$(bools)/Switch/Switch.cxx
 $(bools)/lists/boolList.C
 
 chars = primitives/chars
