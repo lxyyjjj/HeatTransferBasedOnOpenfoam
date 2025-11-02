@@ -25,32 +25,43 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Typedef
-    Foam::complexVector
+    Foam::vector2D
 
 Description
-    A Vector of complex values with 'scalar' precision.
+    A 2D vector of scalars obtained from the generic Vector2D.
 
 SourceFiles
-    complexVectorI.H
-    complexVector.cxx
+    floatVectors2D.cxx
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef Foam_complexVector_H
-#define Foam_complexVector_H
+#ifndef Foam_vector2D_H
+#define Foam_vector2D_H
 
-#include "complex.H"
-#include "vector.H"
+#include "scalar.H"
+#include "Vector2D.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef Vector<complex> complexVector;
-}
 
-// Functions
-#include "complexVectorI.H"
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+//! \class Foam::floatVector2D
+//! \brief A Vector2D of values with float precision
+typedef Vector2D<float> floatVector2D;
+
+//! \class Foam::doubleVector2D
+//! \brief A Vector2D of values with double precision
+typedef Vector2D<double> doubleVector2D;
+
+// With float or double precision (depending on compilation)
+typedef Vector2D<scalar> vector2D;
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

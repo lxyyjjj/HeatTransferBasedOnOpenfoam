@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011 OpenFOAM Foundation
-    Copyright (C) 2019 OpenCFD Ltd.
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,32 +25,36 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Typedef
-    Foam::complexVector
+    Foam::diagTensor
 
 Description
-    A Vector of complex values with 'scalar' precision.
+    DiagTensor of scalars, i.e. DiagTensor<scalar>.
+
+See also
+    Test-DiagTensor.C
 
 SourceFiles
-    complexVectorI.H
-    complexVector.cxx
+    diagTensor.cxx
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef Foam_complexVector_H
-#define Foam_complexVector_H
+#ifndef Foam_diagTensor_H
+#define Foam_diagTensor_H
 
-#include "complex.H"
-#include "vector.H"
+#include "DiagTensor.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef Vector<complex> complexVector;
-}
 
-// Functions
-#include "complexVectorI.H"
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+typedef DiagTensor<scalar> diagTensor;
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

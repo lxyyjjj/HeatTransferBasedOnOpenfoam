@@ -5,8 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2011 OpenFOAM Foundation
-    Copyright (C) 2019 OpenCFD Ltd.
+    Copyright (C) 2019-2023 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,36 +23,62 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Typedef
-    Foam::complexVector
-
-Description
-    A Vector of complex values with 'scalar' precision.
-
-SourceFiles
-    complexVectorI.H
-    complexVector.cxx
-
 \*---------------------------------------------------------------------------*/
 
-#ifndef Foam_complexVector_H
-#define Foam_complexVector_H
+#include "labelList.H"
+#include "labelIOList.H"
+#include "labelListIOList.H"
+#include "addToRunTimeSelectionTable.H"
 
-#include "complex.H"
-#include "vector.H"
+#include <numeric>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef Vector<complex> complexVector;
+    defineCompoundTypeName(List<label>, labelList);
+    addCompoundToRunTimeSelectionTable(List<label>, labelList);
+
+    defineTemplateTypeNameAndDebugWithName(labelIOList, "labelList", 0);
+
+    defineTemplateTypeNameAndDebugWithName(labelListIOList, "labelListList", 0);
+
+    defineTemplateTypeNameAndDebugWithName
+    (
+        labelListCompactIOList,
+        "labelListCompactList",
+        0
+    );
 }
 
-// Functions
-#include "complexVectorI.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Global Data Members * * * * * * * * * * * * * //
 
-#endif
+// This was deprecated (2019-02) in favour of labelList::null()
+const Foam::labelList Foam::emptyLabelList;
+
+
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
+
+void Foam::identity(Foam::UList<int32_t>& map, int32_t start)
+{
+    std::iota(map.begin(), map.end(), start);
+}
+
+
+void Foam::identity(Foam::UList<int64_t>& map, int64_t start)
+{
+    std::iota(map.begin(), map.end(), start);
+}
+
+
+Foam::labelList Foam::identity(const label len, label start)
+{
+    labelList map(len);
+    std::iota(map.begin(), map.end(), start);
+
+    return map;
+}
+
 
 // ************************************************************************* //

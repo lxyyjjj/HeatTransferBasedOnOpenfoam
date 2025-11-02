@@ -289,6 +289,17 @@ inline void Foam::VectorSpace<Form, Cmpt, Ncmpts>::operator=
 
 
 template<class Form, class Cmpt, Foam::direction Ncmpts>
+template<class Form2, class Cmpt2>
+inline void Foam::VectorSpace<Form, Cmpt, Ncmpts>::operator=
+(
+    const VectorSpace<Form2, Cmpt2, Ncmpts>& vs
+)
+{
+    VectorSpaceOps<Ncmpts>::copy_n(vs.cbegin(), this->begin());
+}
+
+
+template<class Form, class Cmpt, Foam::direction Ncmpts>
 inline void Foam::VectorSpace<Form, Cmpt, Ncmpts>::operator+=
 (
     const VectorSpace<Form, Cmpt, Ncmpts>& vs

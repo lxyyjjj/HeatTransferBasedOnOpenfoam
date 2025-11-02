@@ -51,7 +51,7 @@ Note
     \endcode
 
 SourceFiles
-    scalarImpl.C
+    scalarImpl.txx
 
 \*---------------------------------------------------------------------------*/
 

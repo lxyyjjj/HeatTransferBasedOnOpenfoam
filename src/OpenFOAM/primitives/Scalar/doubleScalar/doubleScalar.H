@@ -31,7 +31,7 @@ Description
     Floating-point double precision scalar type.
 
 SourceFiles
-    doubleScalar.C
+    doubleScalar.cxx
 
 \*---------------------------------------------------------------------------*/
 

@@ -6,7 +6,6 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011 OpenFOAM Foundation
-    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,36 +23,42 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Typedef
-    Foam::complexVector
-
-Description
-    A Vector of complex values with 'scalar' precision.
-
-SourceFiles
-    complexVectorI.H
-    complexVector.cxx
-
 \*---------------------------------------------------------------------------*/
 
-#ifndef Foam_complexVector_H
-#define Foam_complexVector_H
+#include "vectorList.H"
+#include "vectorIOList.H"
+#include "vectorListIOList.H"
 
-#include "complex.H"
-#include "vector.H"
+#include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef Vector<complex> complexVector;
-}
-
-// Functions
-#include "complexVectorI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#endif
+defineCompoundTypeName(List<vector>, vectorList);
+addCompoundToRunTimeSelectionTable(List<vector>, vectorList);
+
+defineTemplateTypeNameAndDebugWithName(vectorIOList, "vectorList", 0);
+
+defineTemplateTypeNameAndDebugWithName
+(
+    vectorListIOList,
+    "vectorListList",
+    0
+);
+
+defineTemplateTypeNameAndDebugWithName
+(
+    vectorListCompactIOList,
+    "vectorListCompactList",
+    0
+);
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
 
 // ************************************************************************* //

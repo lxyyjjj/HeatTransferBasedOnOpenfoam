@@ -35,7 +35,7 @@ Description
 
 SourceFiles
     VectorSpaceI.H
-    VectorSpace.C
+    VectorSpace.txx
 
 \*---------------------------------------------------------------------------*/
 
@@ -210,6 +210,10 @@ public:
         inline void operator+=(const VectorSpace<Form, Cmpt, Ncmpts>&);
         inline void operator-=(const VectorSpace<Form, Cmpt, Ncmpts>&);
 
+        //- Copy assign from a VectorSpace with the same size
+        template<class Form2, class Cmpt2>
+        inline void operator=(const VectorSpace<Form2, Cmpt2, Ncmpts>&);
+
         inline void operator=(Foam::zero);
         inline void operator*=(const scalar);
         inline void operator/=(const scalar);
@@ -276,7 +280,7 @@ word name(const VectorSpace<Form, Cmpt, Ncmpts>& vs);
 #include "VectorSpaceI.H"
 
 #ifdef NoRepository
-    #include "VectorSpace.C"
+    #include "VectorSpace.txx"
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

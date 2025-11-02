@@ -5,7 +5,6 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2011 OpenFOAM Foundation
     Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
@@ -25,32 +24,34 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Typedef
-    Foam::complexVector
+    Foam::labelVector2D
 
 Description
-    A Vector of complex values with 'scalar' precision.
+    A 2D vector of labels obtained from the generic Vector2D.
 
 SourceFiles
-    complexVectorI.H
-    complexVector.cxx
+    labelVector2D.cxx
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef Foam_complexVector_H
-#define Foam_complexVector_H
+#ifndef Foam_labelVector2D_H
+#define Foam_labelVector2D_H
 
-#include "complex.H"
-#include "vector.H"
+#include "label.H"
+#include "Vector2D.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef Vector<complex> complexVector;
-}
 
-// Functions
-#include "complexVectorI.H"
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+typedef Vector2D<label> labelVector2D;
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

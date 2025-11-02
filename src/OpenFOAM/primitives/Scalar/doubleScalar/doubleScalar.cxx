@@ -5,8 +5,8 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2011 OpenFOAM Foundation
-    Copyright (C) 2019 OpenCFD Ltd.
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,36 +24,39 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Typedef
-    Foam::complexVector
-
-Description
-    A Vector of complex values with 'scalar' precision.
-
-SourceFiles
-    complexVectorI.H
-    complexVector.cxx
-
 \*---------------------------------------------------------------------------*/
 
-#ifndef Foam_complexVector_H
-#define Foam_complexVector_H
+#include "doubleScalar.H"
+#include "error.H"
+#include "parsing.H"
+#include "IOstreams.H"
 
-#include "complex.H"
-#include "vector.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
-    typedef Vector<complex> complexVector;
-}
-
-// Functions
-#include "complexVectorI.H"
+#include <cstdlib>  // For string -> floating point conversions
+#include <sstream>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#endif
+// <scalarImpl.txx> is used for template-like substitution (but using macros)
+
+#define Scalar doubleScalar
+#define ScalarVGREAT doubleScalarVGREAT
+#define ScalarVSMALL doubleScalarVSMALL
+#define ScalarROOTVGREAT doubleScalarROOTVGREAT
+#define ScalarROOTVSMALL doubleScalarROOTVSMALL
+#define ScalarRead readDouble
+// Convert using larger representation to properly capture underflow
+#define ScalarConvert ::strtold
+
+#define Foam_use_scalarImpl_code
+#include "scalarImpl.txx"
+#undef Foam_use_scalarImpl_code
+
+#undef Scalar
+#undef ScalarVGREAT
+#undef ScalarVSMALL
+#undef ScalarROOTVGREAT
+#undef ScalarROOTVSMALL
+#undef ScalarRead
+#undef ScalarConvert
 
 // ************************************************************************* //

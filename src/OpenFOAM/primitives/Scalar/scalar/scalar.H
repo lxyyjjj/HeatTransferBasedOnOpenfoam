@@ -32,7 +32,7 @@ Description
     whether WM_SP, WM_SPDP or WM_DP is defined.
 
 SourceFiles
-    scalar.C
+    scalar.cxx
 
 \*---------------------------------------------------------------------------*/
 

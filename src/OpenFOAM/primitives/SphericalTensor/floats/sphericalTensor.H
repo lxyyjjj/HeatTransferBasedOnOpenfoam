@@ -5,8 +5,8 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2011 OpenFOAM Foundation
-    Copyright (C) 2019 OpenCFD Ltd.
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,32 +25,40 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Typedef
-    Foam::complexVector
+    Foam::sphericalTensor
 
 Description
-    A Vector of complex values with 'scalar' precision.
+    SphericalTensor of scalars, i.e. SphericalTensor<scalar>.
+
+See also
+    Test-SphericalTensor.C
 
 SourceFiles
-    complexVectorI.H
-    complexVector.cxx
+    sphericalTensor.cxx
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef Foam_complexVector_H
-#define Foam_complexVector_H
+#ifndef Foam_sphericalTensor_H
+#define Foam_sphericalTensor_H
 
-#include "complex.H"
-#include "vector.H"
+#include "SphericalTensor.H"
+#include "Identity.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef Vector<complex> complexVector;
-}
 
-// Functions
-#include "complexVectorI.H"
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+typedef SphericalTensor<scalar> sphericalTensor;
+
+static const sphericalTensor oneThirdI(1.0/3.0);
+static const sphericalTensor twoThirdsI(2.0/3.0);
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

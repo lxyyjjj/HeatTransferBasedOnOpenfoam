@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011 OpenFOAM Foundation
-    Copyright (C) 2019 OpenCFD Ltd.
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,32 +25,43 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Typedef
-    Foam::complexVector
+    Foam::sphericalTensor2D
 
 Description
-    A Vector of complex values with 'scalar' precision.
+    SphericalTensor2D of scalars, i.e. SphericalTensor2D<scalar>.
+
+See also
+    Test-SphericalTensor2D.C
 
 SourceFiles
-    complexVectorI.H
-    complexVector.cxx
+    sphericalTensor2D.cxx
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef Foam_complexVector_H
-#define Foam_complexVector_H
+#ifndef Foam_sphericalTensor2D_H
+#define Foam_sphericalTensor2D_H
 
-#include "complex.H"
-#include "vector.H"
+#include "SphericalTensor2D.H"
+#include "tensor.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef Vector<complex> complexVector;
-}
 
-// Functions
-#include "complexVectorI.H"
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+typedef SphericalTensor2D<scalar> sphericalTensor2D;
+
+//- Identity tensor
+static const sphericalTensor2D I2D(1);
+
+static const sphericalTensor2D oneThirdI2D(1.0/3.0);
+static const sphericalTensor2D twoThirdsI2D(2.0/3.0);
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

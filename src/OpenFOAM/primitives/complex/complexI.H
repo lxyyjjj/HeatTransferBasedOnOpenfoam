@@ -35,7 +35,7 @@ inline constexpr Foam::complex::complex() noexcept
 {}
 
 
-inline constexpr Foam::complex::complex(const Foam::zero) noexcept
+inline constexpr Foam::complex::complex(Foam::zero) noexcept
 :
     re(0),
     im(0)
@@ -98,7 +98,7 @@ inline Foam::scalar Foam::complex::cmptSum() const noexcept
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-inline void Foam::complex::operator=(const Foam::zero)
+inline void Foam::complex::operator=(Foam::zero)
 {
     re = 0;
     im = 0;

@@ -105,12 +105,7 @@ Foam::surfaceWriters::mydebugWriter::mergeField
     // Identical to surfaceWriter::mergeField()
     // but with narrowing for communication
 
-    if constexpr (std::is_same_v<Tensor<double>, Type>)
-    {
-        // Cannot narrow tensor. Does not compile since MatrixSpace
-        // does not (yet) allow assigments from different Cmpt types.
-    }
-    else if (narrowTransfer_ && parallel_ && UPstream::parRun())
+    if (narrowTransfer_ && parallel_ && UPstream::parRun())
     {
         // The narrowed type
         using narrowedType = typename narrowType<Type>::type;

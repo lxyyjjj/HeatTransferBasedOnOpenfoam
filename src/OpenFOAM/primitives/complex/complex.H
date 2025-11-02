@@ -103,7 +103,7 @@ public:
         inline constexpr complex() noexcept;
 
         //- Construct zero-initialized from zero class
-        inline constexpr complex(const Foam::zero) noexcept;
+        inline constexpr complex(Foam::zero) noexcept;
 
         //- Construct from real component
         inline explicit constexpr complex(const scalar r) noexcept;
@@ -164,7 +164,7 @@ public:
 
 
         //- Assign zero
-        inline void operator=(const Foam::zero);
+        inline void operator=(Foam::zero);
 
         //- Assign scalar (imag = zero)
         inline void operator=(const scalar s);

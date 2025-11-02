@@ -25,22 +25,22 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::SphericalTensor
+    Foam::SphericalTensor2D
 
 Description
-    A templated (3 x 3) diagonal tensor of objects of \<T\>, effectively
+    A templated (2 x 2) diagonal tensor of objects of \<T\>, effectively
     containing 1 element, derived from VectorSpace.
 
 See also
-    Test-SphericalTensor.C
+    Test-SphericalTensor2D.C
 
 SourceFiles
-    SphericalTensorI.H
+    SphericalTensor2DI.H
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef Foam_SphericalTensor_H
-#define Foam_SphericalTensor_H
+#ifndef Foam_SphericalTensor2D_H
+#define Foam_SphericalTensor2D_H
 
 #include "contiguous.H"
 #include "VectorSpace.H"
@@ -51,33 +51,33 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class SphericalTensor Declaration
+                      Class SphericalTensor2D Declaration
 \*---------------------------------------------------------------------------*/
 
 template<class Cmpt>
-class SphericalTensor
+class SphericalTensor2D
 :
-    public VectorSpace<SphericalTensor<Cmpt>, Cmpt, 1>
+    public VectorSpace<SphericalTensor2D<Cmpt>, Cmpt, 1>
 {
 public:
 
     // Typedefs
 
         //- Equivalent type of labels used for valid component indexing
-        typedef SphericalTensor<label> labelType;
+        typedef SphericalTensor2D<label> labelType;
 
 
     // Member Constants
 
-        //- Rank of SphericalTensor is 2
+        //- Rank of SphericalTensor2D is 2
         static constexpr direction rank = 2;
 
 
     // Static Data Members
 
-        static const SphericalTensor I;
-        static const SphericalTensor oneThirdI;
-        static const SphericalTensor twoThirdsI;
+        static const SphericalTensor2D I;
+        static const SphericalTensor2D oneThirdI;
+        static const SphericalTensor2D twoThirdsI;
 
 
     //- Component labeling enumeration
@@ -87,32 +87,31 @@ public:
     // Generated Methods
 
         //- Default construct
-        SphericalTensor() = default;
+        SphericalTensor2D() = default;
 
         //- Copy construct
-        SphericalTensor(const SphericalTensor&) = default;
+        SphericalTensor2D(const SphericalTensor2D&) = default;
 
         //- Copy assignment
-        SphericalTensor& operator=(const SphericalTensor&) = default;
+        SphericalTensor2D& operator=(const SphericalTensor2D&) = default;
 
 
     // Constructors
 
         //- Construct initialized to zero
-        inline SphericalTensor(Foam::zero);
+        inline SphericalTensor2D(Foam::zero);
 
         //- Construct given VectorSpace
-        template<class Cmpt2>
-        inline SphericalTensor
+        inline SphericalTensor2D
         (
-            const VectorSpace<SphericalTensor<Cmpt2>, Cmpt2, 1>&
+            const VectorSpace<SphericalTensor2D<Cmpt>, Cmpt, 1>&
         );
 
         //- Construct given the component
-        inline explicit SphericalTensor(const Cmpt& tii);
+        inline explicit SphericalTensor2D(const Cmpt& tii);
 
         //- Construct from Istream
-        inline explicit SphericalTensor(Istream& is);
+        inline explicit SphericalTensor2D(Istream& is);
 
 
     // Member Functions
@@ -133,7 +132,7 @@ public:
     // Tensor Operations
 
         //- Return non-Hermitian transpose (no-op)
-        const SphericalTensor<Cmpt>& T() const noexcept { return *this; }
+        const SphericalTensor2D<Cmpt>& T() const noexcept { return *this; }
 };
 
 
@@ -141,30 +140,21 @@ public:
 
 //- Data are contiguous if component type is contiguous
 template<class Cmpt>
-struct is_contiguous<SphericalTensor<Cmpt>> : is_contiguous<Cmpt> {};
+struct is_contiguous<SphericalTensor2D<Cmpt>> : is_contiguous<Cmpt> {};
 
 //- Data are contiguous label if component type is label
 template<class Cmpt>
-struct is_contiguous_label<SphericalTensor<Cmpt>>
+struct is_contiguous_label<SphericalTensor2D<Cmpt>>
 :
     is_contiguous_label<Cmpt>
 {};
 
 //- Data are contiguous scalar if component type is scalar
 template<class Cmpt>
-struct is_contiguous_scalar<SphericalTensor<Cmpt>>
+struct is_contiguous_scalar<SphericalTensor2D<Cmpt>>
 :
     is_contiguous_scalar<Cmpt>
 {};
-
-
-template<class Cmpt>
-class typeOfSolve<SphericalTensor<Cmpt>>
-{
-public:
-
-    typedef SphericalTensor<solveScalar> type;
-};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -173,7 +163,7 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#include "SphericalTensorI.H"
+#include "SphericalTensor2DI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

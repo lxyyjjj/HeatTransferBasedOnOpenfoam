@@ -31,7 +31,7 @@ Description
     Floating-point single precision scalar type.
 
 SourceFiles
-    floatScalar.C
+    floatScalar.cxx
 
 \*---------------------------------------------------------------------------*/
 
