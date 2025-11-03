@@ -574,6 +574,17 @@ Foam::fileName Foam::IOobject::path
 }
 
 
+Foam::fileName Foam::IOobject::objectPath
+(
+    IOobjectOption::Layout layout,
+    const word& instance
+) const
+{
+    // Note: can only be called with relative instance since is word type
+    return rootPath()/caseName(layout)/instance/db_.dbDir()/local()/name();
+}
+
+
 Foam::fileName Foam::IOobject::objectRelPath() const
 {
     if (file_isOutsideCase(instance()))

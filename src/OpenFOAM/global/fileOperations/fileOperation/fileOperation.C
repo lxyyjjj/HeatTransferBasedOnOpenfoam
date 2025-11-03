@@ -1254,24 +1254,34 @@ Foam::fileNameList Foam::fileOperation::readObjects
     word& newInstance
 ) const
 {
+    constexpr IOobjectOption::Layout layout = IOobjectOption::Layout::regular;
+
     if (debug)
     {
         Pout<< "fileOperation::readObjects :"
             << " object-path:" << obr.objectPath()
             << " instance" << instance
-            << " local:" << local << endl;
+            << " local:" << local
+            << " layout:" << int(layout) << endl;
     }
 
     // dbDir() is relative to Time,
     // so use dbDir() from self or from parent, but not both!
+
+    // NOTE: should not use IOobject::path(..) here since that generates
+    // values based on the obr.db().dbDir() instead of obr.dbDir()
+    // [issue #3458]
+
     fileName path;
-    if (obr.dbDir().empty() || !obr.parent().dbDir().empty())
+    if (obr.dbDir().empty())
     {
-        path = obr.path(instance, local);
+        // Fallback (old code) using obr.db().dbDir() ...
+        path = obr.path(layout, instance, local);
     }
     else
     {
-        path = obr.path(instance, obr.dbDir()/local);
+        // This could (should?) be a method in objectRegistry
+        path = obr.rootPath()/obr.caseName(layout)/instance/obr.dbDir()/local;
     }
 
     newInstance.clear();

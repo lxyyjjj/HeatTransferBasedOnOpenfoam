@@ -638,7 +638,19 @@ public:
         //- The complete path (normal or global) + object name
         inline fileName objectPath(IOobjectOption::Layout) const;
 
-        //- The object path relative to the root
+        //- The complete path (normal or global) + object name
+        //- with alternative instance
+        fileName objectPath(IOobjectOption::Layout, const word& instance) const;
+
+        //- The complete path + object name
+        //- with alternative instance
+        inline fileName objectPath(const word& instance) const;
+
+        //- The complete global path + object name
+        //- with alternative instance
+        inline fileName globalObjectPath(const word& instance) const;
+
+        //- The object path relative to the case
         fileName objectRelPath() const;
 
         //- Redirect to fileHandler filePath, searching locally.

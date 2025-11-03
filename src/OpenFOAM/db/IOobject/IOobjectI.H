@@ -338,6 +338,24 @@ inline Foam::fileName Foam::IOobject::objectPath
 }
 
 
+inline Foam::fileName Foam::IOobject::objectPath
+(
+    const word& instance
+) const
+{
+    return objectPath(IOobjectOption::Layout::regular, instance);
+}
+
+
+inline Foam::fileName Foam::IOobject::globalObjectPath
+(
+    const word& instance
+) const
+{
+    return objectPath(IOobjectOption::Layout::global, instance);
+}
+
+
 // Error Handling
 
 inline bool Foam::IOobject::good() const noexcept
