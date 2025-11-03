@@ -736,9 +736,8 @@ $(derivedPointPatches)/wall/wallPointPatch.C
 pointBoundaryMesh = $(pointMesh)/pointBoundaryMesh
 $(pointBoundaryMesh)/pointBoundaryMesh.C
 
-meshes/boundBox/boundBox.C
-
-meshes/treeBoundBox/treeBoundBox.C
+meshes/boundBox/boundBox.cxx
+meshes/treeBoundBox/treeBoundBox.cxx
 
 meshTools = meshes/meshTools
 $(meshTools)/matchPoints.C

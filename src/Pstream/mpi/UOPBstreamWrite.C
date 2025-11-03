@@ -77,12 +77,19 @@ bool Foam::UOPBstream::bufferIPCsend()
 }
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
-void Foam::UOPBstream::send(Foam::zero, const int communicator)
+void Foam::UOPBstream::send(Foam::zero, int communicator, int root)
 {
-    int64_t count(0);
-    PstreamGlobals::broadcast_int64(count, communicator);
+    if (UPstream::is_parallel(communicator))
+    {
+        int64_t count(0);
+        PstreamGlobals::broadcast_int64(count, communicator, root);
+    }
+    else
+    {
+        // FatalError ?
+    }
 }
 
 

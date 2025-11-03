@@ -45,7 +45,7 @@ Foam::boundBox::boundBox
 
     if (doReduce)
     {
-        reduce();
+        this->reduce();   // Uses UPstream::worldComm
     }
 }
 

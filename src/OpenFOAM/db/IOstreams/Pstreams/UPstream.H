@@ -1722,7 +1722,7 @@ public:
             Type* buffer,
             std::streamsize count,
             const int communicator,
-            int root = 0  //!< The broadcast root (usually 0 == master)
+            const int root = UPstream::masterNo()  //!< The broadcast root
         );
 
         //- Broadcast fixed-list content (contiguous types) to all ranks
@@ -1734,7 +1734,7 @@ public:
         (
             FixedList<Type, N>& list,
             const int communicator,
-            int root = 0  //!< The broadcast root (usually 0 == master)
+            const int root = UPstream::masterNo()  //!< The broadcast root
         );
 
 
@@ -1920,6 +1920,14 @@ public:
             bool& value,
             const int communicator = worldComm
         );
+
+        //- Locate the first rank for which the \p condition is true,
+        //- or -1 if no ranks satisfy the condition.
+        static int find_first(bool condition, int communicator);
+
+        //- Locate the last rank for which the \p condition is true,
+        //- or -1 if no ranks satisfy the condition.
+        static int find_last(bool condition, int communicator);
 
 
     // Housekeeping

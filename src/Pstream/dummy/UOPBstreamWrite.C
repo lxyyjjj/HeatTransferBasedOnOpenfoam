@@ -38,7 +38,7 @@ bool Foam::UOPBstream::bufferIPCsend()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void Foam::UOPBstream::send(Foam::zero, const int communicator)
+void Foam::UOPBstream::send(Foam::zero, int communicator, int root)
 {}
 
 

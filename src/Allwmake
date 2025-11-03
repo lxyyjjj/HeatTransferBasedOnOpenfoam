@@ -55,6 +55,12 @@ wmake $targetType fileFormats
 wmake $targetType surfMesh
 wmake $targetType meshTools
 
+# ========================================
+# Done OpenFOAM base libraries
+# ========================================
+
+#------------------------------------------------------------------------------
+
 wmake $targetType finiteArea
 wmake $targetType finiteVolume
 wmake $targetType fused/finiteVolume

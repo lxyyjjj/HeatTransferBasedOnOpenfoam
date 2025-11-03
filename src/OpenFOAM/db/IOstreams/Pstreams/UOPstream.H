@@ -494,7 +494,7 @@ public:
 
         //- Broadcast a zero value (buffer) size that can be matched
         //- by the UIPBstream constructor.
-        static void send(Foam::zero, const int communicator);
+        static void send(Foam::zero, int communicator, int root=0);
 };
 
 

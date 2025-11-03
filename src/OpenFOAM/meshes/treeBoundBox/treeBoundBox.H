@@ -63,8 +63,8 @@ SeeAlso
 
 SourceFiles
     treeBoundBoxI.H
-    treeBoundBox.C
-    treeBoundBoxTemplates.C
+    treeBoundBox.cxx
+    treeBoundBox.txx
 
 \*---------------------------------------------------------------------------*/
 
@@ -463,7 +463,7 @@ inline bool operator!=(const treeBoundBox& a, const treeBoundBox& b);
 #include "treeBoundBoxI.H"
 
 #ifdef NoRepository
-    #include "treeBoundBoxTemplates.C"
+    #include "treeBoundBox.txx"
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
