@@ -726,7 +726,7 @@ bool Foam::GAMGAgglomeration::checkRestriction
             }
         }
 
-        reduce(nChanged, sumOp<label>());
+        // reduce(nChanged, sumOp<label>());
 
         if (nChanged == 0)
         {
