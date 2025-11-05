@@ -40,14 +40,14 @@ bool Foam::PstreamDetail::broadcast
     Type* values,
     int count,
     MPI_Datatype datatype,
-    const int communicator
+    const int communicator,
+    const int root
 )
 {
     if (!UPstream::is_parallel(communicator))
     {
         return true;
     }
-
 
     int returnCode(MPI_SUCCESS);
 
@@ -60,7 +60,7 @@ bool Foam::PstreamDetail::broadcast
                 values,
                 count,
                 datatype,
-                0,  // (root rank) == UPstream::masterNo()
+                root, // The broadcast root (normally 0 == UPstream::masterNo())
                 PstreamGlobals::MPICommunicators_[communicator]
             );
     }
@@ -286,6 +286,98 @@ void Foam::PstreamDetail::allReduce
         if (immediate) FatalError<< "(non-blocking) ";
 
         FatalError<< "failed for count:" << count
+            << Foam::abort(FatalError);
+    }
+}
+
+
+template<class Type>
+void Foam::PstreamDetail::scanReduce
+(
+    const Type* sendData,
+    Type* recvData,
+    int count,
+    MPI_Datatype datatype,
+    MPI_Op optype,
+    const int communicator,
+
+    const int exclusive
+)
+{
+    if (!UPstream::is_parallel(communicator))
+    {
+        return;
+    }
+
+    const void* send_buffer = sendData;
+    if (!sendData || (sendData == recvData))
+    {
+        // Appears to be an in-place request.
+        // - this setting only relevant (or usable) on the root rank
+        send_buffer = MPI_IN_PLACE;
+    }
+
+    if (FOAM_UNLIKELY(PstreamGlobals::warnCommunicator(communicator)))
+    {
+        if (exclusive)
+        {
+            Perr<< "** MPI_Exscan (blocking):";
+        }
+        else
+        {
+            Perr<< "** MPI_Scan (blocking):";
+        }
+        if (UPstream::master(communicator) && (send_buffer == MPI_IN_PLACE))
+        {
+            Perr<< " [inplace]";
+        }
+        Perr<< " count:" << count
+            << " comm:" << communicator
+            << " warnComm:" << UPstream::warnComm << endl;
+        error::printStack(Perr);
+    }
+
+
+    int returnCode(MPI_ERR_UNKNOWN);
+
+    profilingPstream::beginTiming();
+
+    if (exclusive)
+    {
+        returnCode =
+            MPI_Exscan
+            (
+                send_buffer,
+                recvData,
+                count,
+                datatype,
+                optype,
+                PstreamGlobals::MPICommunicators_[communicator]
+            );
+    }
+    else
+    {
+        returnCode =
+            MPI_Scan
+            (
+                send_buffer,
+                recvData,
+                count,
+                datatype,
+                optype,
+                PstreamGlobals::MPICommunicators_[communicator]
+            );
+    }
+    profilingPstream::addReduceTime();
+
+    // Error handling
+    if (FOAM_UNLIKELY(returnCode != MPI_SUCCESS))
+    {
+        FatalErrorInFunction<< "MPI Scan ";
+        if (exclusive) FatalError<< "(exclusive) ";
+
+        FatalError
+            << "failed for count:" << count
             << Foam::abort(FatalError);
     }
 }

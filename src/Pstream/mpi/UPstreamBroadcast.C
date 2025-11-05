@@ -36,7 +36,8 @@ bool Foam::UPstream::mpi_broadcast
     void* buf,                      // Type checking done by caller
     std::streamsize count,
     const UPstream::dataTypes dataTypeId,  // Proper type passed by caller
-    const int communicator          // Index into MPICommunicators_
+    const int communicator,         // Index into MPICommunicators_
+    const int root                  // The broadcast root (usually 0)
 )
 {
     MPI_Datatype datatype = PstreamGlobals::getDataType(dataTypeId);
@@ -61,7 +62,8 @@ bool Foam::UPstream::mpi_broadcast
 
     const bool withTopo =
     (
-        UPstream::usingTopoControl(UPstream::topoControls::broadcast)
+        (root == 0)  // Can only use node topology if root == master
+     && UPstream::usingTopoControl(UPstream::topoControls::broadcast)
      && UPstream::usingNodeComms(communicator)
     );
 
@@ -71,6 +73,7 @@ bool Foam::UPstream::mpi_broadcast
             << " type:" << int(dataTypeId)
             << " count:" << label(count)
             << " comm:" << communicator
+            << " root:" << root
             << " topo:" << withTopo << Foam::endl;
     }
 
@@ -117,14 +120,14 @@ bool Foam::UPstream::mpi_broadcast
     else
     {
         // Regular broadcast
-        // OR: PstreamDetail::broadcast(buf, count, datatype, communicator);
+        // PstreamDetail::broadcast(buf, count, datatype, communicator, root);
 
         returnCode = MPI_Bcast
         (
             buf,
             count,
             datatype,
-            0,  // (root rank) == UPstream::masterNo()
+            root,  // The broadcast root (usually 0 == UPstream::masterNo())
             PstreamGlobals::MPICommunicators_[communicator]
         );
     }

@@ -39,20 +39,30 @@ Foam::UPstream::Communicator::Communicator() noexcept
 // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
 Foam::UPstream::Communicator
-Foam::UPstream::Communicator::lookup(const int comm)
+Foam::UPstream::Communicator::lookup(int communicator)
 {
-    if (comm < 0 || comm >= PstreamGlobals::MPICommunicators_.size())
-    {
-        WarningInFunction
-            << "Illegal communicator " << comm << nl
-            << "Should be within range [0,"
-            << PstreamGlobals::MPICommunicators_.size()
-            << ')' << endl;
+    MPI_Comm mpiComm = MPI_COMM_NULL;
 
-        return UPstream::Communicator(MPI_COMM_NULL);
+    if (communicator < 0)
+    {
+        // Default/short-cut : world-comm
+        communicator = UPstream::worldComm;
     }
 
-    return UPstream::Communicator(PstreamGlobals::MPICommunicators_[comm]);
+    if (communicator < PstreamGlobals::MPICommunicators_.size())
+    {
+        mpiComm = PstreamGlobals::MPICommunicators_[communicator];
+    }
+    else
+    {
+        WarningInFunction
+            << "Illegal communicator " << communicator << nl
+            << "Should be within range [-1,"
+            << PstreamGlobals::MPICommunicators_.size()
+            << ')' << endl;
+    }
+
+    return UPstream::Communicator(mpiComm);
 }
 
 

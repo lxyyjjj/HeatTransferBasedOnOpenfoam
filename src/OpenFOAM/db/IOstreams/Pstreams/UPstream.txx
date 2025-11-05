@@ -32,7 +32,8 @@ bool Foam::UPstream::broadcast
 (
     Type* buffer,
     std::streamsize count,
-    const int communicator
+    const int communicator,
+    int root
 )
 {
     // Likely no reason to check for nullptr
@@ -48,6 +49,7 @@ bool Foam::UPstream::broadcast
             << "Invalid for non-contiguous data types."
             << " buffer:" << (buffer != nullptr)
             << " count:" << count
+            << " root:" << root
             << Foam::abort(FatalError);
         return false;
     }
@@ -59,9 +61,22 @@ bool Foam::UPstream::broadcast
             buffer,     // The data or cmpt pointer
             UPstream_dataType<Type>::size(count),
             UPstream_dataType<Type>::datatype_id,
-            communicator
+            communicator,
+            root
         );
     }
+}
+
+
+template<class Type, unsigned N>
+bool Foam::UPstream::broadcast
+(
+    FixedList<Type, N>& list,
+    const int communicator,
+    int root
+)
+{
+    return UPstream::broadcast(list.data(), list.size(), communicator, root);
 }
 
 
@@ -475,6 +490,18 @@ void Foam::UPstream::mpiReduce
 }
 
 
+template<Foam::UPstream::opCodes opCode, class T>
+void Foam::UPstream::mpiReduce
+(
+    T values[],
+    int count,
+    const int communicator
+)
+{
+    UPstream::mpiReduce(values, count, opCode, communicator);
+}
+
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 template<class T>
@@ -507,6 +534,18 @@ void Foam::UPstream::mpiAllReduce
 }
 
 
+template<Foam::UPstream::opCodes opCode, class T>
+void Foam::UPstream::mpiAllReduce
+(
+    T values[],
+    int count,
+    const int communicator
+)
+{
+    UPstream::mpiAllReduce(values, count, opCode, communicator);
+}
+
+
 template<class T>
 void Foam::UPstream::mpiAllReduce
 (
@@ -536,6 +575,93 @@ void Foam::UPstream::mpiAllReduce
            &req
         );
     }
+}
+
+
+template<Foam::UPstream::opCodes opCode, class T>
+void Foam::UPstream::mpiAllReduce
+(
+    T values[],
+    int count,
+    const int communicator,
+    UPstream::Request& req
+)
+{
+    UPstream::mpiAllReduce(values, count, opCode, communicator);
+}
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+template<Foam::UPstream::opCodes opCode, class T>
+void Foam::UPstream::mpiScan
+(
+    T values[],
+    int count,
+    const int communicator,
+    const bool exclusive
+)
+{
+    if (!count || !UPstream::is_parallel(communicator))
+    {
+        // Nothing to do
+        return;
+    }
+    else if constexpr (!is_contiguous_v<T>)
+    {
+        FatalErrorInFunction
+            << "Cannot " << (exclusive ? "exscan" : "scan")
+            << " values for non-contiguous types."
+            << " op-code: " << int(opCode)
+            << " buffer: " << Foam::name(values) << endl
+            << Foam::abort(FatalError);
+    }
+    else  // if (FOAM_LIKELY(values))
+    {
+        // Use element or component type (or byte-wise) for data type
+        // Restricted to basic data types
+        UPstream::mpi_scan_reduce
+        (
+            values,     // The data or cmpt pointer
+            UPstream_basic_dataType<T>::size(count),
+            UPstream_basic_dataType<T>::datatype_id,
+            opCode,
+            communicator,
+            exclusive
+        );
+
+        // Any special handling of exscan degenerate value at rank=0
+
+        if constexpr (UPstream::opCodes::op_sum == opCode)
+        {
+            if (exclusive && UPstream::master(communicator))
+            {
+                // Exscan and sum:
+                // replace degenerate value (rank=0) with zero value
+
+                T zeroValue{};
+                if constexpr (is_vectorspace_v<T>)
+                {
+                    zeroValue.fill(0);
+                }
+                std::fill_n(values, count, zeroValue);
+            }
+        }
+    }
+}
+
+
+template<Foam::UPstream::opCodes opCode, class T>
+T Foam::UPstream::mpiScan
+(
+    const T& localValue,
+    const int communicator,
+    const bool exclusive
+)
+{
+    T work(localValue);
+    UPstream::mpiScan<opCode>(&work, 1, communicator, exclusive);
+    return work;
 }
 
 
