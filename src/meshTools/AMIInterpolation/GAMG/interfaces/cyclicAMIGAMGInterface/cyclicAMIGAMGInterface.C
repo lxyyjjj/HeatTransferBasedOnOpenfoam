@@ -458,7 +458,17 @@ Foam::cyclicAMIGAMGInterface::cyclicAMIGAMGInterface
 
             const auto& AMI = intf.AMI();
 
-            if (AMI.distributed() && AMI.comm() != -1)
+            // Note:
+            // - AMI.singlePatchProc or AMI.distributed : global properties.
+            //   Should be already parallel synced.
+            // - AMI.comm() : -1 on processors that are not involved
+            // - AMI.srcMap(),tgtMap() : not valid if AMI.comm() is -1
+
+            if (!AMI.distributed())
+            {
+                singlePatchProc = AMI.singlePatchProc();
+            }
+            else if (AMI.comm() != -1)
             {
                 singlePatchProc = -1;
                 srcHasFlip =
