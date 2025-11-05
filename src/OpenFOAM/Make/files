@@ -843,7 +843,7 @@ algorithms/dynamicIndexedOctree/dynamicIndexedOctreeBase.C
 algorithms/dynamicIndexedOctree/dynamicTreeDataPoint.C
 
 parallel/commSchedule/commSchedule.C
-parallel/globalIndex/globalIndex.C
+parallel/globalIndex/globalIndex.cxx
 
 meshes/meshState/meshState.C
 

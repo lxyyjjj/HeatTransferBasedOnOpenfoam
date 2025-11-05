@@ -64,6 +64,16 @@ void testGlobalIndex(const Type& localSize)
             << " (globalIndex calcOffset)" << endl;
     }
 
+    // With calcOffsetTotal
+    {
+        auto [start, total] = globalIndex::calcOffsetTotal(localSize, comm);
+
+        Pout<< "size: " << localSize
+            << " offset: " << start
+            << " total: " << total
+            << " (globalIndex calcOffsetTotal)" << endl;
+    }
+
     // With calcRange
     {
         IntRange<Type> range = globalIndex::calcRange(localSize, comm);
@@ -80,6 +90,65 @@ void testGlobalIndex(const Type& localSize)
             << " total: " << total
             << " (globalIndex calcRange)" << endl;
     }
+
+    // With calcOffsetRange
+    {
+        OffsetRange<Type> range = globalIndex::calcOffsetRange(localSize, comm);
+
+        Pout<< "range: " << range
+            << " (globalIndex calcOffsetRange)" << endl;
+    }
+}
+
+
+template<class Type, unsigned N>
+void testOffsetTotals(const FixedList<Type, N>& localSizes)
+{
+    const auto comm = UPstream::worldComm;
+
+    FixedList<Type, N> starts(localSizes);
+    FixedList<Type, N> totals(localSizes);
+
+    // The starting offsets
+
+    // This actually compiles and does the right thing!
+    // auto starts = UPstream::mpiExscan_sum(localSizes, comm);
+
+    UPstream::mpiExscan_sum(starts.data(), starts.size(), comm);
+
+    if (UPstream::is_parallel(comm))
+    {
+        // Broadcast totals from rank=N-1
+        const int root = (UPstream::nProcs(comm)-1);
+
+        // Update the totals.
+        // - can actually do this on all ranks, but they
+        // will be overwritten by the broadcast anyhow.
+        if (root == UPstream::myProcNo(comm))
+        {
+            for (unsigned i = 0; i < N; ++i)
+            {
+                totals[i] += starts[i];
+            }
+        }
+
+        UPstream::broadcast(totals, comm, root);
+    }
+
+    Pout<< "sizes: " << localSizes
+        << " offsets: " << starts
+        << " totals: " << totals
+        << endl;
+
+    // As tuples
+    FixedList<std::pair<Type, Type>, N> tuples;
+    for (unsigned i = 0; i < N; ++i)
+    {
+        tuples[i].first = starts[i];
+        tuples[i].second = totals[i];
+    }
+
+    Pout<< "tuples: " << flatOutput(tuples) << endl;
 }
 
 
@@ -136,7 +205,7 @@ void testScan(const Type& localValue, const bool exclusive)
         }
     }
 
-    // max (this type with templated version)
+    // max (this time with templated version)
     {
         constexpr UPstream::opCodes opCode = UPstream::opCodes::op_max;
 
@@ -206,7 +275,7 @@ int main(int argc, char *argv[])
 
     Info<< nl;
     {
-        typedef label Type;
+        typedef int32_t Type;
 
         Type localValue = (myProci+1)*scaleFactor;
         List<Type> allSizes = UPstream::listGatherValues(localValue);
@@ -218,7 +287,6 @@ int main(int argc, char *argv[])
         testGlobalIndex(localValue);
     }
 
-    #if 0
     Info<< nl;
     {
         typedef int64_t Type;
@@ -232,7 +300,6 @@ int main(int argc, char *argv[])
 
         testGlobalIndex(localValue);
     }
-    #endif
 
     Info<< nl;
     {
@@ -242,6 +309,48 @@ int main(int argc, char *argv[])
         localValue *= scaleFactor;
 
         testScan(localValue, exclusive);
+    }
+
+    Info<< nl;
+    {
+        typedef int64_t Type;
+
+        Type localValue = (myProci+1)*10;
+        List<Type> allSizes = UPstream::listGatherValues(localValue);
+
+        Info<< "all sizes: " << flatOutput(allSizes) << nl;
+        Info<< "recv-sizes: " << globalIndex::calcRecvSizes(localValue) << nl;
+    }
+
+    Info<< nl;
+    {
+        typedef int64_t Type;
+        typedef FixedList<Type, 4> list_type;
+
+        FixedList<Type, 4> localSizes;
+        std::iota(localSizes.begin(), localSizes.end(), (myProci+1)*10);
+
+        typedef int64_t Type;
+
+        List<list_type> allSizes = UPstream::listGatherValues(localSizes);
+        Info<< "all  sizes: " << flatOutput(allSizes) << nl;
+
+        testOffsetTotals(localSizes);
+    }
+
+    Info<< nl;
+    {
+        typedef double Type;
+
+        Type localValue = (myProci+1)*scaleFactor;
+        List<Type> allSizes = UPstream::listGatherValues(localValue);
+
+        Info<< "all sizes: " << flatOutput(allSizes) << nl;
+
+        testScan(localValue, exclusive);
+
+        // This should refuse to compile
+        // testGlobalIndex(localValue);
     }
 
     Info<< nl << "End\n" << endl;

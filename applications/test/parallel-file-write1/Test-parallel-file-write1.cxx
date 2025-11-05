@@ -58,7 +58,6 @@ int main(int argc, char *argv[])
 {
     argList::noCheckProcessorDirectories();
     argList::addVerboseOption();
-    argList::addBoolOption("master-footer", "Write footer from master");
 
     #include "setRootCase.H"
 
@@ -70,18 +69,15 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    const bool optMasterFooter = args.found("master-footer");
-
-    Info<< nl << "Write master-footer: " << Switch::name(optMasterFooter)
-        << nl << nl;
-
     Info<< "Create time (without controlDict)\n" << endl;
 
     auto runTimePtr = Time::New();
     auto& runTime = runTimePtr();
 
-    const auto myProc = UPstream::myProcNo();
-    const auto nProcs = UPstream::nProcs();
+    const auto comm_ = UPstream::worldComm;
+
+    const auto myProc = UPstream::myProcNo(comm_);
+    const auto nProcs = UPstream::nProcs(comm_);
 
     // Some content
     OCharStream charset;
@@ -89,12 +85,6 @@ int main(int argc, char *argv[])
     {
         charset<< char('A' + i);
     }
-
-    // Header/footer buffers - these can be separate or bundled into
-    // the first/last blocks
-
-    OCharStream header;
-    OCharStream footer;
 
     // Content buffer
     OCharStream os(IOstream::BINARY);
@@ -120,26 +110,20 @@ int main(int argc, char *argv[])
         os.endBlock();
     }
 
-    // Bundle the footer into the last block
-    if (!optMasterFooter && (myProc == nProcs-1))
-    {
-        IOobject::writeEndDivider(os);
-    }
-
 
     // All content now exists - commit to disk
     const std::string_view blockData(os.view());
     const int64_t blockSize(blockData.size());
 
-    // Collect sizes
-    const List<int64_t> sizes
+    // The sizes (without footer!) gathered onto the master
+    List<int64_t> sizes
     (
-        UPstream::allGatherValues(blockSize, UPstream::worldComm)
+        UPstream::listGatherValues<int64_t>(blockSize, comm_)
     );
 
-
-    // Format header with size information
-    if (UPstream::master())
+    // Overall header - most flexible to keep separate from block content
+    OCharStream header;
+    if (UPstream::master(comm_))
     {
         header
             << "Simple MPI/IO test with " << nProcs << " ranks" << nl << nl;
@@ -180,50 +164,51 @@ int main(int argc, char *argv[])
             zeropadded(labelbuf, label(header.view().size()));
             header.overwrite(labelBegin, labelbuf.view());
         }
-
-        // Bundled the footer into the last block or from master?
-        if (optMasterFooter)
-        {
-            IOobject::writeEndDivider(footer);
-        }
     }
 
-    // With additional header/footer
-    int64_t headerSize(header.view().size());
-    int64_t footerSize(footer.view().size());
-
-    Pstream::broadcast(headerSize);
-    if (optMasterFooter)
+    // Overall footer.
+    // Will be written by the last block, but format for everyone
+    // so that the size is known
+    OCharStream footer;
     {
-        Pstream::broadcast(footerSize);
+        IOobject::writeEndDivider(footer);
     }
 
 
-    int64_t totalSize(headerSize);
-    for (int i = 0; i < myProc; ++i)
+    // Calculate the begin offsets for each block and total file size
+
+    int64_t totalSize(header.view().size());
+    for (auto& val : sizes)
     {
-        totalSize += sizes[i];
+        const auto count = val;
+        val = totalSize;
+        totalSize += count;
     }
+    totalSize += int64_t(footer.view().size());
 
-    const int64_t blockOffset(totalSize);
 
-    for (int i = myProc; i < nProcs; ++i)
+    // The file begin offset for my block
+    const int64_t blockOffset = UPstream::listScatterValues(sizes, comm_);
+
+    // Everyone needs to know this as well
+    Pstream::broadcast(totalSize, comm_);
+
+    Pout<< "write size=" << blockSize
+        << " at=" << blockOffset << " total=" << totalSize << nl;
+
+    // The last block also gets the footer data to write
+    if (myProc == nProcs-1)
     {
-        totalSize += sizes[i];
+        os.extend_exact(footer.view().size());
+        os.append(footer.view());
     }
-    const int64_t footerOffset(totalSize);
-    totalSize += footerSize;
-
-
-    Pout<< "write size=" << label(blockSize)
-        << " at=" << label(blockOffset) << " total=" << label(totalSize) << nl;
 
     {
         UPstream::File file;
 
         bool ok = file.open_write
         (
-            UPstream::worldComm,
+            comm_,
             runTime.globalPath()/"mpiio-test1.txt",
             IOstreamOption::ATOMIC
         );
@@ -232,19 +217,15 @@ int main(int argc, char *argv[])
         {
             Info<< "writing: " << file.name() << nl;
 
-            if (UPstream::master())
+            // header from master
+            if (UPstream::master(comm_))
             {
                 // A no-op for empty buffer
                 ok = file.write_at(0, header.view());
             }
 
-            ok = file.write_at_all(blockOffset, blockData);
-
-            if (UPstream::master())
-            {
-                // A no-op for empty buffer
-                ok = file.write_at(footerOffset, footer.view());
-            }
+            // data from all - footer is already in the last block
+            ok = file.write_at_all(blockOffset, os.view());
         }
 
         file.set_size(totalSize);
