@@ -170,18 +170,18 @@ and attempt to install a `paraview~qt` version instead.
 
 <!-- OpenFOAM -->
 
-[repo openfoam]: https://develop.openfoam.com/Development/openfoam/
-[repo third]: https://develop.openfoam.com/Development/ThirdParty-common/
+[repo openfoam]: https://gitlab.com/openfoam/core/openfoam/
+[repo third]: https://gitlab.com/openfoam/core/thirdparty-common/
 
-[link openfoam-readme]: https://develop.openfoam.com/Development/openfoam/blob/develop/README.md
-[link openfoam-issues]: https://develop.openfoam.com/Development/openfoam/blob/develop/doc/BuildIssues.md
-[link openfoam-build]: https://develop.openfoam.com/Development/openfoam/blob/develop/doc/Build.md
-[link openfoam-require]: https://develop.openfoam.com/Development/openfoam/blob/develop/doc/Requirements.md
-[link third-readme]: https://develop.openfoam.com/Development/ThirdParty-common/blob/develop/README.md
-[link third-build]: https://develop.openfoam.com/Development/ThirdParty-common/blob/develop/BUILD.md
-[link third-require]: https://develop.openfoam.com/Development/ThirdParty-common/blob/develop/Requirements.md
+[link openfoam-readme]: https://gitlab.com/openfoam/core/openfoam/blob/develop/README.md
+[link openfoam-issues]: https://gitlab.com/openfoam/core/openfoam/blob/develop/doc/BuildIssues.md
+[link openfoam-build]: https://gitlab.com/openfoam/core/openfoam/blob/develop/doc/Build.md
+[link openfoam-require]: https://gitlab.com/openfoam/core/openfoam/blob/develop/doc/Requirements.md
+[link third-readme]: https://gitlab.com/openfoam/core/thirdparty-common/blob/develop/README.md
+[link third-build]: https://gitlab.com/openfoam/core/thirdparty-common/blob/develop/BUILD.md
+[link third-require]: https://gitlab.com/openfoam/core/thirdparty-common/blob/develop/Requirements.md
 
-[wiki-config]: https://develop.openfoam.com/Development/openfoam/-/wikis/configuring
+[wiki-config]: https://gitlab.com/openfoam/core/openfoam/-/wikis/configuring
 
 ---
 Copyright 2019-2024 OpenCFD Ltd

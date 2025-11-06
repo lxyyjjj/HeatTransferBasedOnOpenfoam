@@ -36,7 +36,7 @@
 #
 # GNU make suffixes : .c .cc .C .cpp  (.cxx is however frequently used)
 #
-# https://develop.openfoam.com/Development/openfoam/wikis/coding/style/filenames
+# https://gitlab.com/openfoam/core/openfoam/wikis/coding/style/filenames
 #------------------------------------------------------------------------------
 Script="${0##*/}"                   # Need 'Script' for wmakeFunctions messages
 scriptsDir="${0%/*}"/scripts        # wmake/scripts directory

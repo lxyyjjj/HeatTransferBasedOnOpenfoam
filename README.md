@@ -40,9 +40,9 @@ Violations of the Trademark are monitored, and will be duly prosecuted.
 
 If OpenFOAM has already been compiled on your system, simply source
 the appropriate `etc/bashrc` or `etc/cshrc` file and get started.
-For example, for the OpenFOAM-v2506 version:
+For example, for the OpenFOAM-v2512 version:
 ```
-source /installation/path/OpenFOAM-v2506/etc/bashrc
+source /installation/path/OpenFOAM-v2512/etc/bashrc
 ```
 
 ## Compiling OpenFOAM
@@ -127,8 +127,8 @@ These 3rd-party sources are normally located in a directory parallel
 to the OpenFOAM directory. For example,
 ```
 /path/parent
-|-- OpenFOAM-v2506
-\-- ThirdParty-v2506
+|-- OpenFOAM-v2512
+\-- ThirdParty-v2512
 ```
 There are, however, many cases where this simple convention is inadequate:
 
@@ -156,9 +156,9 @@ when locating the ThirdParty directory with the following precedence:
 2. PREFIX/ThirdParty-VERSION
    * this corresponds to the traditional approach
 3. PREFIX/ThirdParty-vAPI
-   * allows for an updated value of VERSION, *eg*, `v2506-myCustom`,
+   * allows for an updated value of VERSION, *eg*, `v2512-myCustom`,
      without requiring a renamed ThirdParty. The API value would still
-     be `2412` and the original `ThirdParty-v2506/` would be found.
+     be `2412` and the original `ThirdParty-v2512/` would be found.
 4. PREFIX/ThirdParty-API
    * same as the previous example, but using an unadorned API value.
 5. PREFIX/ThirdParty-common
@@ -189,18 +189,18 @@ ThirdParty directory will contain either an `Allwmake` file or a
 
 [link trademark]: https://www.openfoam.com/opencfd-limited-trade-mark-policy
 
-[repo openfoam]: https://develop.openfoam.com/Development/openfoam/
-[repo third]: https://develop.openfoam.com/Development/ThirdParty-common/
+[repo openfoam]: https://gitlab.com/openfoam/core/openfoam/
+[repo third]: https://gitlab.com/openfoam/core/thirdparty-common/
 
-[link openfoam-readme]: https://develop.openfoam.com/Development/openfoam/blob/develop/README.md
-[link openfoam-issues]: https://develop.openfoam.com/Development/openfoam/blob/develop/doc/BuildIssues.md
-[link openfoam-build]: https://develop.openfoam.com/Development/openfoam/blob/develop/doc/Build.md
-[link openfoam-require]: https://develop.openfoam.com/Development/openfoam/blob/develop/doc/Requirements.md
-[link third-readme]: https://develop.openfoam.com/Development/ThirdParty-common/blob/develop/README.md
-[link third-build]: https://develop.openfoam.com/Development/ThirdParty-common/blob/develop/BUILD.md
-[link third-require]: https://develop.openfoam.com/Development/ThirdParty-common/blob/develop/Requirements.md
+[link openfoam-readme]: https://gitlab.com/openfoam/core/openfoam/blob/develop/README.md
+[link openfoam-issues]: https://gitlab.com/openfoam/core/openfoam/blob/develop/doc/BuildIssues.md
+[link openfoam-build]: https://gitlab.com/openfoam/core/openfoam/blob/develop/doc/Build.md
+[link openfoam-require]: https://gitlab.com/openfoam/core/openfoam/blob/develop/doc/Requirements.md
+[link third-readme]: https://gitlab.com/openfoam/core/thirdparty-common/blob/develop/README.md
+[link third-build]: https://gitlab.com/openfoam/core/thirdparty-common/blob/develop/BUILD.md
+[link third-require]: https://gitlab.com/openfoam/core/thirdparty-common/blob/develop/Requirements.md
 
-[wiki-config]: https://develop.openfoam.com/Development/openfoam/-/wikis/configuring
+[wiki-config]: https://gitlab.com/openfoam/core/openfoam/-/wikis/configuring
 
 
 ## Useful Links
@@ -208,9 +208,9 @@ ThirdParty directory will contain either an `Allwmake` file or a
 - Download [source](https://dl.openfoam.com/source/) and [download and installation instructions](http://www.openfoam.com/download/)
 - [Documentation](http://www.openfoam.com/documentation)
 - [Reporting bugs/issues/feature requests](http://www.openfoam.com/code/bug-reporting.php)
-- [Issue tracker](https://develop.openfoam.com/Development/openfoam/-/issues)
-- [Code wiki](https://develop.openfoam.com/Development/openfoam/-/wikis/) and [General wiki](http://wiki.openfoam.com/)
+- [Issue tracker](https://gitlab.com/openfoam/core/openfoam/-/issues)
+- [Code wiki](https://gitlab.com/openfoam/core/openfoam/-/wikis/) and [General wiki](http://wiki.openfoam.com/)
 - [Governance](http://www.openfoam.com/governance/), [Governance Projects](https://www.openfoam.com/governance/projects)
 - [Contacting OpenCFD](http://www.openfoam.com/contact/)
 
-Copyright 2016-2024 OpenCFD Ltd
+Copyright 2016-2025 OpenCFD Ltd
