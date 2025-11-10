@@ -224,6 +224,14 @@ public:
             return nDomains_;
         }
 
+        //- Set number of domains. Return old value
+        label nDomains(const label n)
+        {
+            const label oldNum = nDomains_;
+            nDomains_ = n;
+            return oldNum;
+        }
+
         //- True if the method is purely geometric,
         //- often using cell centre points
         virtual bool geometric() const { return false; }
