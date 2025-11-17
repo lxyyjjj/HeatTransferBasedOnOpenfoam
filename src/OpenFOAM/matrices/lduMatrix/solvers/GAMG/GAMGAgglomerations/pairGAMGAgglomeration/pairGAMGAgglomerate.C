@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2016 OpenFOAM Foundation
-    Copyright (C) 2023 OpenCFD Ltd.
+    Copyright (C) 2023-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -225,7 +225,13 @@ Foam::tmp<Foam::labelField> Foam::pairGAMGAgglomeration::agglomerate
     // different truncation error in their weights from run to run
     // (e.g. due to offloading). If all the largest faces per cell are
     // within this tolerance use the first one. This guarantees repeatability.
+    // Disabled on non-offload situations for now since makes comparison
+    // to previous versions harder. TBD.
+    #ifdef _OPENMP
     const scalar tol = 1E-10;
+    #else
+    const scalar tol = 0;
+    #endif
 
     nCoarseCells = 0;
     label celli;
