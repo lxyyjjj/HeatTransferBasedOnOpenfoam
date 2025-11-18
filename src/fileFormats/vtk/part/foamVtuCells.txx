@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2017-2025 OpenCFD Ltd.
+    Copyright (C) 2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,44 +25,49 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-// VTK includes
-#include "vtkFloatArray.h"
-#include "vtkDoubleArray.h"
-#include "vtkCellData.h"
-#include "vtkPointData.h"
-#include "vtkSmartPointer.h"
+#include "polyMesh.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-template<class Type, class DataArrayType>
-vtkSmartPointer<DataArrayType>
-Foam::vtk::vtuAdaptor::convertField
-(
-    const DimensionedField<Type, volMesh>& fld
-) const
+template<class PointType>
+Foam::tmp<Foam::Field<PointType>>
+Foam::vtk::vtuCells::points(const polyMesh& mesh) const
 {
-    return vtk::Tools::convertFieldToVTK<Type, DataArrayType>
-    (
-        fld.name(),
-        fld.field(),
-        this->cellMap()
-    );
-}
+    typedef Foam::Field<PointType> pointFieldType;
 
+    // Combine mesh points and any additional cellCentre points
+    // into a single field
 
-template<class Type, class DataArrayType>
-vtkSmartPointer<DataArrayType>
-Foam::vtk::vtuAdaptor::convertField
-(
-    const GeometricField<Type, fvPatchField, volMesh>& fld
-) const
-{
-    return vtk::Tools::convertFieldToVTK<Type, DataArrayType>
-    (
-        fld.name(),
-        fld.primitiveField(),
-        this->cellMap()
-    );
+    const auto& pts = mesh.points();
+    const auto& cc = mesh.cellCentres();
+
+    // The additional cellCentre points
+    const labelUList& addPoints = addPointCellLabels();
+
+    if constexpr (std::is_same_v<Foam::point, PointType>)
+    {
+        if (addPoints.empty())
+        {
+            // No decomposed cells etc
+            return mesh.points();
+        }
+    }
+
+    auto tpoints = tmp<pointFieldType>::New(pts.size() + addPoints.size());
+
+    auto iter = tpoints.ref().begin();
+
+    // Normal points
+    iter = std::copy(pts.begin(), pts.end(), iter);
+
+    // Cell centres
+    for (const label celli : addPoints)
+    {
+        *iter = cc[celli];
+        ++iter;
+    }
+
+    return tpoints;
 }
 
 

@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2014-2021 OpenCFD Ltd.
+    Copyright (C) 2014-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -247,6 +247,15 @@ public:
 
         //- Original cell ids for all cells (regular and decomposed).
         inline const labelList& cellMap() const noexcept;
+
+
+    // Mapping/Generation Methods
+
+        //- Return the mesh points,
+        //- possibly with cell centres for addPointCellLabels()
+        //  \note not valid for a SHAPE_MESH
+        template<class PointType = Foam::point>
+        tmp<Field<PointType>> points(const polyMesh& mesh) const;
 };
 
 
@@ -258,6 +267,12 @@ public:
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #include "foamVtuCellsI.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "foamVtuCells.txx"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

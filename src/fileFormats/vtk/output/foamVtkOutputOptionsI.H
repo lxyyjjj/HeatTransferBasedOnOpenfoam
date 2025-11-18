@@ -84,6 +84,12 @@ Foam::vtk::outputOptions::ext(vtk::fileTag contentType) const
 }
 
 
+inline bool Foam::vtk::outputOptions::is_hdf() const noexcept
+{
+    return (fmtType_ == formatType::HDF_FORMAT);
+}
+
+
 inline bool Foam::vtk::outputOptions::legacy() const noexcept
 {
     return
@@ -96,7 +102,7 @@ inline bool Foam::vtk::outputOptions::legacy() const noexcept
 
 inline bool Foam::vtk::outputOptions::xml() const noexcept
 {
-    return !legacy();
+    return (!legacy() && !is_hdf());
 }
 
 

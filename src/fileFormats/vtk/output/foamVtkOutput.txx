@@ -38,13 +38,56 @@ inline void Foam::vtk::write
     const label n
 )
 {
-    constexpr direction nCmpt = pTraits<Type>::nComponents;
-
-    for (label i=0; i < n; ++i)
+    if constexpr
+    (
+        std::is_same_v<Vector<float>, Type>
+     || std::is_same_v<Vector<double>, Type>
+    )
     {
-        for (direction cmpt=0; cmpt < nCmpt; ++cmpt)
+        // Vector is frequently used
+        for (label i = 0; i < n; ++i)
         {
-            fmt.write(component(val, cmpt));
+            fmt.write(val.x());
+            fmt.write(val.y());
+            fmt.write(val.z());
+        }
+    }
+    else if constexpr
+    (
+        std::is_same_v<SymmTensor<float>, Type>
+     || std::is_same_v<SymmTensor<double>, Type>
+    )
+    {
+        // VTK order is (XX, YY, ZZ, XY, YZ, XZ)
+        for (label i = 0; i < n; ++i)
+        {
+            fmt.write(val.xx());
+            fmt.write(val.yy());
+            fmt.write(val.zz());
+            fmt.write(val.xy());
+            fmt.write(val.yz());
+            fmt.write(val.xz());
+        }
+    }
+    else if constexpr (is_vectorspace_v<Type>)
+    {
+        constexpr direction nCmpt = pTraits<Type>::nComponents;
+
+        for (label i = 0; i < n; ++i)
+        {
+            for (direction cmpt = 0; cmpt < nCmpt; ++cmpt)
+            {
+                fmt.write(component(val, cmpt));
+            }
+        }
+    }
+    else
+    {
+        // label, scalar etc.
+
+        for (label i = 0; i < n; ++i)
+        {
+            fmt.write(val);
         }
     }
 }

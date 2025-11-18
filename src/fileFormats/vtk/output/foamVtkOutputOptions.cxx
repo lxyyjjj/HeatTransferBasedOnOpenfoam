@@ -179,6 +179,7 @@ std::string Foam::vtk::outputOptions::description() const
         case formatType::APPEND_BINARY: return "xml-append binary";
         case formatType::LEGACY_ASCII:  return "legacy ascii";
         case formatType::LEGACY_BINARY: return "legacy binary";
+        case formatType::HDF_FORMAT: return "vtkhdf";
     }
 
     return "";

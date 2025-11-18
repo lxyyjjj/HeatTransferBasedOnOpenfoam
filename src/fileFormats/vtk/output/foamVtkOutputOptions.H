@@ -112,6 +112,9 @@ public:
         //- True if writer uses XML file format (non-legacy)
         inline bool xml() const noexcept;
 
+        //- True if HDF file format was requested [ADVANCED USAGE]
+        inline bool is_hdf() const noexcept;
+
         //- True if output format uses an append mode
         inline bool append() const noexcept;
 

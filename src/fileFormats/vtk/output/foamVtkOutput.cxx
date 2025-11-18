@@ -86,6 +86,10 @@ Foam::vtk::newFormatter
         case formatType::LEGACY_BINARY:
             fmt.reset(new vtk::legacyRawFormatter(os));
             break;
+
+        case formatType::HDF_FORMAT:
+            fmt.reset(new vtk::asciiFormatter(os, prec));
+            break;
     }
 
     return fmt;
