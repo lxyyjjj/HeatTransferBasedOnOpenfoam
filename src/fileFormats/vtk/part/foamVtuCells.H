@@ -83,8 +83,8 @@ class vtuCells
 
     // Requested output types
 
-        //- Output content type
-        contentType output_;
+        //- Output content type (enum)
+        vtk::vtuSizing::contentType output_;
 
         //- Bookkeeping for polyhedral cell decomposition
         bool decomposeRequest_;
@@ -99,16 +99,19 @@ class vtuCells
         //- Vertices per cell (including added cells) in vtk ordering
         List<label> vertLabels_;
 
-        //- Connectivity (vertices) offset for the end of each cell
+        //- Connectivity (vertices) offsets for each cell.
+        //- Can be begin, or end or begin/end (depending on the format)
         List<label> vertOffset_;
 
         //- Face lists per polyhedral cell
         List<label> faceLabels_;
 
-        //- Face label offsets
+        //- Face label offsets.
+        //- Can be begin, or end or begin/end (depending on the format)
         List<label> faceOffset_;
 
-        //- Bookkeeping for polyhedral cell decomposition
+        //- Bookkeeping for polyhedral cell decomposition,
+        //- also used by the manual SUBSET_MESH selection mode.
         foamVtkMeshMaps maps_;
 
 
@@ -181,8 +184,15 @@ public:
         //- True if no cellTypes are populated.
         inline bool empty() const noexcept;
 
-        //- The size of populated cellTypes.
+        //- The size of populated cellTypes (the number of cells)
         inline label size() const noexcept;
+
+        //- The cellMap is non-identity for a SUBSET_MESH or
+        //- when there are decomposed cells.
+        inline bool useCellMap() const noexcept;
+
+        //- The pointMap is available and non-identity [FUTURE USE]
+        inline bool usePointMap() const noexcept;
 
 
     // Edit
@@ -225,28 +235,84 @@ public:
         void addPointCellLabels(const labelUList& cellIds);
 
 
-    // Storage Access
+    // Storage Access (legacy and non-legacy)
 
-        //- Values for "types" (XML) and "CELL_TYPES" (legacy)
+        //- The cell \c "types" (legacy: \c "CELL_TYPES")
         inline const List<uint8_t>& cellTypes() const noexcept;
 
-        //- Values for "connectivity" (XML) or "CELLS" (legacy)
+        //- The cell \c "connectivity" (legacy: \c "CELLS")
         inline const labelList& vertLabels() const noexcept;
 
-        //- Values for "offsets" (XML only)
+
+    // Storage Access (non-legacy only)
+
+        //- The \c "offsets" into the connectivity list vertLabels()
+        //  The content depends on the format:
+        //  - XML : end offset
+        //  - INTERNAL1 : begin location
+        //  - INTERNAL2 : begin/end offsets
+        //  - HDF : begin/end offsets
         inline const labelList& vertOffsets() const noexcept;
 
-        //- Values for "faces" (XML only)
+        //- The polyhedral \c "faces" or \c "FaceConnectivity".
+        //  The content depends on the format:
+        //  - XML / INTERNAL : a face stream with embedded sizing
+        //  - HDF : the vertex list of polyhedral faces
         inline const labelList& faceLabels() const noexcept;
 
-        //- Values for "faceoffset" (XML only)
+        //- The \c "facesoffset" or the \c "FaceOffsets".
+        //  The content depends on the format:
+        //  - XML : the per-cell \c end offset into faceLabels(),
+        //  - INTERNAL : the per-cell \c begin offset into faceLabels(),
+        //    with -1 for primitive types
+        //  - HDF : the per-cell begin/end offset into faceLabels(),
+        //    with an empty range for primitive types
         inline const labelList& faceOffsets() const noexcept;
 
         //- Additional point addressing (from added point to original cell)
         inline const labelList& addPointCellLabels() const noexcept;
 
-        //- Original cell ids for all cells (regular and decomposed).
+        //- The mesh cell ids for all cells (regular and decomposed).
+        //  For a volume field these would be the cell ids to extract
+        //  from the field.
         inline const labelList& cellMap() const noexcept;
+
+        //- The mesh point ids [FUTURE USE]
+        inline const labelUList& pointMap() const noexcept;
+
+
+    // Adjusted versions
+
+        //- The "connectivity" (legacy: "CELLS")
+        //- adjusted by the specified (global) point offset
+        refPtr<labelList> vertLabels(label pointOffset) const;
+
+        //- Connectivity (vertices) offsets for each cell
+        //- adjusted by the specified (global) cell offset
+        refPtr<labelList> vertOffsets
+        (
+            //! For formats with begin/end, can specify -1 for
+            //! an automatic calculation (in parallel)
+            label beginOffset,
+            //! For begin/end offsets for parallel concatenation
+            bool syncPar = false
+        ) const;
+
+        //- The "faces" stream/connectivity (non-legacy only)
+        //- adjusted by the specified (global) point offset
+        refPtr<labelList> faceLabels(label pointOffset) const;
+
+        //- The offsets into "faces" (non-legacy only)
+        //- adjusted by the specified (global) face offset.
+        //  Returns a dummy set of offsets if there are no "faces"
+        refPtr<labelList> faceOffsets
+        (
+            //! For formats with begin/end, can specify -1 for
+            //! an automatic calculation (in parallel)
+            label beginOffset,
+            //! For begin/end offsets for parallel concatenation
+            bool syncPar = false
+        ) const;
 
 
     // Mapping/Generation Methods

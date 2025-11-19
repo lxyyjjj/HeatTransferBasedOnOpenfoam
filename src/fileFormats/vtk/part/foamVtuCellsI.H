@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2021 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -96,10 +96,33 @@ Foam::vtk::vtuCells::addPointCellLabels() const noexcept
 }
 
 
+inline bool Foam::vtk::vtuCells::useCellMap() const noexcept
+{
+    return
+    (
+        (nAddCells() > 0)
+     || (selectionMode() == selectionModeType::SUBSET_MESH)
+    );
+}
+
+
 inline const Foam::labelList&
 Foam::vtk::vtuCells::cellMap() const noexcept
 {
     return maps_.cellMap();
+}
+
+
+inline bool Foam::vtk::vtuCells::usePointMap() const noexcept
+{
+    return (!maps_.pointMap().empty());
+}
+
+
+inline const Foam::labelUList&
+Foam::vtk::vtuCells::pointMap() const noexcept
+{
+    return maps_.pointMap();
 }
 
 

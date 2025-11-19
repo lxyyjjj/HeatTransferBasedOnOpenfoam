@@ -29,6 +29,63 @@ License
 #include "foamVtuCells.H"
 #include "foamVtkOutputOptions.H"
 
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace
+{
+
+// Need special care when concatenating begin/end offsets in parallel.
+//
+// From the first viable rank: use the begin/end offsets
+// Other ranks: use their end offsets only
+//
+// Returns a labelList since the caller will invariably need a deep copy
+// of values anyhow
+static Foam::labelList parCoordinatedOffsets
+(
+    const Foam::labelUList& offsets,
+    const int communicator
+)
+{
+    using namespace Foam;
+
+    if (UPstream::is_parallel(communicator))
+    {
+        // Length of addessed items (as per globalIndex)
+        const auto len = (offsets.size() - 1);
+
+        bool isLeader =
+        (
+            UPstream::find_first(len > 0, communicator)
+         == UPstream::myProcNo(communicator)
+        );
+
+        if (isLeader)
+        {
+            // The full list
+            return labelList(offsets);
+        }
+        else if (len > 0)
+        {
+            // Offsets without the first value
+            return labelList(offsets.slice(1));
+        }
+        else
+        {
+            // No valid offsets
+            return labelList();
+        }
+    }
+    else
+    {
+        // Return a copy, but unlikely to be called in non-parallel
+        return labelList(offsets);
+    }
+}
+
+} // End anonymous namespace
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::vtk::vtuCells::vtuCells
@@ -87,11 +144,11 @@ Foam::vtk::vtuCells::vtuCells
 
 void Foam::vtk::vtuCells::resize_all()
 {
-    cellTypes_.resize(nFieldCells());
-    vertLabels_.resize(sizeOf(output_, slotType::CELLS));
-    vertOffset_.resize(sizeOf(output_, slotType::CELLS_OFFSETS));
-    faceLabels_.resize(sizeOf(output_, slotType::FACES));
-    faceOffset_.resize(sizeOf(output_, slotType::FACES_OFFSETS));
+    cellTypes_.resize_nocopy(nFieldCells());
+    vertLabels_.resize_nocopy(sizeOf<slotType::CELLS>(output_));
+    vertOffset_.resize_nocopy(sizeOf<slotType::CELLS_OFFSETS>(output_));
+    faceLabels_.resize_nocopy(sizeOf<slotType::FACES>(output_));
+    faceOffset_.resize_nocopy(sizeOf<slotType::FACES_OFFSETS>(output_));
 }
 
 
@@ -103,7 +160,7 @@ void Foam::vtk::vtuCells::populateOutput(const polyMesh& mesh)
 
     switch (output_)
     {
-        case contentType::LEGACY:
+        case contentType::LEGACY :
         {
             populateLegacy
             (
@@ -115,7 +172,7 @@ void Foam::vtk::vtuCells::populateOutput(const polyMesh& mesh)
             break;
         }
 
-        case contentType::XML:
+        case contentType::XML :
         {
             populateXml
             (
@@ -130,8 +187,8 @@ void Foam::vtk::vtuCells::populateOutput(const polyMesh& mesh)
             break;
         }
 
-        case contentType::INTERNAL1:
-        case contentType::INTERNAL2:
+        case contentType::INTERNAL1 :
+        case contentType::INTERNAL2 :
         {
             populateInternal
             (
@@ -144,6 +201,11 @@ void Foam::vtk::vtuCells::populateOutput(const polyMesh& mesh)
                 maps_,
                 output_
             );
+            break;
+        }
+
+        case contentType::HDF :
+        {
             break;
         }
     }
@@ -166,7 +228,7 @@ void Foam::vtk::vtuCells::populateOutput(const UList<cellShape>& shapes)
     maps_.clear();
     resize_all();
     // Done in populate routine:
-    /// maps_.cellMap() = identity(vtuSizing::nCells());
+    // maps_.cellMap() = identity(vtuSizing::nCells());
 
     switch (output_)
     {
@@ -284,7 +346,11 @@ void Foam::vtk::vtuCells::resetShapes
 
     maps_.clear();
     resize_all();
-    maps_.cellMap() = identity(vtuSizing::nCells());
+
+    // Create an identity map
+    // The size == number of shapes, which is also vtuSizing::nCells()
+    maps_.cellMap().resize_nocopy(vtuSizing::nCells());
+    Foam::identity(maps_.cellMap());
 
     switch (output_)
     {
@@ -342,6 +408,216 @@ void Foam::vtk::vtuCells::renumberCells(const labelUList& mapping)
 void Foam::vtk::vtuCells::renumberPoints(const labelUList& mapping)
 {
     maps_.renumberPoints(mapping);
+}
+
+
+Foam::refPtr<Foam::labelList>
+Foam::vtk::vtuCells::vertLabels(label pointOffset) const
+{
+    if (pointOffset <= 0)
+    {
+        return refPtr<labelList>(vertLabels_);
+    }
+
+    auto tresult = refPtr<labelList>::New(vertLabels_);
+    vtuSizing::renumberVertLabels(tresult.ref(), pointOffset, output_);
+    return tresult;
+}
+
+
+Foam::refPtr<Foam::labelList>
+Foam::vtk::vtuCells::vertOffsets
+(
+    label beginOffset,
+    bool syncPar
+) const
+{
+    // If the format uses begin/end offsets, need special care
+    // when concatenating.
+
+    const bool uses_beginEnd_style =
+    (
+        (output_ == contentType::INTERNAL2)
+     || (output_ == contentType::HDF)
+    );
+
+    const auto& offsets = vertOffset_;
+
+    if (syncPar && UPstream::parRun() && uses_beginEnd_style)
+    {
+        auto tresult = refPtr<labelList>::New();
+        auto& result = tresult.ref();
+
+        result = parCoordinatedOffsets(offsets, UPstream::worldComm);
+
+        // Determine a consistent beginOffset
+        if (beginOffset < 0)
+        {
+            beginOffset = globalIndex::calcOffset<label>
+            (
+                (offsets.size() > 1 ? offsets.back() : 0),
+                UPstream::worldComm
+            );
+        }
+
+        if (beginOffset > 0)
+        {
+            for (auto& val : result)
+            {
+                val += beginOffset;
+            }
+        }
+
+        return tresult;
+    }
+    else
+    {
+        if (beginOffset <= 0)
+        {
+            return refPtr<labelList>(offsets);
+        }
+
+        auto tresult = refPtr<labelList>::New(offsets);
+        vtuSizing::renumberFaceOffsets(tresult.ref(), beginOffset, output_);
+        return tresult;
+    }
+}
+
+
+Foam::refPtr<Foam::labelList>
+Foam::vtk::vtuCells::faceLabels(label pointOffset) const
+{
+    if (pointOffset <= 0)
+    {
+        return refPtr<labelList>(faceLabels_);
+    }
+
+    auto tresult = refPtr<labelList>::New(faceLabels_);
+    vtuSizing::renumberFaceLabels(tresult.ref(), pointOffset, output_);
+    return tresult;
+}
+
+
+Foam::label Foam::vtk::vtuCells::faceOffsets_max() const
+{
+    const auto& offsets = faceOffset_;
+
+    switch (output_)
+    {
+        case contentType::LEGACY :
+        {
+            // Not applicable
+            break;
+        }
+
+        case contentType::XML :
+        {
+            // end offset with -1 for primitives
+            if (!offsets.empty())
+            {
+                return *(std::max_element(offsets.begin(), offsets.end()));
+            }
+            else
+            {
+                // No faces on the rank
+                return 0;
+            }
+            break;
+        }
+
+        case contentType::INTERNAL1 :
+        case contentType::INTERNAL2 :
+        {
+            // begin locations with -1 for primitives
+            // Unsupported (obsolete layout or not yet needed)
+            NotImplemented;
+            return 0;
+            break;
+        }
+
+        case contentType::HDF :
+        {
+            // begin/end offset
+            return (offsets.size() > 1 ? offsets.back() : 0);
+            break;
+        }
+    }
+    return 0;
+}
+
+
+Foam::refPtr<Foam::labelList>
+Foam::vtk::vtuCells::faceOffsets
+(
+    label beginOffset,
+    bool syncPar
+) const
+{
+    // If the format uses begin/end offsets, need special care
+    // when concatenating.
+
+    const bool uses_beginEnd_style =
+    (
+        (output_ == contentType::HDF)
+    );
+
+    const auto& offsets = faceOffset_;
+
+    if (syncPar && UPstream::parRun() && uses_beginEnd_style)
+    {
+        auto tresult = refPtr<labelList>::New();
+        auto& result = tresult.ref();
+
+        result = parCoordinatedOffsets(offsets, UPstream::worldComm);
+
+        // Determine a consistent beginOffset
+        if (beginOffset < 0)
+        {
+            beginOffset = globalIndex::calcOffset<label>
+            (
+                (offsets.size() > 1 ? offsets.back() : 0),
+                UPstream::worldComm
+            );
+        }
+
+        if (beginOffset > 0)
+        {
+            for (auto& val : result)
+            {
+                val += beginOffset;
+            }
+        }
+
+        return tresult;
+    }
+    else if (!offsets.empty())
+    {
+        if (beginOffset <= 0)
+        {
+            return refPtr<labelList>(offsets);
+        }
+
+        auto tresult = refPtr<labelList>::New(offsets);
+        vtuSizing::renumberFaceOffsets(tresult.ref(), beginOffset, output_);
+        return tresult;
+    }
+    else
+    {
+        auto tresult = refPtr<labelList>::New();
+        auto& result = tresult.ref();
+
+        // With VTKHDF, do not need dummy offsets
+        if (contentType::HDF == output_)
+        {
+            return tresult;
+        }
+
+        const label numCells = cellTypes_.size();
+
+        result = vtuSizing::dummyFaceOffsets(numCells, output_, beginOffset);
+
+        return tresult;
+    }
 }
 
 

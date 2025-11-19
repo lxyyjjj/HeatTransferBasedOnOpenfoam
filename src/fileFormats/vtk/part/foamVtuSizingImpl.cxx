@@ -154,6 +154,11 @@ void Foam::vtk::vtuSizing::adjustOffsets
             }
             break;
         }
+
+        case contentType::HDF :
+        {
+            break;
+        }
     }
 }
 
@@ -212,13 +217,13 @@ void Foam::vtk::vtuSizing::populateArrays
 
     faceOffset = -1;
 
-    // For INTERNAL2, the vertOffset is (nFieldCells+1), which means that
-    // the last entry is never visited. Set as zero now.
+    // Some formats have begin/end offsets (eg, nFieldCells+1),
+    // which means that either end may be unvisited. Set as zero now.
 
     if (vertOffset.size())
     {
-        vertOffset.first() = 0;
-        vertOffset.last() = 0;
+        vertOffset.front() = 0;
+        vertOffset.back() = 0;
     }
 
 
@@ -583,7 +588,7 @@ void Foam::vtk::vtuSizing::populateArrays
             hashUniqId.clear();  // unique node ids used (XML, INTERNAL)
 
             // face-stream
-            //   [nFaces, nFace0Pts, id1, id2, ..., nFace1Pts, id1, id2, ...]
+            //   [nFaces, nFace0Pts, id0,id1,..., nFace1Pts, id0,...]
             cellTypes[cellIndex] = vtk::cellType::VTK_POLYHEDRON;
 
             const labelList& cFaces = meshCells[celli];
@@ -667,7 +672,7 @@ void Foam::vtk::vtuSizing::populateArrays
         vertOffset,
         faceOffset,
         output,
-        sizing.nFaceLabels()  // hasFaceStream
+        sizing.hasPolyCells()  // hasFaceStream
     );
 }
 
@@ -729,7 +734,9 @@ void Foam::vtk::vtuSizing::populateArrays
 
 
     // Initialization
+    // ~~~~~~~~~~~~~~
 
+    // For XML + INTERNAL formats, tag with -1 for primitives
     faceOffset = -1;
 
     // For INTERNAL2, the vertOffset is (nFieldCells+1), which means that
@@ -860,7 +867,7 @@ void Foam::vtk::vtuSizing::populateArrays
 
     // May have been done by caller,
     // but for additional safety set an identity mapping
-    Foam::identity(cellMap);
+    std::iota(cellMap.begin(), cellMap.end(), 0);
 
     // ===========================================
     // Adjust vertOffset for all cells
@@ -878,7 +885,7 @@ void Foam::vtk::vtuSizing::populateArrays
         vertOffset,
         faceOffset,
         output,
-        sizing.nFaceLabels()  // hasFaceStream
+        sizing.hasPolyCells()  // hasFaceStream
     );
 }
 
