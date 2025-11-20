@@ -36,6 +36,12 @@ Foam::vtk::vtuCells::content() const noexcept
 }
 
 
+inline bool Foam::vtk::vtuCells::is_hdf() const noexcept
+{
+    return (output_ == contentType::HDF);
+}
+
+
 inline bool Foam::vtk::vtuCells::decomposeRequested() const noexcept
 {
     return decomposeRequest_;
@@ -86,6 +92,13 @@ inline const Foam::labelList&
 Foam::vtk::vtuCells::faceOffsets() const noexcept
 {
     return faceOffset_;
+}
+
+
+inline const Foam::labelList&
+Foam::vtk::vtuCells::polyFaceOffsets() const noexcept
+{
+    return polyFaceOffset_;
 }
 
 

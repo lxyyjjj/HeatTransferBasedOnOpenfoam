@@ -52,6 +52,8 @@ void Foam::vtk::vtuSizing::checkSizes
     const label vertOffset_size,
     const label faceLabels_size,
     const label faceOffset_size,
+    const label polyFaceIds_size,
+    const label polyFaceOffset_size,
 
     const enum contentType output,
     const label cellMap_size,
@@ -129,6 +131,52 @@ void Foam::vtk::vtuSizing::checkSizes
 
         case contentType::HDF :
         {
+            // VTKHDF connectivity/offset pairs
+            CHECK_SIZING
+            (
+                "Connectivity",
+                vertLabels_size,
+                sizing.sizeOf<slotType::CELLS>(output)
+            );
+            CHECK_SIZING
+            (
+                "Offsets",
+                vertOffset_size,
+                sizing.sizeOf<slotType::CELLS_OFFSETS>(output)
+            );
+            if (sizing.hasPolyCells())
+            {
+                CHECK_SIZING
+                (
+                    "FaceConnectivity",
+                    faceLabels_size,
+                    sizing.sizeOf<slotType::FACES>(output)
+                );
+                CHECK_SIZING
+                (
+                    "FaceOffsets",
+                    faceOffset_size,
+                    sizing.sizeOf<slotType::FACES_OFFSETS>(output)
+                );
+                CHECK_SIZING
+                (
+                    "PolyhedronOffsets",
+                    polyFaceOffset_size,
+                    sizing.sizeOf<slotType::POLY_FACEIDS_OFFSETS>(output)
+                );
+
+                // Note: polyFaceIds may be zero-sized (if demand-driven)
+                // So ignore any size mismatch there.
+                if (polyFaceIds_size)
+                {
+                    CHECK_SIZING
+                    (
+                        "PolyhedronToFaces",
+                        polyFaceIds_size,
+                        sizing.sizeOf<slotType::POLY_FACEIDS>(output)
+                    );
+                }
+            }
             break;
         }
     }
@@ -209,6 +257,27 @@ Foam::vtk::vtuSizing::vtuSizing
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+Foam::label Foam::vtk::vtuSizing::nFaceLabels(contentType output) const
+{
+    if (contentType::HDF == output)
+    {
+        // Just the number of face labels used
+        // == sum of [id0,id1, ... ] entries
+        return nFaceLabels_;
+    }
+    else
+    {
+        // The size for [nFaces, nFace0Pts, id0,id1,..., ] for all cells
+        return
+        (
+            nCellsPoly_   // Sum all [nFaces] entries
+          + nFacesPoly_   // Sum all [nFace0Pts, ..., nFace1Pts, ...] entries
+          + nFaceLabels_  // Sum all [id0,id1, ... ] entries
+        );
+    }
+}
+
 
 void Foam::vtk::vtuSizing::clear() noexcept
 {
@@ -373,6 +442,9 @@ void Foam::vtk::vtuSizing::reset
             // The face stream is often like this:
             // number of faces, size of each face, vertices per face
             // [nFaces, nFace0Pts, id0,id1,..., nFace1Pts, id0,...]
+            //
+            // but with VTKHDF the sizing is handled separately,
+            // so keep bookkeeping separate at this stage.
 
             const labelList& cFaces = meshCells[celli];
 
@@ -394,8 +466,6 @@ void Foam::vtk::vtuSizing::reset
             // - track what *NOT* to use for legacy
             nVertLabels_ += hashUniqId.size();
             nVertPoly_   += hashUniqId.size();
-
-            nFaceLabels_ += 1 + cFaces.size();
         }
     }
 
@@ -497,7 +567,7 @@ Foam::label Foam::vtk::vtuSizing::sizeOf
                     return
                     (
                         nVertLabels() + nAddVerts() - nVertPoly() // primitives
-                      + nFaceLabels()     // face-stream (poly)
+                      + nFaceLabels(output)  // face-stream (poly)
                       + nFieldCells()     // nFieldCells (size prefix)
                     );
                     break;
@@ -525,12 +595,17 @@ Foam::label Foam::vtk::vtuSizing::sizeOf
 
                 case slotType::FACES:
                     // Face stream with embedded sizes ...
-                    return nFaceLabels();
+                    return nFaceLabels(output);
                     break;
 
                 case slotType::FACES_OFFSETS:
                     // End offset per face connectivity
                     return hasPolyCells() ? nFieldCells() : 0;
+                    break;
+
+                // HDF only
+                case slotType::POLY_FACEIDS:
+                case slotType::POLY_FACEIDS_OFFSETS:
                     break;
             }
             break;
@@ -553,12 +628,17 @@ Foam::label Foam::vtk::vtuSizing::sizeOf
 
                 case slotType::FACES:
                     // Face stream with various prefixing
-                    return nFaceLabels();
+                    return nFaceLabels(output);
                     break;
 
                 case slotType::FACES_OFFSETS:
                     // The per-cell begin location of each face stream
                     return hasPolyCells() ? nFieldCells() : 0;
+                    break;
+
+                // HDF only
+                case slotType::POLY_FACEIDS:
+                case slotType::POLY_FACEIDS_OFFSETS:
                     break;
             }
             break;
@@ -580,12 +660,17 @@ Foam::label Foam::vtk::vtuSizing::sizeOf
 
                 case slotType::FACES:
                     // Face stream with various prefixing
-                    return nFaceLabels();
+                    return nFaceLabels(output);
                     break;
 
                 case slotType::FACES_OFFSETS:
                     // The per-cell begin location of each face stream
                     return hasPolyCells() ? nFieldCells() : 0;
+                    break;
+
+                // HDF only
+                case slotType::POLY_FACEIDS:
+                case slotType::POLY_FACEIDS_OFFSETS:
                     break;
             }
             break;
@@ -593,6 +678,39 @@ Foam::label Foam::vtk::vtuSizing::sizeOf
 
         case contentType::HDF :
         {
+            switch (slot)
+            {
+                case slotType::CELLS:
+                    // Cell connectivity and extra cell centres
+                    return (nVertLabels() + nAddVerts());
+                    break;
+
+                case slotType::CELLS_OFFSETS:
+                    // The begin/end offsets for cell connectivity
+                    return (nFieldCells() ? (nFieldCells() + 1) : 0);
+                    break;
+
+                case slotType::FACES:
+                    // Face vertices (no prefixing!)
+                    return nFaceLabels();
+                    break;
+
+                case slotType::FACES_OFFSETS:
+                    // The begin/end offsets for face connectivity
+                    return hasPolyCells() ? (nFacesPoly() + 1) : 0;
+                    break;
+
+                case slotType::POLY_FACEIDS:
+                    // Polyhedral face lookup (mapping)
+                    return hasPolyCells() ? nFacesPoly() : 0;
+                    break;
+
+                case slotType::POLY_FACEIDS_OFFSETS:
+                    // The per-cell begin/end offsets for polyhedral face lookup
+                    // - an empty range for primitive types
+                    return hasPolyCells() ? (nFieldCells() + 1) : 0;
+                    break;
+            }
             break;
         }
     }
@@ -622,9 +740,11 @@ void Foam::vtk::vtuSizing::populateLegacy
         *this,
         cellTypes,
         vertLabels,
-        unused, // offsets
-        unused, // faces
-        unused, // facesOffsets
+        unused,  // offsets
+        unused,  // faces
+        unused,  // facesOffsets
+        unused,  // polyFaceIds
+        unused,  // polyFaceOffsets
         contentType::LEGACY,
         maps.cellMap(),
         maps.additionalIds()
@@ -651,9 +771,11 @@ void Foam::vtk::vtuSizing::populateShapesLegacy
         *this,
         cellTypes,
         vertLabels,
-        unused, // offsets
-        unused, // faces
-        unused, // facesOffsets
+        unused,  // offsets
+        unused,  // faces
+        unused,  // facesOffsets
+        unused,  // polyFaceIds
+        unused,  // polyFaceOffsets
         contentType::LEGACY,
         maps.cellMap(),
         maps.additionalIds()
@@ -672,6 +794,9 @@ void Foam::vtk::vtuSizing::populateXml
     foamVtkMeshMaps& maps
 ) const
 {
+    // Leave as zero-sized so that populateArrays doesn't fill it.
+    List<label> unused;
+
     presizeMaps(maps);
 
     populateArrays
@@ -683,6 +808,8 @@ void Foam::vtk::vtuSizing::populateXml
         offsets,
         faces,
         facesOffsets,
+        unused,  // polyFaceIds
+        unused,  // polyFaceOffsets
         contentType::XML,
         maps.cellMap(),
         maps.additionalIds()
@@ -713,9 +840,44 @@ void Foam::vtk::vtuSizing::populateShapesXml
         cellTypes,
         connectivity,
         offsets,
-        unused, // faces
-        unused, // facesOffsets
+        unused,  // faces
+        unused,  // facesOffsets
+        unused,  // polyFaceIds
+        unused,  // polyFaceOffsets
         contentType::XML,
+        maps.cellMap(),
+        maps.additionalIds()
+    );
+}
+
+
+void Foam::vtk::vtuSizing::populateHdf
+(
+    const polyMesh& mesh,
+    UList<uint8_t>& cellTypes,
+    labelUList& connectivity,
+    labelUList& offsets,
+    labelUList& faces,
+    labelUList& facesOffsets,
+    labelUList& polyFaceIds,
+    labelUList& polyFaceOffsets,
+    foamVtkMeshMaps& maps
+) const
+{
+    presizeMaps(maps);
+
+    populateArrays
+    (
+        mesh,
+        *this,
+        cellTypes,
+        connectivity,
+        offsets,
+        faces,
+        facesOffsets,
+        polyFaceIds,
+        polyFaceOffsets,
+        contentType::HDF,
         maps.cellMap(),
         maps.additionalIds()
     );
@@ -737,6 +899,7 @@ void Foam::vtk::vtuSizing::populateShapesXml
         const enum contentType output                                        \
     ) const                                                                  \
     {                                                                        \
+        List<Type> unused;                                                   \
         presizeMaps(maps);                                                   \
                                                                              \
         populateArrays                                                       \
@@ -748,6 +911,8 @@ void Foam::vtk::vtuSizing::populateShapesXml
             offsets,                                                         \
             faces,                                                           \
             facesOffsets,                                                    \
+            unused,  /* polyFaceIds */                                       \
+            unused,  /* polyFaceOffsets */                                   \
             output,                                                          \
             maps.cellMap(),                                                  \
             maps.additionalIds()                                             \
@@ -767,6 +932,8 @@ void Foam::vtk::vtuSizing::populateShapesXml
         const enum contentType output                                        \
     ) const                                                                  \
     {                                                                        \
+        List<Type> unused;                                                   \
+                                                                             \
         populateArrays                                                       \
         (                                                                    \
             mesh,                                                            \
@@ -776,6 +943,8 @@ void Foam::vtk::vtuSizing::populateShapesXml
             offsets,                                                         \
             faces,                                                           \
             facesOffsets,                                                    \
+            unused,  /* polyFaceIds */                                       \
+            unused,  /* polyFaceOffsets */                                   \
             output,                                                          \
             cellMap,                                                         \
             addPointsIds                                                     \
@@ -958,6 +1127,18 @@ void Foam::vtk::vtuSizing::renumberFaceLabels
             break;
         }
 
+        case contentType::HDF :
+        {
+            // HDF faces
+            // [id1,id2,..., id1,id2,...]
+
+            for (label& id : faceLabels)
+            {
+                id += pointOffset;
+            }
+            break;
+        }
+
         default :
         {
             // XML, INTERNAL face-stream
@@ -1013,6 +1194,9 @@ void Foam::vtk::vtuSizing::renumberFaceOffsets
         {
             // XML, INTERNAL1, INTERNAL2, etc offsets
             // [-1, off1, off2, ... -1, ..]
+
+            // HDF offsets
+            // [off1, off2, ...]
 
             for (label& off : faceOffsets)
             {

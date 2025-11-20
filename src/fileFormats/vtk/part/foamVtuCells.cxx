@@ -29,6 +29,8 @@ License
 #include "foamVtuCells.H"
 #include "foamVtkOutputOptions.H"
 
+#define Foam_vtk_vtuCells_demandDriven_POLY_FACEIDS
+
 // * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
 namespace
@@ -121,7 +123,13 @@ Foam::vtk::vtuCells::vtuCells
 :
     vtuCells
     (
-        (opts.legacy() ? contentType::LEGACY : contentType::XML),
+        (
+            opts.legacy()
+          ? contentType::LEGACY
+          : opts.is_hdf()
+          ? contentType::HDF
+          : contentType::XML
+        ),
         decompose
     )
 {}
@@ -149,6 +157,16 @@ void Foam::vtk::vtuCells::resize_all()
     vertOffset_.resize_nocopy(sizeOf<slotType::CELLS_OFFSETS>(output_));
     faceLabels_.resize_nocopy(sizeOf<slotType::FACES>(output_));
     faceOffset_.resize_nocopy(sizeOf<slotType::FACES_OFFSETS>(output_));
+
+    #ifdef Foam_vtk_vtuCells_demandDriven_POLY_FACEIDS
+    polyFaceIds_.clear();
+    #else
+    polyFaceIds_.resize_nocopy(sizeOf<slotType::POLY_FACEIDS>(output_));
+    #endif
+    polyFaceOffset_.resize_nocopy
+    (
+        sizeOf<slotType::POLY_FACEIDS_OFFSETS>(output_)
+    );
 }
 
 
@@ -206,6 +224,19 @@ void Foam::vtk::vtuCells::populateOutput(const polyMesh& mesh)
 
         case contentType::HDF :
         {
+            // Note: polyFaceIds_ may be zero-sized (if demand-driven)
+            populateHdf
+            (
+                mesh,
+                cellTypes_,
+                vertLabels_,
+                vertOffset_,
+                faceLabels_,
+                faceOffset_,
+                polyFaceIds_,
+                polyFaceOffset_,
+                maps_
+            );
             break;
         }
     }
@@ -280,6 +311,8 @@ void Foam::vtk::vtuCells::clear()
     vertOffset_.clear();
     faceLabels_.clear();
     faceOffset_.clear();
+    polyFaceIds_.clear();
+    polyFaceOffset_.clear();
 
     maps_.clear();
 }
@@ -411,6 +444,26 @@ void Foam::vtk::vtuCells::renumberPoints(const labelUList& mapping)
 }
 
 
+const Foam::labelList& Foam::vtk::vtuCells::polyFaceIds() const
+{
+    #ifdef Foam_vtk_vtuCells_demandDriven_POLY_FACEIDS
+    if
+    (
+        const label numFaces =
+        (
+            (output_ == contentType::HDF) ? vtuSizing::nFacesPoly() : 0
+        );
+        (polyFaceIds_.size() < numFaces)
+    )
+    {
+        polyFaceIds_.resize_nocopy(numFaces);
+        std::iota(polyFaceIds_.begin(), polyFaceIds_.end(), 0);
+    }
+    #endif
+    return polyFaceIds_;
+}
+
+
 Foam::refPtr<Foam::labelList>
 Foam::vtk::vtuCells::vertLabels(label pointOffset) const
 {
@@ -498,54 +551,6 @@ Foam::vtk::vtuCells::faceLabels(label pointOffset) const
 }
 
 
-Foam::label Foam::vtk::vtuCells::faceOffsets_max() const
-{
-    const auto& offsets = faceOffset_;
-
-    switch (output_)
-    {
-        case contentType::LEGACY :
-        {
-            // Not applicable
-            break;
-        }
-
-        case contentType::XML :
-        {
-            // end offset with -1 for primitives
-            if (!offsets.empty())
-            {
-                return *(std::max_element(offsets.begin(), offsets.end()));
-            }
-            else
-            {
-                // No faces on the rank
-                return 0;
-            }
-            break;
-        }
-
-        case contentType::INTERNAL1 :
-        case contentType::INTERNAL2 :
-        {
-            // begin locations with -1 for primitives
-            // Unsupported (obsolete layout or not yet needed)
-            NotImplemented;
-            return 0;
-            break;
-        }
-
-        case contentType::HDF :
-        {
-            // begin/end offset
-            return (offsets.size() > 1 ? offsets.back() : 0);
-            break;
-        }
-    }
-    return 0;
-}
-
-
 Foam::refPtr<Foam::labelList>
 Foam::vtk::vtuCells::faceOffsets
 (
@@ -615,6 +620,113 @@ Foam::vtk::vtuCells::faceOffsets
         const label numCells = cellTypes_.size();
 
         result = vtuSizing::dummyFaceOffsets(numCells, output_, beginOffset);
+
+        return tresult;
+    }
+}
+
+
+Foam::refPtr<Foam::labelList>
+Foam::vtk::vtuCells::polyFaceIds(label beginOffset) const
+{
+    #ifdef Foam_vtk_vtuCells_demandDriven_POLY_FACEIDS
+    if
+    (
+        const label numFaces =
+        (
+            (output_ == contentType::HDF) ? vtuSizing::nFacesPoly() : 0
+        );
+        (polyFaceIds_.size() < numFaces)
+    )
+    {
+        auto tresult = refPtr<labelList>::New(numFaces);
+        auto& result = tresult.ref();
+        std::iota(result.begin(), result.end(), beginOffset);
+        return tresult;
+    }
+    #endif
+
+    if (beginOffset <= 0)
+    {
+        return refPtr<labelList>(polyFaceIds_);
+    }
+
+    auto tresult = refPtr<labelList>::New(polyFaceIds_);
+    auto& result = tresult.ref();
+
+    if (beginOffset > 0)
+    {
+        for (auto& val : result)
+        {
+            val += beginOffset;
+        }
+    }
+
+    return tresult;
+}
+
+
+Foam::refPtr<Foam::labelList>
+Foam::vtk::vtuCells::polyFaceOffsets
+(
+    label beginOffset,
+    bool syncPar
+) const
+{
+    // If the format uses begin/end offsets, need special care
+    // when concatenating.
+
+    const bool uses_beginEnd_style =
+    (
+        (output_ == contentType::HDF)
+    );
+
+    const auto& offsets = polyFaceOffset_;
+
+    if (syncPar && UPstream::parRun() && uses_beginEnd_style)
+    {
+        auto tresult = refPtr<labelList>::New();
+        auto& result = tresult.ref();
+
+        result = parCoordinatedOffsets(offsets, UPstream::worldComm);
+
+        // Determine a consistent beginOffset
+        if (beginOffset < 0)
+        {
+            beginOffset = globalIndex::calcOffset<label>
+            (
+                (offsets.size() > 1 ? offsets.back() : 0),
+                UPstream::worldComm
+            );
+        }
+
+        if (beginOffset > 0)
+        {
+            for (auto& val : result)
+            {
+                val += beginOffset;
+            }
+        }
+
+        return tresult;
+    }
+    else
+    {
+        if (beginOffset <= 0)
+        {
+            return refPtr<labelList>(offsets);
+        }
+
+        auto tresult = refPtr<labelList>::New(offsets);
+        auto& result = tresult.ref();
+
+        if (beginOffset > 0)
+        {
+            for (auto& val : result)
+            {
+                val += beginOffset;
+            }
+        }
 
         return tresult;
     }

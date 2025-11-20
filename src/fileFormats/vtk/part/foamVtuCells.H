@@ -110,6 +110,13 @@ class vtuCells
         //- Can be begin, or end or begin/end (depending on the format)
         List<label> faceOffset_;
 
+        //- Face ids per polyhedral cell (HDF only).
+        //  Possibly demand-driven content
+        mutable List<label> polyFaceIds_;
+
+        //- Offsets into the face ids (HDF only)
+        List<label> polyFaceOffset_;
+
         //- Bookkeeping for polyhedral cell decomposition,
         //- also used by the manual SUBSET_MESH selection mode.
         foamVtkMeshMaps maps_;
@@ -194,6 +201,9 @@ public:
         //- The pointMap is available and non-identity [FUTURE USE]
         inline bool usePointMap() const noexcept;
 
+        //- Test for hdf content type
+        inline bool is_hdf() const noexcept;
+
 
     // Edit
 
@@ -269,6 +279,13 @@ public:
         //    with an empty range for primitive types
         inline const labelList& faceOffsets() const noexcept;
 
+        //- Face ids per polyhedral cell (HDF only)
+        //  Possibly demand-driven content
+        const labelList& polyFaceIds() const;
+
+        //- Offsets into the polyhedral face ids (HDF only)
+        inline const labelList& polyFaceOffsets() const noexcept;
+
         //- Additional point addressing (from added point to original cell)
         inline const labelList& addPointCellLabels() const noexcept;
 
@@ -306,6 +323,22 @@ public:
         //- adjusted by the specified (global) face offset.
         //  Returns a dummy set of offsets if there are no "faces"
         refPtr<labelList> faceOffsets
+        (
+            //! For formats with begin/end, can specify -1 for
+            //! an automatic calculation (in parallel)
+            label beginOffset,
+            //! For begin/end offsets for parallel concatenation
+            bool syncPar = false
+        ) const;
+
+        //- The "PolyhedronToFaces" ids (HDF only)
+        //- adjusted by the specified (global) face offset.
+        refPtr<labelList> polyFaceIds(label beginOffset) const;
+
+        //- The "PolyhedronOffsets" (HDF only), which are the
+        //- offsets into the polyhedral face ids,
+        //- adjusted by the specified (global) cell offset.
+        refPtr<labelList> polyFaceOffsets
         (
             //! For formats with begin/end, can specify -1 for
             //! an automatic calculation (in parallel)

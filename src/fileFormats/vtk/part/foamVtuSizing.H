@@ -85,6 +85,19 @@ Description
         \c facelocation | begin location for each of \c faces, with -1 for primitive cells
     \endtable
 
+    \table
+        hdf storage (similar to internal2)
+        \c Types        | vtk cell type (1-255)
+        \c Connectivity | unique vertex labels used by the cell
+        \c Offsets      | begin/end offsets for \c Connectivity
+        \c FaceConnectivity | faces for polyhedral cells (their vertex labels)
+                        | [id0,id1,...]
+        \c FaceOffsets  | begin/end offsets for FaceConnectivity.
+        \c PolyhedronToFaces | face ids (faces are defined by FaceOffsets/FaceConnectivity)
+        \c PolyhedronOffsets | begin/end offsets for \c PolyhedronToFaces
+                        | Has size nCells+1
+    \endtable
+
     The VTK storage concept for "connectivity" and "faces" somewhat resemble
     a CompactListList.
 
@@ -158,6 +171,11 @@ public:
         //! end-offsets (XML), begin locations (INTERNAL),
         //! begin/end offsets (HDF)
         FACES_OFFSETS,
+        //! Polyhedral face lookup (HDF only)
+        POLY_FACEIDS,
+        //! Polyhedral face lookup offsets (HDF only):
+        //! per-cell begin/end offsets (HDF) otherwise
+        POLY_FACEIDS_OFFSETS,
     };
 
     //- How the mesh cells have been selected or defined
@@ -233,23 +251,17 @@ private:
             const label vertLabels_size, const label vertOffset_size,
             const label faceLabels_size, const label faceOffset_size,
 
+            // HDF only
+            const label polyFaceIds_size, const label polyFaceOffset_size,
+
             const enum contentType output,
 
             const label cellMap_size,
             const label addPointsIds_size
         );
 
-        //- Adjust cell/face offsets
-        template<class LabelType>
-        static void adjustOffsets
-        (
-            UList<LabelType>& vertOffset,
-            UList<LabelType>& faceOffset,
-            const enum contentType output,
-            const bool hasFaceStream
-        );
-
-        //- Populate lists. For (legacy | xml | internal) VTK representations
+        //- Populate lists.
+        //- For (legacy | xml | internal | hdf) VTK representations
         template<class LabelType>
         static void populateArrays
         (
@@ -260,6 +272,8 @@ private:
             UList<LabelType>& vertOffset,
             UList<LabelType>& faceLabels,
             UList<LabelType>& faceOffset,
+            UList<LabelType>& polyFaceIds,      // HDF only
+            UList<LabelType>& polyFaceOffsets,  // HDF only
             const enum contentType output,
             labelUList& cellMap,
             labelUList& addPointsIds
@@ -274,8 +288,10 @@ private:
             UList<uint8_t>& cellTypes,
             UList<LabelType>& vertLabels,
             UList<LabelType>& vertOffset,
-            UList<LabelType>& faceLabels,    // unused
-            UList<LabelType>& faceOffset,    // unused
+            UList<LabelType>& faceLabels,      // unused
+            UList<LabelType>& faceOffset,      // unused
+            UList<LabelType>& polyFaceIds,     // unused
+            UList<LabelType>& polyFaceOffsets, // unused
             const enum contentType output,
             labelUList& cellMap,
             labelUList& addPointsIds  // unused
@@ -380,8 +396,13 @@ public:
         //- Number of vertex labels for the mesh
         inline label nVertLabels() const noexcept;
 
-        //- Number of polyhedral face labels for the mesh
+        //- Number of polyhedral face labels for the mesh,
+        //- without any prefixing information
         inline label nFaceLabels() const noexcept;
+
+        //- Number of polyhedral face labels for the mesh
+        //- with format-dependent prefixing information
+        label nFaceLabels(contentType output) const;
 
         //- Number of output polyhedral cells for the mesh
         inline label nCellsPoly() const noexcept;
@@ -455,6 +476,20 @@ public:
             labelUList& offsets,
             labelUList& faces,
             labelUList& facesOffsets,
+            foamVtkMeshMaps& maps
+        ) const;
+
+        //- Populate lists for HDF output
+        void populateHdf
+        (
+            const polyMesh& mesh,
+            UList<uint8_t>& cellTypes,
+            labelUList& connectivity,
+            labelUList& offsets,
+            labelUList& faces,
+            labelUList& facesOffsets,
+            labelUList& polyFaceIds,
+            labelUList& polyFaceOffsets,
             foamVtkMeshMaps& maps
         ) const;
 
