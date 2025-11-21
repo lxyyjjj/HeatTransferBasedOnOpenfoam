@@ -98,14 +98,6 @@ class lagrangianWriter
         //- Write vertex (cells)
         void writeVerts();
 
-
-        //- No copy construct
-        lagrangianWriter(const lagrangianWriter&) = delete;
-
-        //- No copy assignment
-        void operator=(const lagrangianWriter&) = delete;
-
-
 protected:
 
     // Protected Member Functions
@@ -131,6 +123,15 @@ protected:
 
 public:
 
+    // Generated Methods
+
+        //- No copy construct
+        lagrangianWriter(const lagrangianWriter&) = delete;
+
+        //- No copy assignment
+        void operator=(const lagrangianWriter&) = delete;
+
+
     // Constructors
 
         //- Construct from components (default format INLINE_BASE64)
@@ -151,7 +152,7 @@ public:
             const fvMesh& mesh,
             const word& cloudName,
             const fileName& file,
-            bool parallel = Pstream::parRun()
+            bool parallel = UPstream::parRun()
         );
 
         //- Construct from components and open the file for writing.
@@ -162,7 +163,7 @@ public:
             const word& cloudName,
             const vtk::outputOptions opts,
             const fileName& file,
-            bool parallel = Pstream::parRun()
+            bool parallel = UPstream::parRun()
         );
 
 

@@ -237,8 +237,6 @@ void Foam::vtk::vtuSizing::populateArrays
     // The face owner is needed to determine the face orientation
     const labelList& owner = mesh.faceOwner();
 
-    // Unique vertex labels per polyhedral
-    labelHashSet hashUniqId(512);
 
     // Index into vertLabels, faceLabels for normal cells
     label nVertLabels = 0;
@@ -292,6 +290,10 @@ void Foam::vtk::vtuSizing::populateArrays
       ? cellMap.size()
       : shapes.size()
     );
+
+    // Unique vertex labels per polyhedral
+    labelHashSet hashUniqId;
+    if (!sizing.decompose()) { hashUniqId.reserve(256); }
 
 
     for

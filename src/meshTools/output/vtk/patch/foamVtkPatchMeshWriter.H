@@ -112,6 +112,9 @@ protected:
         //  \param pointOffset processor-local point offset
         void writePolys(const label pointOffset);
 
+public:
+
+    // Generated Methods
 
         //- No copy construct
         patchMeshWriter(const patchMeshWriter&) = delete;
@@ -120,15 +123,13 @@ protected:
         void operator=(const patchMeshWriter&) = delete;
 
 
-public:
-
     // Constructors
 
         //- Construct from components (default format INLINE_BASE64)
         patchMeshWriter
         (
             const polyMesh& mesh,
-            const labelList& patchIDs,
+            const labelUList& patchIDs,
             const vtk::outputOptions opts = vtk::formatType::INLINE_BASE64
         );
 
@@ -138,9 +139,9 @@ public:
         patchMeshWriter
         (
             const polyMesh& mesh,
-            const labelList& patchIDs,
+            const labelUList& patchIDs,
             const fileName& file,
-            bool parallel = Pstream::parRun()
+            bool parallel = UPstream::parRun()
         );
 
         //- Construct from components (default format INLINE_BASE64),
@@ -149,10 +150,10 @@ public:
         patchMeshWriter
         (
             const polyMesh& mesh,
-            const labelList& patchIDs,
+            const labelUList& patchIDs,
             const vtk::outputOptions opts,
             const fileName& file,
-            bool parallel = Pstream::parRun()
+            bool parallel = UPstream::parRun()
         );
 
 

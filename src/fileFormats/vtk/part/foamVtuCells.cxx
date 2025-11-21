@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2021 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,13 +39,7 @@ Foam::vtk::vtuCells::vtuCells
 :
     vtk::vtuSizing(),
     output_(output),
-    decomposeRequest_(decompose),
-    cellTypes_(),
-    vertLabels_(),
-    vertOffset_(),
-    faceLabels_(),
-    faceOffset_(),
-    maps_()
+    decomposeRequest_(decompose)
 {}
 
 

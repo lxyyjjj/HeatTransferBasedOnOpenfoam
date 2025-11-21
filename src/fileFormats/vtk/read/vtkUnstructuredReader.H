@@ -43,7 +43,8 @@ Description
       in faces() back to vtk numbering.
 
 SourceFiles
-    vtkUnstructuredReader.C
+    vtkUnstructuredReader.cxx
+    vtkUnstructuredReader.txx
 
 \*---------------------------------------------------------------------------*/
 

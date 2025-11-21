@@ -87,7 +87,7 @@ void Foam::vtk::patchMeshWriter::writePoints()
 
     this->beginPoints(numberOfPoints_);
 
-    if (parallel_ ? UPstream::master() : true)
+    if (parallel_ ? UPstream::master() : bool(format_))
     {
         for (const label patchId : patchIDs_)
         {
@@ -360,7 +360,7 @@ void Foam::vtk::patchMeshWriter::writePolys(const label pointOffset)
 Foam::vtk::patchMeshWriter::patchMeshWriter
 (
     const polyMesh& mesh,
-    const labelList& patchIDs,
+    const labelUList& patchIDs,
     const vtk::outputOptions opts
 )
 :
@@ -382,7 +382,7 @@ Foam::vtk::patchMeshWriter::patchMeshWriter
 Foam::vtk::patchMeshWriter::patchMeshWriter
 (
     const polyMesh& mesh,
-    const labelList& patchIDs,
+    const labelUList& patchIDs,
     const fileName& file,
     bool parallel
 )
@@ -396,7 +396,7 @@ Foam::vtk::patchMeshWriter::patchMeshWriter
 Foam::vtk::patchMeshWriter::patchMeshWriter
 (
     const polyMesh& mesh,
-    const labelList& patchIDs,
+    const labelUList& patchIDs,
     const vtk::outputOptions opts,
     const fileName& file,
     bool parallel
@@ -412,6 +412,8 @@ Foam::vtk::patchMeshWriter::patchMeshWriter
 
 bool Foam::vtk::patchMeshWriter::beginFile(std::string title)
 {
+    const auto& runTime = mesh_.time();
+
     if (title.size())
     {
         return vtk::fileWriter::beginFile(title);
@@ -451,8 +453,8 @@ bool Foam::vtk::patchMeshWriter::beginFile(std::string title)
 
     title +=
     (
-        " time='" + mesh_.time().timeName()
-      + "' index='" + Foam::name(mesh_.time().timeIndex())
+        " time='" + runTime.timeName()
+      + "' index='" + Foam::name(runTime.timeIndex())
       + "'"
     );
 
@@ -523,7 +525,7 @@ void Foam::vtk::patchMeshWriter::writePatchIDs()
 
     this->beginDataArray<label>("patchID", nPolys);
 
-    if (parallel_ ? UPstream::master() : true)
+    if (parallel_ ? UPstream::master() : bool(format_))
     {
         for (const label patchId : patchIDs_)
         {
@@ -624,9 +626,9 @@ bool Foam::vtk::patchMeshWriter::writeNeighIDs()
 
     this->beginDataArray<label>("neighID", nPolys);
 
-    bool good = false;
+    bool good = true;
 
-    if (parallel_ ? UPstream::master() : true)
+    if (parallel_ ? UPstream::master() : bool(format_))
     {
         for (const label patchId : patchIDs_)
         {
@@ -636,8 +638,6 @@ bool Foam::vtk::patchMeshWriter::writeNeighIDs()
 
             vtk::write(format(), val, patches[patchId].size());
         }
-
-        good = true;
     }
 
     if (parallel_)
@@ -687,12 +687,14 @@ bool Foam::vtk::patchMeshWriter::writeNeighIDs()
 
             toProc << send;
         }
+
+        // MPI barrier
+        Pstream::broadcast(good);
     }
 
     this->endDataArray();
 
-    // MPI barrier
-    return parallel_ ? returnReduceOr(good) : good;
+    return good;
 }
 
 

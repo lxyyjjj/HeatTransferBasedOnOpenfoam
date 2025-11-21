@@ -166,6 +166,8 @@ Foam::vtk::lagrangianWriter::lagrangianWriter
 
 bool Foam::vtk::lagrangianWriter::beginFile(std::string title)
 {
+    const auto& runTime = mesh_.time();
+
     if (title.size())
     {
         return vtk::fileWriter::beginFile(title);
@@ -177,10 +179,10 @@ bool Foam::vtk::lagrangianWriter::beginFile(std::string title)
 
     return vtk::fileWriter::beginFile
     (
-        "case='" + mesh_.time().globalCaseName()
+        "case='" + runTime.globalCaseName()
       + "' cloud='" + cloudName_
-      + "' time='" + mesh_.time().timeName()
-      + "' index='" + Foam::name(mesh_.time().timeIndex())
+      + "' time='" + runTime.timeName()
+      + "' index='" + Foam::name(runTime.timeIndex())
       + "'"
     );
 }

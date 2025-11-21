@@ -41,7 +41,8 @@ SeeAlso
     Foam::vtk::vtuSizing
 
 SourceFiles
-    foamVtuCells.C
+    foamVtuCells.cxx
+    foamVtuCells.txx
     foamVtuCellsI.H
 
 \*---------------------------------------------------------------------------*/
@@ -53,14 +54,20 @@ SourceFiles
 #include "foamVtkMeshMaps.H"
 #include "foamVtuSizing.H"
 #include "labelList.H"
+#include "pointField.H"
+#include "refPtr.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
+class polyMesh;
+
 namespace vtk
 {
+
 // Forward Declarations
 class outputOptions;
 
@@ -70,7 +77,7 @@ class outputOptions;
 
 class vtuCells
 :
-    public vtuSizing
+    public vtk::vtuSizing
 {
     // Private Data
 
@@ -116,14 +123,16 @@ class vtuCells
         //- Create the geometry entries from shapes
         void populateOutput(const UList<cellShape>& shapes);
 
+public:
+
+    // Generated Methods
+
         //- No copy construct
         vtuCells(const vtuCells&) = delete;
 
         //- No copy assignment
         void operator=(const vtuCells&) = delete;
 
-
-public:
 
     // Constructors
 

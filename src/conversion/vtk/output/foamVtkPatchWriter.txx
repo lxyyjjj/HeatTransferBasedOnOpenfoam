@@ -58,7 +58,8 @@ void Foam::vtk::patchWriter::write
 
     this->beginDataArray<Type>(field.name(), nPoints);
 
-    if (parallel_ ? Pstream::master() : true)
+    // Write for master
+    if (parallel_ ? UPstream::master() : bool(format_))
     {
         for (const label patchId : patchIDs_)
         {
@@ -83,7 +84,7 @@ void Foam::vtk::patchWriter::write
         // Patch Ids are identical across all processes
         const label nPatches = patchIDs_.size();
 
-        if (Pstream::master())
+        if (UPstream::master())
         {
             Field<Type> recv;
 
@@ -159,7 +160,8 @@ void Foam::vtk::patchWriter::write
 
     this->beginDataArray<Type>(field.name(), nFaces);
 
-    if (parallel_ ? Pstream::master() : true)
+    // Write for master
+    if (parallel_ ? UPstream::master() : bool(format_))
     {
         for (const label patchId : patchIDs_)
         {
@@ -256,7 +258,8 @@ void Foam::vtk::patchWriter::write
 
     this->beginDataArray<Type>(field.name(), nPoints);
 
-    if (parallel_ ? Pstream::master() : true)
+    // Write for master
+    if (parallel_ ? UPstream::master() : bool(format_))
     {
         for (const label patchId : patchIDs_)
         {

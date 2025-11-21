@@ -51,8 +51,7 @@ Foam::coordSetWriters::vtkWriter::vtkWriter()
 :
     coordSetWriter(),
     fmtType_(static_cast<unsigned>(vtk::formatType::INLINE_BASE64)),
-    precision_(IOstream::defaultPrecision()),
-    writer_(nullptr)
+    precision_(IOstream::defaultPrecision())
 {}
 
 
@@ -63,8 +62,7 @@ Foam::coordSetWriters::vtkWriter::vtkWriter
 :
     coordSetWriter(),
     fmtType_(static_cast<unsigned>(opts.fmt())),
-    precision_(opts.precision()),
-    writer_(nullptr)
+    precision_(opts.precision())
 {}
 
 
@@ -75,8 +73,7 @@ Foam::coordSetWriters::vtkWriter::vtkWriter(const dictionary& options)
     precision_
     (
         options.getOrDefault("precision", IOstream::defaultPrecision())
-    ),
-    writer_(nullptr)
+    )
 {
     // format: ascii | binary
     // legacy: true | false
@@ -145,28 +142,28 @@ Foam::fileName Foam::coordSetWriters::vtkWriter::path() const
 
 void Foam::coordSetWriters::vtkWriter::close(bool force)
 {
-    writer_.clear();
+    writer_.reset(nullptr);
     coordSetWriter::close(force);
 }
 
 
 void Foam::coordSetWriters::vtkWriter::beginTime(const Time& t)
 {
-    writer_.clear();
+    writer_.reset(nullptr);
     coordSetWriter::beginTime(t);
 }
 
 
 void Foam::coordSetWriters::vtkWriter::beginTime(const instant& inst)
 {
-    writer_.clear();
+    writer_.reset(nullptr);
     coordSetWriter::beginTime(inst);
 }
 
 
 void Foam::coordSetWriters::vtkWriter::endTime()
 {
-    writer_.clear();
+    writer_.reset(nullptr);
     coordSetWriter::endTime();
 }
 
@@ -176,7 +173,7 @@ Foam::fileName Foam::coordSetWriters::vtkWriter::write()
     checkOpen();
     if (needsUpdate())
     {
-        writer_.clear();
+        writer_.reset(nullptr);
     }
     merge();
 

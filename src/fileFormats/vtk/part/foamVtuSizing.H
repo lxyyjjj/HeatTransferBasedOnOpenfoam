@@ -100,7 +100,8 @@ Note
     (internal2) new format is being used.
 
 SourceFiles
-    foamVtuSizing.C
+    foamVtuSizing.cxx
+    foamVtuSizingImpl.cxx
     foamVtuSizingI.H
 
 \*---------------------------------------------------------------------------*/
@@ -108,8 +109,6 @@ SourceFiles
 #ifndef Foam_vtk_vtuSizing_H
 #define Foam_vtk_vtuSizing_H
 
-#include "label.H"
-#include "labelList.H"
 #include "foamVtkMeshMaps.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

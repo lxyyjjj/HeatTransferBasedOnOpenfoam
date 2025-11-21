@@ -85,7 +85,7 @@ void Foam::vtk::internalMeshWriter::writeCellData
             << exit(FatalError);
     }
 
-    const labelList& cellMap = vtuCells_.cellMap();
+    const labelUList& cellMap = vtuCells_.cellMap();
 
     this->beginDataArray<Type>(fieldName, numberOfCells_);
 

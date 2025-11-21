@@ -81,7 +81,6 @@ class surfaceFieldWriter
         //- The number of field points for the current Piece
         label numberOfPoints_;
 
-
 public:
 
     // Generated Methods
@@ -109,7 +108,7 @@ public:
         (
             const fvMesh& mesh,
             const fileName& file,
-            bool parallel = Pstream::parRun()
+            bool parallel = UPstream::parRun()
         );
 
         //- Construct from mesh and open the file for writing.
@@ -119,7 +118,7 @@ public:
             const fvMesh& mesh,
             const vtk::outputOptions opts,
             const fileName& file,
-            bool parallel = Pstream::parRun()
+            bool parallel = UPstream::parRun()
         );
 
 

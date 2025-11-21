@@ -30,7 +30,7 @@ Description
     Namespace for handling VTK input/output.
 
 SourceFiles
-    foamVtkCore.C
+    foamVtkCore.cxx
 
 \*---------------------------------------------------------------------------*/
 
@@ -49,7 +49,7 @@ namespace vtk
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-  // Enumerations
+    // Enumerations
 
     //- The context when outputting a VTK file (XML or legacy).
     enum OutputContext : uint8_t
@@ -192,11 +192,9 @@ namespace legacy
 
 } // End namespace legacy
 
-
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace vtk
-
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

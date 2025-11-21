@@ -33,7 +33,7 @@ License
 void Foam::foamVtkMeshMaps::renumberCells(const labelUList& mapping)
 {
     inplaceRenumber(mapping, cellMap_);
-    inplaceRenumber(mapping, additionalIds_);
+    inplaceRenumber(mapping, extraIds_);
 }
 
 

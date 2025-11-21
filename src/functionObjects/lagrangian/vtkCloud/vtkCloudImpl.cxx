@@ -37,7 +37,7 @@ Foam::wordList Foam::functionObjects::vtkCloud::writeFields
     const label nTotParcels
 ) const
 {
-    const direction nCmpt(pTraits<Type>::nComponents);
+    constexpr direction nCmpt = pTraits<Type>::nComponents;
 
     typedef typename pTraits<Type>::cmptType cmptType;
 

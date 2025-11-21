@@ -49,7 +49,7 @@ void Foam::vtk::internalWriter::write
             << exit(FatalError);
     }
 
-    const labelList& addPointCellLabels = vtuCells_.addPointCellLabels();
+    const labelUList& addPointCellLabels = vtuCells_.addPointCellLabels();
 
 
     this->beginDataArray<Type>(field.name(), numberOfPoints_);
@@ -125,7 +125,7 @@ void Foam::vtk::internalWriter::write
     tmp<PointFieldType> tfield = pInterp.interpolate(vfield);
     const auto& pfield = tfield();
 
-    const labelList& addPointCellLabels = vtuCells_.addPointCellLabels();
+    const labelUList& addPointCellLabels = vtuCells_.addPointCellLabels();
 
 
     this->beginDataArray<Type>(vfield.name(), numberOfPoints_);

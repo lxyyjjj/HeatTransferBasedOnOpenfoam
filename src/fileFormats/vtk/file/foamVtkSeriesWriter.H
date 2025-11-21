@@ -48,7 +48,8 @@ Description
     will be overwritten with the new time value.
 
 SourceFiles
-    foamVtkSeriesWriter.C
+    foamVtkSeriesWriter.cxx
+    foamVtkSeriesWriterI.H
 
 \*---------------------------------------------------------------------------*/
 
@@ -56,6 +57,7 @@ SourceFiles
 #define Foam_vtk_seriesWriter_H
 
 #include <fstream>
+
 #include "foamVtkOutputOptions.H"
 #include "instant.H"
 #include "fileNameInstant.H"

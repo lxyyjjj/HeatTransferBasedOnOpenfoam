@@ -75,8 +75,9 @@ class patchWriter
         //- Use internal field value instead of patch value
         bool useNearCellValue_;
 
+public:
 
-    // Private Member Functions
+    // Generated Methods
 
         //- No copy construct
         patchWriter(const patchWriter&) = delete;
@@ -85,18 +86,15 @@ class patchWriter
         void operator=(const patchWriter&) = delete;
 
 
-public:
-
     // Constructors
 
         //- Construct from components (default format INLINE_BASE64)
-        //
-        //  \param useNearCellValue to use cell instead of patch values
         patchWriter
         (
             const polyMesh& mesh,
-            const labelList& patchIDs,
+            const labelUList& patchIDs,
             const vtk::outputOptions opts = vtk::formatType::INLINE_BASE64,
+            //! Use patch internal instead of patch face values
             const bool useNearCellValue = false
         )
         :
@@ -110,9 +108,9 @@ public:
         patchWriter
         (
             const polyMesh& mesh,
-            const labelList& patchIDs,
+            const labelUList& patchIDs,
             const fileName& file,
-            bool parallel = Pstream::parRun()
+            bool parallel = UPstream::parRun()
         )
         :
             vtk::patchMeshWriter(mesh, patchIDs, file, parallel),
@@ -125,10 +123,10 @@ public:
         patchWriter
         (
             const polyMesh& mesh,
-            const labelList& patchIDs,
+            const labelUList& patchIDs,
             const vtk::outputOptions opts,
             const fileName& file,
-            bool parallel = Pstream::parRun()
+            bool parallel = UPstream::parRun()
         )
         :
             vtk::patchMeshWriter(mesh, patchIDs, opts, file, parallel),

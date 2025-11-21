@@ -405,7 +405,7 @@ Foam::label Foam::vtk::seriesWriter::load
     // }
 
     // Parsing states
-    enum parse
+    enum class parse
     {
         NONE,         // Looking for "files"
         FILES_ARRAY,  // Saw "file" : '['

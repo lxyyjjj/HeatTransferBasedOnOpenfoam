@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2017 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,7 +30,7 @@ License
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
 Foam::vtk::outputOptions&
-Foam::vtk::outputOptions::ascii(bool on)
+Foam::vtk::outputOptions::ascii(bool on) noexcept
 {
     if (on)
     {
@@ -78,7 +78,7 @@ Foam::vtk::outputOptions::ascii(bool on)
 
 
 Foam::vtk::outputOptions&
-Foam::vtk::outputOptions::append(bool on)
+Foam::vtk::outputOptions::append(bool on) noexcept
 {
     if (on)
     {
@@ -120,7 +120,7 @@ Foam::vtk::outputOptions::append(bool on)
 
 
 Foam::vtk::outputOptions&
-Foam::vtk::outputOptions::legacy(bool on)
+Foam::vtk::outputOptions::legacy(bool on) noexcept
 {
     if (on)
     {
@@ -162,14 +162,14 @@ Foam::vtk::outputOptions::legacy(bool on)
 
 
 Foam::vtk::outputOptions&
-Foam::vtk::outputOptions::precision(unsigned prec)
+Foam::vtk::outputOptions::precision(unsigned prec) noexcept
 {
     precision_ = prec;
     return *this;
 }
 
 
-Foam::string Foam::vtk::outputOptions::description() const
+std::string Foam::vtk::outputOptions::description() const
 {
     switch (fmtType_)
     {

@@ -40,7 +40,7 @@ bool Foam::ensightOutput::writeAreaField
     const ensightFaMesh& ensMesh
 )
 {
-    bool parallel = Pstream::parRun();
+    bool parallel = UPstream::parRun();
 
     // Write area part(s)
     {

@@ -43,26 +43,17 @@ bool Foam::vtk::writeTopoSet
     bool parallel
 )
 {
+    if (const auto* ptr = isA<pointSet>(set); ptr)
     {
-        const auto* ptr = isA<pointSet>(set);
-        if (ptr)
-        {
-            return vtk::writePointSet(mesh, *ptr, opts, file, parallel);
-        }
+        return vtk::writePointSet(mesh, *ptr, opts, file, parallel);
     }
+    if (const auto* ptr = isA<faceSet>(set); ptr)
     {
-        const auto* ptr = isA<faceSet>(set);
-        if (ptr)
-        {
-            return vtk::writeFaceSet(mesh, *ptr, opts, file, parallel);
-        }
+        return vtk::writeFaceSet(mesh, *ptr, opts, file, parallel);
     }
+    if (const auto* ptr = isA<cellSet>(set); ptr)
     {
-        const auto* ptr = isA<cellSet>(set);
-        if (ptr)
-        {
-            return vtk::writeCellSetFaces(mesh, *ptr, opts, file, parallel);
-        }
+        return vtk::writeCellSetFaces(mesh, *ptr, opts, file, parallel);
     }
 
     WarningInFunction

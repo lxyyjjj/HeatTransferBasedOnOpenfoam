@@ -129,11 +129,13 @@ void Foam::vtk::writeListParallel
     const globalIndex& procOffset
 )
 {
-    // Gather sizes (offsets irrelevant)
-    const globalIndex procAddr(globalIndex::gatherOnly{}, values.size());
+    // The receive sizes
+    const labelList recvSizes(globalIndex::calcRecvSizes(values.size()));
 
-    if (Pstream::master())
+    if (UPstream::master())
     {
+        const label maxRecvSize = recvSizes[0];
+
         // Write master data - with value offset
         const label offsetId = procOffset.localStart(0);
         for (const label val : values)
@@ -142,13 +144,11 @@ void Foam::vtk::writeListParallel
         }
 
         // Receive and write
-        DynamicList<label> recvData(procAddr.maxNonLocalSize());
+        DynamicList<label> recvData(maxRecvSize);
 
-        for (const label proci : procAddr.subProcs())
+        for (const int proci : UPstream::subProcs())
         {
-            const label procSize = procAddr.localSize(proci);
-
-            if (procSize)
+            if (label procSize = recvSizes[proci]; procSize > 0)
             {
                 recvData.resize_nocopy(procSize);
                 UIPstream::read

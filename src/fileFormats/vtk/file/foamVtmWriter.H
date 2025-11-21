@@ -64,7 +64,8 @@ Description
     \endcode
 
 SourceFiles
-    foamVtmWriter.C
+    foamVtmWriter.cxx
+    foamVtmWriterI.H
 
 \*---------------------------------------------------------------------------*/
 
@@ -307,6 +308,7 @@ public:
             const fileName& prefix,
             const vtmWriter& other
         );
+
 
     // Writing
 

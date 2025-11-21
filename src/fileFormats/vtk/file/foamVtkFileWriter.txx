@@ -48,7 +48,7 @@ void Foam::vtk::fileWriter::beginDataArray
         "Label and Floating-point vector space only"
     );
 
-    const direction nCmpt(pTraits<Type>::nComponents);
+    constexpr direction nCmpt = pTraits<Type>::nComponents;
 
     if (format_)
     {

@@ -63,25 +63,31 @@ Foam::label Foam::functionObjects::vtkWrite::writeAllVolFields
 {
     label count = 0;
 
+    do
     {
         #undef  doLocalCode
-        #define doLocalCode(FieldType)              \
+        #define doLocalCode(Type)                   \
+        {                                           \
+            typedef VolumeField<Type> FieldType;    \
+                                                    \
             count += writeVolFieldsImpl<FieldType>  \
             (                                       \
                 internalWriter,                     \
                 patchWriters,                       \
                 proxy,                              \
                 candidateNames                      \
-            );
+            );                                      \
+        }
 
-        doLocalCode(volScalarField);
-        doLocalCode(volVectorField);
-        doLocalCode(volSphericalTensorField);
-        doLocalCode(volSymmTensorField);
-        doLocalCode(volTensorField);
+        doLocalCode(scalar);
+        doLocalCode(vector);
+        doLocalCode(sphericalTensor);
+        doLocalCode(symmTensor);
+        doLocalCode(tensor);
 
         #undef doLocalCode
     }
+    while (false);
 
     return count;
 }
@@ -100,25 +106,31 @@ Foam::label Foam::functionObjects::vtkWrite::writeAllVolFields
 {
     label count = 0;
 
+    do
     {
         #undef  doLocalCode
-        #define doLocalCode(FieldType)              \
+        #define doLocalCode(Type)                   \
+        {                                           \
+            typedef VolumeField<Type> FieldType;    \
+                                                    \
             count += writeVolFieldsImpl<FieldType>  \
             (                                       \
                 internalWriter, pInterp,            \
                 patchWriters,   patchInterps,       \
                 proxy,                              \
                 candidateNames                      \
-            );
+            );                                      \
+        }
 
-        doLocalCode(volScalarField);
-        doLocalCode(volVectorField);
-        doLocalCode(volSphericalTensorField);
-        doLocalCode(volSymmTensorField);
-        doLocalCode(volTensorField);
+        doLocalCode(scalar);
+        doLocalCode(vector);
+        doLocalCode(sphericalTensor);
+        doLocalCode(symmTensor);
+        doLocalCode(tensor);
 
         #undef doLocalCode
     }
+    while (false);
 
     return count;
 }
@@ -555,7 +567,7 @@ bool Foam::functionObjects::vtkWrite::write()
 
             if (nVolFields)
             {
-                for (vtk::patchWriter& writer : patchWriters)
+                for (auto& writer : patchWriters)
                 {
                     // Optionally with patchID field
                     writer.beginCellData
@@ -650,7 +662,7 @@ bool Foam::functionObjects::vtkWrite::write()
             internalWriter->close();
         }
 
-        for (vtk::patchWriter& writer : patchWriters)
+        for (auto& writer : patchWriters)
         {
             writer.close();
         }

@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2017-2023 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -108,8 +108,8 @@ void Foam::vtk::internalMeshWriter::writePoints()
 
 void Foam::vtk::internalMeshWriter::writeCellsLegacy(const label pointOffset)
 {
-    const List<uint8_t>& cellTypes = vtuCells_.cellTypes();
-    const labelList& vertLabels = vtuCells_.vertLabels();
+    const UList<uint8_t>& cellTypes = vtuCells_.cellTypes();
+    const labelUList& vertLabels = vtuCells_.vertLabels();
 
     label nCells = cellTypes.size();
     label nVerts = vertLabels.size();
@@ -195,7 +195,7 @@ void Foam::vtk::internalMeshWriter::writeCellsConnectivity
     // 'connectivity'
     //
     {
-        const labelList& vertLabels = vtuCells_.vertLabels();
+        const labelUList& vertLabels = vtuCells_.vertLabels();
         label nVerts = vertLabels.size();
 
         if (parallel_)
@@ -238,9 +238,11 @@ void Foam::vtk::internalMeshWriter::writeCellsConnectivity
 
     //
     // 'offsets'  (connectivity offsets)
+    // NOTE: in the XML format these are the end offsets only,
+    // so they won't overlap when concatenated in parallel.
     //
     {
-        const labelList& vertOffsets = vtuCells_.vertOffsets();
+        const labelUList& vertOffsets = vtuCells_.vertOffsets();
         label nOffs = vertOffsets.size();
 
         if (parallel_)
@@ -262,7 +264,8 @@ void Foam::vtk::internalMeshWriter::writeCellsConnectivity
             // processor-local connectivity offsets
             const globalIndex procOffset
             (
-                vertOffsets.empty() ? 0 : vertOffsets.back()
+                globalIndex::gatherOnly{},
+                (vertOffsets.empty() ? 0 : vertOffsets.back())
             );
 
             vtk::writeListParallel(format_.ref(), vertOffsets, procOffset);
@@ -284,7 +287,7 @@ void Foam::vtk::internalMeshWriter::writeCellsConnectivity
     // 'types' (cell types)
     //
     {
-        const List<uint8_t>& cellTypes = vtuCells_.cellTypes();
+        const UList<uint8_t>& cellTypes = vtuCells_.cellTypes();
         label nCells = cellTypes.size();
 
         if (parallel_)
@@ -355,7 +358,7 @@ void Foam::vtk::internalMeshWriter::writeCellsFaces
     //
     // 'faces' (face streams)
     //
-    const labelList& faceLabels = vtuCells_.faceLabels();
+    const labelUList& faceLabels = vtuCells_.faceLabels();
 
     {
         // Already have nFaceLabels (above)
@@ -406,7 +409,7 @@ void Foam::vtk::internalMeshWriter::writeCellsFaces
     //
     // Result: A face offset value for each cell.
     {
-        const labelList& faceOffsets = vtuCells_.faceOffsets();
+        const labelUList& faceOffsets = vtuCells_.faceOffsets();
         const label nLocalCells = vtuCells_.cellTypes().size();
 
         label nCells = nLocalCells;
@@ -428,7 +431,7 @@ void Foam::vtk::internalMeshWriter::writeCellsFaces
 
         if (parallel_)
         {
-            const List<uint8_t>& cellTypes = vtuCells_.cellTypes();
+            const UList<uint8_t>& cellTypes = vtuCells_.cellTypes();
             const label nLocalCells = cellTypes.size();
 
             // processor-local offsets for faceLabels
@@ -522,6 +525,8 @@ Foam::vtk::internalMeshWriter::internalMeshWriter
 
 bool Foam::vtk::internalMeshWriter::beginFile(std::string title)
 {
+    const auto& runTime = mesh_.time();
+
     if (title.size())
     {
         return vtk::fileWriter::beginFile(title);
@@ -530,29 +535,27 @@ bool Foam::vtk::internalMeshWriter::beginFile(std::string title)
     // Provide default title
 
     DebugInFunction
-        << "case=" << mesh_.time().caseName()
+        << "case=" << runTime.caseName()
         << " region=" << mesh_.name()
-        << " time=" << mesh_.time().timeName()
-        << " index=" << mesh_.time().timeIndex() << endl;
-
+        << " time=" << runTime.timeName()
+        << " index=" << runTime.timeIndex() << endl;
 
     if (legacy())
     {
         return vtk::fileWriter::beginFile
         (
-            mesh_.time().globalCaseName()
+            runTime.globalCaseName()
         );
     }
-
 
     // XML (inline)
 
     return vtk::fileWriter::beginFile
     (
-        "case='" + mesh_.time().globalCaseName()
+        "case='" + runTime.globalCaseName()
       + "' region='" + mesh_.name()
-      + "' time='" + mesh_.time().timeName()
-      + "' index='" + Foam::name(mesh_.time().timeIndex())
+      + "' time='" + runTime.timeName()
+      + "' index='" + Foam::name(runTime.timeIndex())
       + "'"
     );
 }
@@ -620,7 +623,7 @@ void Foam::vtk::internalMeshWriter::writeCellIDs()
             << exit(FatalError);
     }
 
-    const labelList& cellMap = vtuCells_.cellMap();
+    const labelUList& cellMap = vtuCells_.cellMap();
 
 
     this->beginDataArray<label>("cellID", numberOfCells_);
@@ -628,7 +631,11 @@ void Foam::vtk::internalMeshWriter::writeCellIDs()
     if (parallel_)
     {
         // With decomposed cells for the cell offsets
-        const globalIndex globalCellOffset(vtuCells_.nFieldCells());
+        const globalIndex globalCellOffset
+        (
+            globalIndex::gatherOnly{},
+            vtuCells_.nFieldCells()
+        );
 
         vtk::writeListParallel(format_.ref(), cellMap, globalCellOffset);
     }
@@ -675,7 +682,7 @@ void Foam::vtk::internalMeshWriter::writePointIDs()
         parallel_ ? globalIndex::calcOffset(vtuCells_.nPoints()) : 0
     );
 
-    // Cell offset for *regular* mesh cells (without decomposed)
+    // Cell offset for regular mesh cells (without decomposed)
     const label cellOffset =
     (
         parallel_ ? globalIndex::calcOffset(vtuCells_.nCells()) : 0

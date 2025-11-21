@@ -46,7 +46,7 @@ bool Foam::ensightOutput::writeVolField
     const ensightMesh& ensMesh
 )
 {
-    bool parallel = Pstream::parRun();
+    bool parallel = UPstream::parRun();
 
     const fvMesh& mesh = vf.mesh();
     const polyBoundaryMesh& pbm = mesh.boundaryMesh();
@@ -203,7 +203,7 @@ bool Foam::ensightOutput::writePointField
     const ensightMesh& ensMesh
 )
 {
-    bool parallel = Pstream::parRun();
+    bool parallel = UPstream::parRun();
 
     const polyMesh& mesh = ensMesh.mesh();
 

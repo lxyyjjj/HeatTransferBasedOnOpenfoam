@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2021 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -85,7 +85,7 @@ protected:
         const polyMesh& mesh_;
 
         //- The volume cells (internalMesh)
-        const vtuCells& vtuCells_;
+        const vtk::vtuCells& vtuCells_;
 
 
 private:
@@ -110,14 +110,6 @@ private:
         //  \param pointOffset processor-local point offset
         void writeCellsFaces(const label pointOffset);
 
-
-        //- No copy construct
-        internalMeshWriter(const internalMeshWriter&) = delete;
-
-        //- No copy assignment
-        void operator=(const internalMeshWriter&) = delete;
-
-
 public:
 
     //- Debug information
@@ -125,6 +117,14 @@ public:
 
 //- File extension for given output type
 //  constexpr static vtk::fileTag content = vtk::fileTag::UNSTRUCTURED_GRID;
+
+    // Generated Methods
+
+        //- No copy construct
+        internalMeshWriter(const internalMeshWriter&) = delete;
+
+        //- No copy assignment
+        void operator=(const internalMeshWriter&) = delete;
 
 
     // Constructors
@@ -144,7 +144,7 @@ public:
             const polyMesh& mesh,
             const vtk::vtuCells& cells,
             const fileName& file,
-            bool parallel = Pstream::parRun()
+            bool parallel = UPstream::parRun()
         );
 
         //- Construct from components (default format INLINE_BASE64),
@@ -155,7 +155,7 @@ public:
             const vtk::vtuCells& cells,
             const vtk::outputOptions opts,
             const fileName& file,
-            bool parallel = Pstream::parRun()
+            bool parallel = UPstream::parRun()
         );
 
 

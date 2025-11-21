@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2022 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,14 +32,14 @@ License
 #include "manifoldCellsMeshObject.H"
 
 // Only used in this file
-#include "foamVtuSizingImpl.C"
+#include "foamVtuSizingImpl.cxx"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 void Foam::vtk::vtuSizing::presizeMaps(foamVtkMeshMaps& maps) const
 {
-    maps.cellMap().resize(this->nFieldCells());
-    maps.additionalIds().resize(this->nAddPoints());
+    maps.cellMap().resize_nocopy(this->nFieldCells());
+    maps.additionalIds().resize_nocopy(this->nAddPoints());
 }
 
 
@@ -224,7 +224,7 @@ void Foam::vtk::vtuSizing::clear() noexcept
 {
     decompose_   = false;
     manifold_    = false;
-    selectionMode_ = FULL_MESH;
+    selectionMode_ = selectionModeType::FULL_MESH;
     nCells_      = 0;
     nPoints_     = 0;
     nVertLabels_ = 0;
@@ -261,17 +261,13 @@ void Foam::vtk::vtuSizing::reset
     const cellModel& pyr   = cellModel::ref(cellModel::PYR);
     const cellModel& prism = cellModel::ref(cellModel::PRISM);
     const cellModel& hex   = cellModel::ref(cellModel::HEX);
-    const cellModel& wedge    = cellModel::ref(cellModel::WEDGE);
+    const cellModel& wedge = cellModel::ref(cellModel::WEDGE);
     const cellModel& tetWedge = cellModel::ref(cellModel::TETWEDGE);
 
     const cellShapeList& shapes = mesh.cellShapes();
     ///const cellList& meshCells = mesh.cells();
     const cellList& meshCells = manifoldCellsMeshObject::New(mesh).cells();
     const faceList& meshFaces = mesh.faces();
-
-    // Unique vertex labels per polyhedral
-    labelHashSet hashUniqId(2*256);
-
 
     // Special treatment for mesh subsets.
     const bool isSubsetMesh
@@ -286,7 +282,7 @@ void Foam::vtk::vtuSizing::reset
     }
     else
     {
-        decompose_  = decompose;  // Disallow decomposition
+        decompose_  = decompose;  // Permit decomposition (if requested)
         selectionMode_ = selectionModeType::FULL_MESH;
     }
 
@@ -309,6 +305,10 @@ void Foam::vtk::vtuSizing::reset
     nVertLabels_ = 0;
     nFaceLabels_ = 0;
     nVertPoly_   = 0;
+
+    // Unique vertex labels per polyhedral
+    labelHashSet hashUniqId;
+    if (!decompose_) { hashUniqId.reserve(256); }
 
     for (label inputi = 0; inputi < nInputCells; ++inputi)
     {
@@ -413,15 +413,15 @@ void Foam::vtk::vtuSizing::resetShapes
     const UList<cellShape>& shapes
 )
 {
-    const cellModel& tet      = cellModel::ref(cellModel::TET);
-    const cellModel& pyr      = cellModel::ref(cellModel::PYR);
-    const cellModel& prism    = cellModel::ref(cellModel::PRISM);
-    const cellModel& hex      = cellModel::ref(cellModel::HEX);
+    const cellModel& tet   = cellModel::ref(cellModel::TET);
+    const cellModel& pyr   = cellModel::ref(cellModel::PYR);
+    const cellModel& prism = cellModel::ref(cellModel::PRISM);
+    const cellModel& hex   = cellModel::ref(cellModel::HEX);
 
     decompose_ = false;  // Disallow decomposition
     manifold_ = false;   // Assume no manifold cells possible
 
-    selectionMode_ = SHAPE_MESH;
+    selectionMode_ = selectionModeType::SHAPE_MESH;
 
     const label nInputCells = shapes.size();
 
