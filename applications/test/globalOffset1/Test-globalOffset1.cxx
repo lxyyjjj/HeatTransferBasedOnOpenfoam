@@ -57,6 +57,7 @@ int main(int argc, char *argv[])
     // Info<< "Default construct bool: " << OffsetRange<bool>().size() << nl;
 
     typedef OffsetRange<int> intRange;
+    typedef GlobalOffset<int> intOffset;
 
     Info<< "Default construct int32_t: " << OffsetRange<int32_t>() << nl
         << "Default construct int64_t: " << OffsetRange<int64_t>() << nl;
@@ -70,10 +71,9 @@ int main(int argc, char *argv[])
 
         Pout<< "  input: " << range << nl;
 
-        #if 0
         Foam::reduceOffset(range);
+
         Pout<< "  reduced: " << range << nl;
-        #endif
 
         printInfo(range);
     }
@@ -92,7 +92,6 @@ int main(int argc, char *argv[])
             << range2 << ", "
             << range3 << nl;
 
-        #if 0
         Foam::reduceOffsets
         (
             UPstream::worldComm,
@@ -104,7 +103,36 @@ int main(int argc, char *argv[])
             << range1 << ", "
             << range2 << ", "
             << range3 << nl;
-        #endif
+    }
+
+    // Test mixing types (all derived from OffsetRange)
+    Pout<< nl;
+    {
+        intOffset range0(4);
+        intRange range1(10);
+
+        [[maybe_unused]] OffsetRange<int32_t> range_32(4);
+        [[maybe_unused]] OffsetRange<int64_t> range_64(4);
+        [[maybe_unused]] label value(10);
+
+        Pout<< "  input: "
+            << range0 << ", "
+            << range1 << nl;
+
+        Foam::reduceOffsets
+        (
+            UPstream::worldComm,
+            // Cannot mix representations - will not compile!
+            // value,
+            // range_32,
+            // range_64,
+            range0,
+            range1
+        );
+
+        Pout<< "  reduced: "
+            << range0 << ", "
+            << range1 << nl;
     }
 
     // Other tests
@@ -117,7 +145,6 @@ int main(int argc, char *argv[])
 
         Pout<< "  value=" << len1 << " unreduced: " << go1 << endl;
 
-        #if 0
         globalOffset go2(len2, UPstream::worldComm);
 
         Pout<< "  value=" << len2 << " reduced: " << go2 << endl;
@@ -130,16 +157,13 @@ int main(int argc, char *argv[])
         go1 = std::move(go2);
         Pout<< "  dst: " << go1 << endl;
         Pout<< "  src: " << go2 << endl;
-        #endif
     }
 
     Pout<< nl;
-    #if 0
     {
         auto range4 = globalOffset::calcOffsetRange(25);
         Pout<< "  calcOffsetRange(25) = " << range4 << endl;
     }
-    #endif
 
 
     Info<< "\nEnd\n" << endl;

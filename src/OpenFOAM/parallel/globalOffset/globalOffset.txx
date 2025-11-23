@@ -28,6 +28,121 @@ License
 #include "globalOffset.H"
 #include <array>
 
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
+
+namespace Foam
+{
+namespace PstreamDetail
+{
+
+// Reduction of OffsetRange is similar to globalIndex::calcOffsetTotal
+// but retaining all of the values as member data
+template<class IntType>
+void reduce_offsetRange
+(
+    Foam::OffsetRange<IntType>& range,
+    const int communicator  // The parallel communicator
+)
+{
+    if (UPstream::is_parallel(communicator))
+    {
+        // Exscan (sum) yields the offsets, assigns 0 for rank=0
+        IntType work = range.size();
+        UPstream::mpiExscan_sum(&work, 1, communicator);
+
+        // For the truly paranoid:
+        // if (UPstream::master(communicator)) work = 0;
+
+        range.start() = work;
+
+        // The rank=(nProcs-1) knows the total - broadcast to others
+        const auto root = (UPstream::nProcs(communicator)-1);
+        if (root == UPstream::myProcNo(communicator))
+        {
+            // Update work as total == (start + size)
+            work += range.size();
+        }
+        UPstream::broadcast(&work, 1, communicator, root);
+
+        range.total() = work;
+    }
+}
+
+
+// Implementation for reduceOffsets
+//
+// Equivalent to GlobalOffset::reduce (like globalIndex::calcOffsetTotal)
+// but bundles values and performs operations on multiple values,
+// which avoids calling MPI repeatedly
+template
+<
+    class IntType,      // Should match GlobalOffset::value_type
+    std::size_t... Is,
+    class... OffsetRanges
+>
+void reduce_offsetRanges
+(
+    const int communicator,       // The parallel communicator
+    std::index_sequence<Is...>,   // Indices into items
+    OffsetRanges&... items
+)
+{
+    if (UPstream::is_parallel(communicator))
+    {
+        using value_type = IntType;
+
+        // Like globalIndex::calcOffsetTotal
+        // but handling multiple items at once to reduce communication
+
+        // Pack all sizes into the work buffer
+        std::array<value_type, sizeof...(items)> work{ (items.size())... };
+
+        // Exscan (sum) yields the offsets, assigns 0 for rank=0
+        UPstream::mpiExscan_sum(work.data(), work.size(), communicator);
+
+        // For the truly paranoid:
+        // if (UPstream::master(communicator)) work.fill(0);
+
+        // The work buffer now contains the offsets, copy back to starts
+        ((items.start() = work[Is]), ...);
+
+        // The rank=(nProcs-1) knows the total - broadcast to others
+        const auto root = (UPstream::nProcs(communicator)-1);
+        if (root == UPstream::myProcNo(communicator))
+        {
+            // Update work buffer as total == (start + size)
+            ((work[Is] += items.size()), ...);
+        }
+        UPstream::broadcast(work.data(), work.size(), communicator, root);
+
+        // The work buffer now contains the totals, copy back to total_
+        ((items.total() = work[Is]), ...);
+    }
+}
+
+} // End namespace PstreamDetail
+} // End namespace Foam
+
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+template<class IntType>
+Foam::OffsetRange<IntType>
+Foam::GlobalOffset<IntType>::calcOffsetRange
+(
+    IntType localSize,
+    const int communicator
+)
+{
+    OffsetRange<IntType> result(localSize);
+
+    // Single-item reduction
+    Foam::PstreamDetail::reduce_offsetRange(result, communicator);
+
+    return result;
+}
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 template<class IntType>
@@ -40,6 +155,17 @@ Foam::GlobalOffset<IntType>::GlobalOffset(Istream& is)
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class IntType>
+void Foam::GlobalOffset<IntType>::reduce
+(
+    const int communicator
+)
+{
+    // Single-item reduction
+    Foam::PstreamDetail::reduce_offsetRange(*this, communicator);
+}
+
 
 template<class IntType>
 template<class IntType2>

@@ -88,6 +88,15 @@ public:
         //- No communication.
         inline constexpr GlobalOffset(IntType len) noexcept;
 
+        //- Construct from local size, with parallel coordination of
+        //- the offsets and total size
+        GlobalOffset
+        (
+            IntType len,
+            const int communicator,   //!< communicator
+            const bool parallel = UPstream::parRun()  //!< use parallel comms
+        );
+
         //- Read construct from start/size/total tuple
         explicit GlobalOffset(Istream& is);
 
@@ -101,6 +110,26 @@ public:
 
         //- Reset from local size with zero offset.
         inline void reset(IntType len = 0) noexcept;
+
+        //- Reset from local size, with parallel coordination of
+        //- the offsets and total size
+        inline void reset
+        (
+            const IntType len,
+            const int communicator,   //!< communicator
+            const bool parallel = UPstream::parRun()  //!< use parallel comms
+        );
+
+
+    // Parallel Functions
+
+        //- Based on the local input size,
+        //- calculate a globally-consistent local start and total.
+        //  See globalIndex::calcOffsetRange, globalIndex::calcOffsetTotal
+        void reduce
+        (
+            const int communicator = UPstream::worldComm  //!< communicator
+        );
 
 
     // Some functionality as per globalIndex
@@ -126,6 +155,17 @@ public:
         //  FatalError for an out-of-range value
         template<class IntType2>
         IntType2 toLocal(const IntType2 i) const;
+
+
+    // Helper Functions
+
+        //- Calculate a globally-consistent OffsetRange based on the
+        //- the local input size.
+        static OffsetRange<IntType> calcOffsetRange
+        (
+            IntType localSize,
+            const int communicator = UPstream::worldComm  //!< communicator
+        );
 };
 
 } // End namespace Foam
@@ -139,6 +179,84 @@ public:
 #ifdef NoRepository
     #include "globalOffset.txx"
 #endif
+
+// * * * * * * * * * * * * * * * Global Reduction  * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+//- Parallel reduction of OffsetRange (eg, GlobalOffset) on its size to
+//- yield the globally-consistent offset and the total size across all ranks
+template<class IntType>
+void reduceOffset
+(
+    OffsetRange<IntType>& range,
+    const int communicator = UPstream::worldComm
+)
+{
+    // Single-item reduction
+    Foam::PstreamDetail::reduce_offsetRange<IntType>
+    (
+        range,
+        communicator
+    );
+}
+
+
+//- Parallel reduction of multiple OffsetRange (eg, GlobalOffset) items.
+//  To avoid MPI multiple times it packs/unpacks values into a local work
+//  array.
+//
+//  \note OffsetRange is already restricted to integral types,
+//  but this wrapper also requires that the parameters have the same
+//  representation (ie, cannot mix int32/int64, signed/unsigned etc)
+template
+<
+    class First,
+    class... Rest,
+    class = std::enable_if_t
+    <
+    (
+        std::is_integral_v<typename First::value_type>
+     && std::is_base_of_v
+        <Foam::OffsetRange<typename First::value_type>, First>
+     && (std::is_base_of_v
+        <Foam::OffsetRange<typename First::value_type>, Rest> && ...)
+    )>
+>
+void reduceOffsets
+(
+    const int communicator,
+    First& first,
+    Rest&... rest
+)
+{
+    if constexpr (sizeof...(rest) == 0)
+    {
+        // Single-item reduction
+        Foam::PstreamDetail::reduce_offsetRange<typename First::value_type>
+        (
+            first,
+            communicator
+        );
+    }
+    else
+    {
+        // Reduce multiple items, use pack/unpack
+        Foam::PstreamDetail::reduce_offsetRanges<typename First::value_type>
+        (
+            communicator,
+            std::make_index_sequence<1 + sizeof...(rest)>{},
+            first,
+            rest...
+        );
+    }
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

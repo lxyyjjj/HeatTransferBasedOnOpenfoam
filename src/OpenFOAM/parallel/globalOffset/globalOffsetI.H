@@ -41,6 +41,23 @@ inline constexpr Foam::GlobalOffset<IntType>::GlobalOffset(IntType len) noexcept
 {}
 
 
+template<class IntType>
+inline Foam::GlobalOffset<IntType>::GlobalOffset
+(
+    IntType len,
+    const int communicator,
+    const bool parallel
+)
+:
+    OffsetRange<IntType>(len)
+{
+    if (parallel)
+    {
+        reduce(communicator);
+    }
+}
+
+
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 template<class IntType>
@@ -54,6 +71,23 @@ template<class IntType>
 inline void Foam::GlobalOffset<IntType>::reset(IntType len) noexcept
 {
     OffsetRange<IntType>::reset(len);
+}
+
+
+template<class IntType>
+inline void Foam::GlobalOffset<IntType>::reset
+(
+    IntType len,
+    const int communicator,
+    const bool parallel
+)
+{
+    OffsetRange<IntType>::reset(len);
+
+    if (parallel)
+    {
+        this->reduce(communicator);
+    }
 }
 
 
