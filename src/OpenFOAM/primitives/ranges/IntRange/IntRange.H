@@ -35,7 +35,7 @@ Note
 
 SourceFiles
     IntRangeI.H
-    IntRanges.C
+    IntRanges.cxx
 
 \*---------------------------------------------------------------------------*/
 

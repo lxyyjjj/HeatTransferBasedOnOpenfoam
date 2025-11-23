@@ -33,11 +33,11 @@ License
 
 // * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
-namespace Foam
+namespace
 {
 
-template<class T>
-inline static Istream& input(Istream& is, IntRange<T>& range)
+template<class IS, class T>
+inline IS& input(IS& is, Foam::IntRange<T>& range)
 {
     is.readBegin("IntRange");
     is >> range.start() >> range.size();
@@ -47,18 +47,19 @@ inline static Istream& input(Istream& is, IntRange<T>& range)
     return is;
 }
 
-template<class T>
-inline static Ostream& output(Ostream& os, const IntRange<T>& range)
+template<class OS, class T>
+inline OS& output(OS& os, const Foam::IntRange<T>& range)
 {
-    os  << token::BEGIN_LIST
-        << range.start() << token::SPACE << range.size()
-        << token::END_LIST;
+    os  << Foam::token::BEGIN_LIST
+        << range.start() << Foam::token::SPACE
+        << range.size()
+        << Foam::token::END_LIST;
 
     os.check(FUNCTION_NAME);
     return os;
 }
 
-} // End namespace Foam
+} // End anonymous namespace
 
 
 // * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
