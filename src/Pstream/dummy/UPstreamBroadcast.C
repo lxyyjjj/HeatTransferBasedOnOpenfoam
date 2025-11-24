@@ -34,7 +34,8 @@ bool Foam::UPstream::mpi_broadcast
     void* buf,
     std::streamsize count,
     const UPstream::dataTypes dataTypeId,
-    const int communicator
+    const int communicator,
+    const int root
 )
 {
     // Treat like serial

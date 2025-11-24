@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2024-2025 OpenCFD Ltd.
+    Copyright (C) 2025 Mark Olesen
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,81 +25,69 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "UPstream.H"
-#include "PstreamGlobals.H"
-
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::UPstream::Communicator::Communicator() noexcept
+template<class IntType>
+inline constexpr Foam::GlobalOffset<IntType>::GlobalOffset() noexcept
 :
-    UPstream::Communicator(MPI_COMM_NULL)
+    OffsetRange<IntType>()
 {}
 
 
-// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+template<class IntType>
+inline constexpr Foam::GlobalOffset<IntType>::GlobalOffset(IntType len) noexcept
+:
+    OffsetRange<IntType>(len)
+{}
 
-Foam::UPstream::Communicator
-Foam::UPstream::Communicator::lookup(int communicator)
+
+template<class IntType>
+inline Foam::GlobalOffset<IntType>::GlobalOffset
+(
+    IntType len,
+    const int communicator,
+    const bool parallel
+)
+:
+    OffsetRange<IntType>(len)
 {
-    MPI_Comm mpiComm = MPI_COMM_NULL;
-
-    if (communicator < 0)
+    if (parallel)
     {
-        // Default/short-cut : world-comm
-        communicator = UPstream::worldComm;
+        reduce(communicator);
     }
-
-    if (communicator < PstreamGlobals::MPICommunicators_.size())
-    {
-        mpiComm = PstreamGlobals::MPICommunicators_[communicator];
-    }
-    else
-    {
-        WarningInFunction
-            << "Illegal communicator " << communicator << nl
-            << "Should be within range [-1,"
-            << PstreamGlobals::MPICommunicators_.size()
-            << ')' << endl;
-    }
-
-    return UPstream::Communicator(mpiComm);
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool Foam::UPstream::Communicator::good() const noexcept
+template<class IntType>
+inline void Foam::GlobalOffset<IntType>::clear() noexcept
 {
-    return MPI_COMM_NULL != PstreamUtils::Cast::to_mpi(*this);
+    OffsetRange<IntType>::reset(0);
 }
 
 
-void Foam::UPstream::Communicator::reset() noexcept
+template<class IntType>
+inline void Foam::GlobalOffset<IntType>::reset(IntType len) noexcept
 {
-    *this = UPstream::Communicator(MPI_COMM_NULL);
+    OffsetRange<IntType>::reset(len);
 }
 
 
-int Foam::UPstream::Communicator::size() const
+template<class IntType>
+inline void Foam::GlobalOffset<IntType>::reset
+(
+    IntType len,
+    const int communicator,
+    const bool parallel
+)
 {
-    int val = 0;
+    OffsetRange<IntType>::reset(len);
 
-    MPI_Comm comm = PstreamUtils::Cast::to_mpi(*this);
-
-    if (MPI_COMM_SELF == comm)
+    if (parallel)
     {
-        return 1;
+        this->reduce(communicator);
     }
-    else if
-    (
-        (MPI_COMM_NULL == comm)
-     || (MPI_SUCCESS != MPI_Comm_size(comm, &val))
-    )
-    {
-        val = 0;
-    }
-
-    return val;
 }
 
 

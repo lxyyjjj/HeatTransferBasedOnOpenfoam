@@ -35,9 +35,9 @@ Description
     label globalFacei = globalFaces.toGlobal(facei);
 
 SourceFiles
-    globalIndex.C
-    globalIndexI.H
+    globalIndex.cxx
     globalIndex.txx
+    globalIndexI.H
 
 \*---------------------------------------------------------------------------*/
 
@@ -83,13 +83,6 @@ class globalIndex
             DynamicList<label>& validBins
         );
 
-        // Cannot use non-blocking for non-contiguous data.
-        // template<class Type>
-        // inline static UPstream::commsTypes getCommsType
-        // (
-        //     UPstream::commsTypes commsType
-        // ) noexcept;
-
         //- Report overflow at specified (non-negative) index
         static void reportOverflowAndExit
         (
@@ -97,6 +90,15 @@ class globalIndex
             const label prevOffset = -1,  // The last valid offset value
             const label count = 0         // The count to add to prevOffset
         );
+
+        //- Check for overflow and calls reportOverflowAndExit...
+        static inline void checkOverflowAndExit
+        (
+            const label idx,
+            const label prevOffset,     // The last valid offset value
+            const label count           // The count to add to prevOffset
+        );
+
 
 public:
 
@@ -356,6 +358,9 @@ public:
         //- Return start/size range of proci data
         inline labelRange range(const label proci) const;
 
+        //- Return start/size/total range of proci data
+        inline OffsetRange<label> offsetRange(const label proci) const;
+
         //- Is on processor proci
         inline bool isLocal(const label proci, const label i) const;
 
@@ -419,6 +424,9 @@ public:
 
         //- Return start/size range of local (myProcNo) data
         inline labelRange range() const;
+
+        //- Return start/size/total range of local (myProcNo) data
+        inline OffsetRange<label> offsetRange() const;
 
         //- Is on local processor
         inline bool isLocal(const label i) const;
@@ -525,26 +533,109 @@ public:
 
     // Helper Functions
 
-        //- Calculate globally-consistent local range (offset/size)
-        //- based on the local input size(s).
-        //  Effectively the same as globalIndex(localSize).range()
-        //  but without constructing an extra intermediate list of offsets
-        static labelRange calcRange
+        //- Based on the local input size(s),
+        //- calculate a globally-consistent local start offset.
+        //  No overflow checks.
+        //  \note Restricted to integral types.
+        template<class IntType>
+        static IntType calcOffset
         (
-            const label localSize,
-            const label comm = UPstream::worldComm,  //!< communicator
-            const bool checkOverflow = false
+            IntType localSize,
+            const label comm = UPstream::worldComm  //!< communicator
         );
 
-        //- Calculate globally-consistent local start offset
-        //- based on the local input size(s).
-        //  Effectively the same as globalIndex(localSize).localStart()
-        //  but without constructing an extra intermediate list of offsets
-        static label calcOffset
+        //- Based on the local input size(s),
+        //- calculate a globally-consistent local start offset
+        //- and the total size.
+        //  \note Restricted to integral types.
+        template<class IntType>
+        static std::pair<IntType,IntType> calcOffsetTotal
         (
-            const label localSize,
-            const label comm = UPstream::worldComm,  //!< communicator
-            const bool checkOverflow = false
+            IntType localSize,
+            const label comm = UPstream::worldComm  //!< communicator
+        );
+
+        //- Based on the local input size(s),
+        //- calculate a globally-consistent local start/size/total
+        //  \note Restricted to integral types.
+        template<class IntType>
+        static OffsetRange<IntType> calcOffsetRange
+        (
+            IntType localSize,
+            const label comm = UPstream::worldComm  //!< communicator
+        );
+
+        //- Based on the local input size(s),
+        //- calculate a globally-consistent local start offset.
+        //  With optional overflow checking.
+        //  \note Restricted to integral types.
+        template<class IntType>
+        static IntType calcOffset
+        (
+            IntType localSize,
+            const label comm,  //!< communicator
+            [[maybe_unused]] const bool checkOverflow
+        )
+        {
+            IntType start = globalIndex::calcOffset(localSize, comm);
+            // Assume no overflow for large integrals
+            if constexpr (sizeof(IntType) < sizeof(int64_t))
+            {
+                if (checkOverflow && UPstream::is_parallel(comm))
+                {
+                    checkOverflowAndExit
+                    (
+                        UPstream::myProcNo(comm), start, localSize
+                    );
+                }
+            }
+            return start;
+        }
+
+        //- Based on the local input size(s),
+        //- calculate a globally-consistent range (offset/size).
+        //  No overflow checks.
+        //  \note Restricted to integral types.
+        template<class IntType>
+        std::enable_if_t<std::is_integral_v<IntType>, IntRange<IntType>>
+        static calcRange
+        (
+            IntType localSize,
+            const label comm = UPstream::worldComm  //!< communicator
+        )
+        {
+            IntType start = globalIndex::calcOffset(localSize, comm);
+            return IntRange<IntType>(start, localSize);
+        }
+
+        //- Based on the local input size(s),
+        //- calculate a globally-consistent range (offset/size).
+        //- With optional overflow checking.
+        //  \note Restricted to integral types.
+        template<class IntType>
+        std::enable_if_t<std::is_integral_v<IntType>, IntRange<IntType>>
+        static calcRange
+        (
+            IntType localSize,
+            const label comm,  //!< communicator
+            const bool checkOverflow
+        )
+        {
+            IntType start =
+                globalIndex::calcOffset(localSize, comm, checkOverflow);
+            return IntRange<IntType>(start, localSize);
+        }
+
+        //- Get the receive sizes.
+        //- On master the length == nProcs and element [0] corresponds
+        //- to the max of all other receive sizes.
+        //- On non-master, the list is zero-sized.
+        //  \note Restricted to integral types.
+        template<class IntType>
+        static List<IntType> calcRecvSizes
+        (
+            IntType localSize,
+            const label comm = UPstream::worldComm  //!< communicator
         );
 
         //- Calculate offsets from a list of local sizes,

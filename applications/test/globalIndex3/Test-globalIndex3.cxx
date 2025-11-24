@@ -117,11 +117,11 @@ void globalIndexGather
     {
         using cmptType = typename pTraits<Type>::cmptType;
 
-        if (std::is_same<float, cmptType>::value)
+        if (std::is_same_v<float, cmptType>)
         {
             dataType = MPI_FLOAT;
         }
-        else if (std::is_same<double, cmptType>::value)
+        else if (std::is_same_v<double, cmptType>)
         {
             dataType = MPI_DOUBLE;
         }

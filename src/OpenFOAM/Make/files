@@ -35,7 +35,7 @@ parallel/processorTopology/processorTopology.C
 
 bools = primitives/bools
 $(bools)/bool/bool.C
-$(bools)/Switch/Switch.C
+$(bools)/Switch/Switch.cxx
 $(bools)/lists/boolList.C
 
 chars = primitives/chars
@@ -211,13 +211,14 @@ $(sha1)/SHA1Digest.C
 primitives/random/Random/Random.C
 
 ranges = primitives/ranges
-$(ranges)/IntRange/IntRanges.C
-$(ranges)/labelRange/labelRange.C
-$(ranges)/labelRange/labelRanges.C
-$(ranges)/scalarRange/scalarRange.C
-$(ranges)/scalarRange/scalarRanges.C
-$(ranges)/sliceRange/sliceRange.C
-$(ranges)/tableBounds/tableBounds.C
+$(ranges)/IntRange/IntRanges.cxx
+$(ranges)/OffsetRange/OffsetRanges.cxx
+$(ranges)/labelRange/labelRange.cxx
+$(ranges)/labelRange/labelRanges.cxx
+$(ranges)/scalarRange/scalarRange.cxx
+$(ranges)/scalarRange/scalarRanges.cxx
+$(ranges)/sliceRange/sliceRange.cxx
+$(ranges)/tableBounds/tableBounds.cxx
 
 spatialVectorAlgebra = primitives/spatialVectorAlgebra
 $(spatialVectorAlgebra)/SpatialVector/spatialVector/spatialVector.C
@@ -842,7 +843,7 @@ algorithms/dynamicIndexedOctree/dynamicIndexedOctreeBase.C
 algorithms/dynamicIndexedOctree/dynamicTreeDataPoint.C
 
 parallel/commSchedule/commSchedule.C
-parallel/globalIndex/globalIndex.C
+parallel/globalIndex/globalIndex.cxx
 
 meshes/meshState/meshState.C
 

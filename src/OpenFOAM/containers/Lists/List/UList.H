@@ -572,27 +572,36 @@ public:
 
         //- True if all entries are 'true' or if the list is empty.
         //  \note Method name compatibility with bitSet
-        template<class TypeT = T>
-        std::enable_if_t<std::is_same_v<bool, std::remove_cv_t<TypeT>>, bool>
-        inline all() const
+        template
+        <
+            class TypeT = T,
+            class = std::enable_if_t<stdFoam::is_bool_v<TypeT>>
+        >
+        inline bool all() const
         {
             return !contains(false);
         }
 
         //- True if any entries are 'true'.
         //  \note Method name compatibility with bitSet
-        template<class TypeT = T>
-        std::enable_if_t<std::is_same_v<bool, std::remove_cv_t<TypeT>>, bool>
-        inline any() const
+        template
+        <
+            class TypeT = T,
+            class = std::enable_if_t<stdFoam::is_bool_v<TypeT>>
+        >
+        inline bool any() const
         {
             return contains(true);
         }
 
         //- True if no entries are 'true'.
         //  \note Method name compatibility with bitSet
-        template<class TypeT = T>
-        std::enable_if_t<std::is_same_v<bool, std::remove_cv_t<TypeT>>, bool>
-        inline none() const
+        template
+        <
+            class TypeT = T,
+            class = std::enable_if_t<stdFoam::is_bool_v<TypeT>>
+        >
+        inline bool none() const
         {
             return !contains(true);
         }
@@ -600,9 +609,12 @@ public:
         //- Test \c bool value at specified position,
         //- always false for out-of-range access.
         //  \note Method name compatibility with bitSet, HashSet
-        template<class TypeT = T>
-        std::enable_if_t<std::is_same_v<bool, std::remove_cv_t<TypeT>>, bool>
-        inline test(const label i) const
+        template
+        <
+            class TypeT = T,
+            class = std::enable_if_t<stdFoam::is_bool_v<TypeT>>
+        >
+        inline bool test(const label i) const
         {
             return (i >= 0 && i < size_ && v_[i]);
         }
@@ -610,9 +622,12 @@ public:
         //- Return \c bool value at specified position,
         //- always false for out-of-range access.
         //  \note Method name compatibility with bitSet
-        template<class TypeT = T>
-        std::enable_if_t<std::is_same_v<bool, std::remove_cv_t<TypeT>>, bool>
-        inline get(const label i) const
+        template
+        <
+            class TypeT = T,
+            class = std::enable_if_t<stdFoam::is_bool_v<TypeT>>
+        >
+        inline bool get(const label i) const
         {
             return (i >= 0 && i < size_ && v_[i]);
         }
@@ -621,9 +636,12 @@ public:
         //- always false for out-of-range access.
         //  \return True if value changed and was not out-of-range
         //  \note Method name compatibility with bitSet
-        template<class TypeT = T>
-        std::enable_if_t<std::is_same_v<bool, TypeT>, bool>
-        inline unset(const label i)
+        template
+        <
+            class TypeT = T,
+            class = std::enable_if_t<stdFoam::is_bool_v<TypeT>>
+        >
+        inline bool unset(const label i)
         {
             if (i >= 0 && i < size_ && v_[i])
             {
@@ -634,10 +652,12 @@ public:
         }
 
         //- Return a string_view of the charList. Content is non-modifiable.
-        template<class TypeT = T>
-        std::enable_if_t
-        <std::is_same_v<char, std::remove_cv_t<TypeT>>, std::string_view>
-        inline view() const
+        template
+        <
+            class TypeT = T,
+            class = std::enable_if_t<stdFoam::is_char_v<TypeT>>
+        >
+        inline std::string_view view() const
         {
             return std::string_view(v_, size_);
         }

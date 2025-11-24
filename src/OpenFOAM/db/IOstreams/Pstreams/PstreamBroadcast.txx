@@ -52,6 +52,7 @@ void Foam::Pstream::broadcast
     }
     else
     {
+        // Non-contiguous content - serialize it
         if (UPstream::master(communicator))
         {
             OPBstream::send(value, communicator);
@@ -77,8 +78,7 @@ void Foam::Pstream::broadcast
     }
     else if constexpr (is_contiguous_v<Type>)
     {
-        // Size is known and identical on all ranks
-        UPstream::broadcast(list.data(), list.size(), communicator);
+        UPstream::broadcast(list, communicator);
     }
     else
     {

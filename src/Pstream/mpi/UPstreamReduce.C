@@ -191,6 +191,7 @@ void Foam::UPstream::mpi_reduce
 
     // Workaround for missing/broken in-place handling.
     // Use a local buffer to send the data from.
+    // - probably not thread-safe
 
     #ifndef Foam_vendor_supports_INPLACE_REDUCE
     static std::unique_ptr<char[]> work;
@@ -421,6 +422,101 @@ void Foam::UPstream::mpi_allreduce
             communicator,
             req
         );
+    }
+}
+
+
+// Based on the experience with MPI_Reduce (see above),
+// do not assume that anyone actually supports the inplace option
+
+void Foam::UPstream::mpi_scan_reduce
+(
+    void* values,                          // Type checking done by caller
+    int count,
+    const UPstream::dataTypes dataTypeId,  // Proper type passed by caller
+    const UPstream::opCodes opCodeId,      // Proper code passed by caller
+    const int communicator,                // Index into MPICommunicators_
+    const bool exclusive                   // Exclusive scan
+)
+{
+    MPI_Datatype datatype = PstreamGlobals::getDataType(dataTypeId);
+    MPI_Op optype = PstreamGlobals::getOpCode(opCodeId);
+
+    if (!count || !UPstream::is_parallel(communicator))
+    {
+        // Nothing to do - ignore
+        return;
+    }
+    if
+    (
+        FOAM_UNLIKELY
+        (
+            !is_basic_dataType(dataTypeId)
+         || !is_reduce_opCode(opCodeId)
+         || (values == nullptr)
+        )
+    )
+    {
+        FatalErrorInFunction;
+        printErrorMessage(values, dataTypeId, opCodeId);
+        FatalError << Foam::abort(FatalError);
+    }
+
+    if (FOAM_UNLIKELY(UPstream::debug))
+    {
+        Perr<< "[mpi_scan_reduce] : (inplace)"
+            << " op:" << int(opCodeId)
+            << " type:" << int(dataTypeId) << " count:" << count
+            << " comm:" << communicator
+            << " excl:" << exclusive << Foam::endl;
+        // error::printStack(Perr);
+    }
+
+    // Avoid the possibility of missing/broken in-place handling.
+    // Use a local buffer to send the data from.
+    // - probably not thread-safe
+
+    static std::unique_ptr<char[]> work;
+    static int work_len(0);
+
+    const int num_bytes = [=](int n)
+    {
+        int size = 1;
+        MPI_Type_size(datatype, &size);
+        return (size * n);
+    }(count);
+
+    if (work_len < num_bytes)
+    {
+        // Min length to avoid many initial re-allocations
+        work_len = std::max(256, num_bytes);
+        work.reset();
+        work = std::make_unique<char[]>(work_len);
+    }
+    void* send_buffer = work.get();
+
+    std::memcpy(send_buffer, values, num_bytes);
+
+    PstreamDetail::scanReduce
+    (
+        send_buffer,
+        values,
+        count,
+        datatype,
+        optype,
+        communicator,
+        exclusive
+    );
+
+    // In exclusive mode, the value for rank=0 is degenerate and the
+    // standard doesn't say which value (if any) it will have.
+    //
+    // Overwrite with the original value so we are certain to have
+    // a valid but perhaps meaningless value.
+
+    if (exclusive && UPstream::master(communicator))
+    {
+        std::memcpy(values, send_buffer, num_bytes);
     }
 }
 

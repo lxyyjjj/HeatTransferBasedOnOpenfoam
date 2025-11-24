@@ -84,4 +84,16 @@ void Foam::UPstream::mpi_allreduce
 {}
 
 
+void Foam::UPstream::mpi_scan_reduce
+(
+    void* values,
+    int count,
+    const UPstream::dataTypes dataTypeId,
+    const UPstream::opCodes opCodeId,
+    const int communicator,
+    const bool exclusive
+)
+{}
+
+
 // ************************************************************************* //

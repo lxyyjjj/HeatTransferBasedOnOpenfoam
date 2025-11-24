@@ -62,135 +62,6 @@ void Foam::globalIndex::reportOverflowAndExit
 }
 
 
-Foam::labelRange
-Foam::globalIndex::calcRange
-(
-    const label localSize,
-    const label comm,
-    const bool checkOverflow
-)
-{
-    // Range with 0-offset initially
-    labelRange myRange(0, localSize);
-
-    if (!UPstream::is_parallel(comm))
-    {
-        return myRange;
-    }
-
-    const label myProci = UPstream::myProcNo(comm);
-    const labelList counts = UPstream::allGatherValues(localSize, comm);
-
-    if (checkOverflow)
-    {
-        const label len = counts.size();
-
-        label start = 0;
-
-        for (label i = 0; i < len; ++i)
-        {
-            const label count = counts[i];
-
-            if (i == myProci)
-            {
-                myRange.start() = start;
-            }
-
-            const label prev = start;
-            start += count;
-
-            if (start < prev)
-            {
-                reportOverflowAndExit(i, prev, count);
-            }
-        }
-    }
-    else
-    {
-        // std::accumulate
-        // (
-        //     counts.cbegin(),
-        //     counts.cbegin(myProci),
-        //     label(0)
-        // );
-
-        label start = 0;
-
-        for (label i = 0; i < myProci; ++i)
-        {
-            start += counts[i];
-        }
-        myRange.start() = start;
-    }
-
-    return myRange;
-}
-
-
-Foam::label
-Foam::globalIndex::calcOffset
-(
-    const label localSize,
-    const label comm,
-    const bool checkOverflow
-)
-{
-    // Placeholder value
-    label myOffset = 0;
-
-    if (!UPstream::is_parallel(comm))
-    {
-        return myOffset;
-    }
-
-    const label myProci = UPstream::myProcNo(comm);
-    const labelList counts = UPstream::allGatherValues(localSize, comm);
-
-    if (checkOverflow)
-    {
-        const label len = counts.size();
-
-        label start = 0;
-
-        for (label i = 0; i < len; ++i)
-        {
-            const label count = counts[i];
-            if (i == myProci)
-            {
-                myOffset = start;
-            }
-
-            const label prev = start;
-            start += count;
-
-            if (start < prev)
-            {
-                reportOverflowAndExit(i, prev, count);
-            }
-        }
-    }
-    else
-    {
-        // std::accumulate
-        // (
-        //     counts.cbegin(),
-        //     counts.cbegin(myProci),
-        //     label(0)
-        // );
-
-        label start = 0;
-
-        for (label i = 0; i < myProci; ++i)
-        {
-            start += counts[i];
-        }
-        myOffset = start;
-    }
-
-    return myOffset;
-}
-
-
 Foam::labelList
 Foam::globalIndex::calcOffsets
 (
@@ -608,7 +479,7 @@ Foam::label Foam::globalIndex::maxNonLocalSize(const label proci) const
         if (i != proci)
         {
             const label count = (offsets_[i+1] - offsets_[i]);
-            maxLen = max(maxLen, count);
+            maxLen = std::max(maxLen, count);
         }
     }
 

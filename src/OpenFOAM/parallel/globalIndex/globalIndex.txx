@@ -31,22 +31,87 @@ License
 
 // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
-// Cannot use non-blocking for non-contiguous data.
-// template<class Type>
-// inline Foam::UPstream::commsTypes Foam::globalIndex::getCommsType
+template<class IntType>
+IntType
+Foam::globalIndex::calcOffset(IntType localSize, const label comm)
+{
+    static_assert(std::is_integral_v<IntType>, "Integral required");
+    return UPstream::mpiExscan_sum(localSize, comm);
+}
+
+
+// template<class IntType, unsigned N>
+// Foam::FixedList<IntType, N>
+// Foam::globalIndex::calcOffset
 // (
-//     UPstream::commsTypes commsType
-// ) noexcept
+//     const FixedList<IntType, N>& localSizes,
+//     const label comm
+// )
 // {
-//     if constexpr (!is_contiguous_v<Type>)
-//     {
-//         return UPstream::commsTypes::scheduled;
-//     }
-//     else
-//     {
-//         return commsType;
-//     }
+//     static_assert(std::is_integral_v<IntType>, "Integral required");
+//     FixedList<IntType, N> starts(localSizes);
+//     UPstream::mpiExscan_sum(starts.data(), starts.size(), comm);
+//     return starts;
 // }
+
+
+template<class IntType>
+std::pair<IntType,IntType>
+Foam::globalIndex::calcOffsetTotal(IntType localSize, const label comm)
+{
+    static_assert(std::is_integral_v<IntType>, "Integral required");
+
+    if (!UPstream::is_parallel(comm))
+    {
+        return {0, localSize};
+    }
+
+    IntType start = globalIndex::calcOffset(localSize, comm);
+    IntType total = (start + localSize);
+
+    // Broadcast from nProcs-1 as root
+    UPstream::broadcast(&total, 1, comm, UPstream::nProcs(comm)-1);
+    return {start, total};
+}
+
+
+template<class IntType>
+Foam::OffsetRange<IntType>
+Foam::globalIndex::calcOffsetRange(IntType localSize, const label comm)
+{
+    static_assert(std::is_integral_v<IntType>, "Integral required");
+
+    if (!UPstream::is_parallel(comm))
+    {
+        return OffsetRange<IntType>(localSize);
+    }
+
+    IntType start = globalIndex::calcOffset(localSize, comm);
+    IntType total = (start + localSize);
+
+    // Broadcast from nProcs-1 as root
+    UPstream::broadcast(&total, 1, comm, UPstream::nProcs(comm)-1);
+
+    return OffsetRange<IntType>(start, localSize, total);
+}
+
+
+template<class IntType>
+Foam::List<IntType>
+Foam::globalIndex::calcRecvSizes(IntType localSize, const label comm)
+{
+    static_assert(std::is_integral_v<IntType>, "Integral required");
+
+    List<IntType> count(UPstream::listGatherValues(localSize, comm));
+    // Replace element [0] with the max receive count
+    if (!count.empty())
+    {
+        count[0] = 0;
+        count[0] = *(std::max_element(count.begin(), count.end()));
+    }
+    return count;
+}
+
 
 // Helpers
 

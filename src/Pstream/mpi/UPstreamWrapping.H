@@ -47,7 +47,7 @@ namespace Foam
 namespace PstreamDetail
 {
 
-// MPI_Bcast, using root=0
+// MPI_Bcast (default from root=0)
 // No fail/abort handling
 template<class Type>
 bool broadcast
@@ -55,7 +55,8 @@ bool broadcast
     Type* values,
     int count,
     MPI_Datatype datatype,
-    const int communicator
+    const int communicator,
+    const int root = 0
 );
 
 // MPI_Reduce, using root=0
@@ -83,6 +84,18 @@ void allReduce
     UPstream::Request* req = nullptr    // Non-null for non-blocking
 );
 
+// MPI_Scan or MPI_Exscan
+template<class Type>
+void scanReduce
+(
+    const Type* sendData,
+    Type* recvData,
+    int count,
+    MPI_Datatype datatype,
+    MPI_Op optype,
+    const int communicator,             // Communicator
+    const int exclusive                 // Use Exscan instead of Scan
+);
 
 // MPI_Alltoall or MPI_Ialltoall with one element per rank
 template<class Type>

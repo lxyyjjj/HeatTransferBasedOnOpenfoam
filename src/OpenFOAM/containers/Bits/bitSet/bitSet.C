@@ -605,11 +605,10 @@ void Foam::bitSet::reduceAnd(int communicator, bool syncSizes)
         // - common size may be smaller than the original size
         int64_t commonSize(size());
 
-        UPstream::mpiAllReduce
+        UPstream::mpiAllReduce<UPstream::opCodes::op_min>
         (
             &commonSize,
             1,
-            UPstream::opCodes::op_min,
             communicator
         );
         resize(commonSize);
@@ -617,11 +616,10 @@ void Foam::bitSet::reduceAnd(int communicator, bool syncSizes)
 
     if (!empty())
     {
-        UPstream::mpiAllReduce
+        UPstream::mpiAllReduce<UPstream::opCodes::op_bit_and>
         (
             this->data(),
             this->num_blocks(),
-            UPstream::opCodes::op_bit_and,
             communicator
         );
 
@@ -662,11 +660,10 @@ void Foam::bitSet::reduceOr(int communicator, bool syncSizes)
         // - tighter, but inconsistent sizes result
         // // label commonSize(find_last()+1);
 
-        UPstream::mpiAllReduce
+        UPstream::mpiAllReduce<UPstream::opCodes::op_max>
         (
             &commonSize,
             1,
-            UPstream::opCodes::op_max,
             communicator
         );
 
@@ -675,11 +672,10 @@ void Foam::bitSet::reduceOr(int communicator, bool syncSizes)
 
     if (!empty())
     {
-        UPstream::mpiAllReduce
+        UPstream::mpiAllReduce<UPstream::opCodes::op_bit_or>
         (
             this->data(),
             this->num_blocks(),
-            UPstream::opCodes::op_bit_or,
             communicator
         );
 

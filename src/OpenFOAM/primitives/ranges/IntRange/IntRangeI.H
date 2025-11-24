@@ -403,7 +403,8 @@ Foam::IntRange<IntType>::crend() const noexcept
 template<class IntType>
 inline void Foam::IntRange<IntType>::reset() noexcept
 {
-    start_ = size_ = 0;
+    start_ = 0;
+    size_  = 0;
 }
 
 

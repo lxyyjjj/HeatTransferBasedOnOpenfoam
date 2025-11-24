@@ -57,6 +57,8 @@ int main(int argc, char *argv[])
 
     Pout<< "local-offset: " << globalIndex::calcOffset(mesh.nCells()) << nl;
     Pout<< "local-range: " << globalIndex::calcRange(mesh.nCells()) << nl;
+    Pout<< "offset-range: "
+        << globalIndex::calcOffsetRange(mesh.nCells()) << nl;
 
     Info<< "cells from:" << globalNumbering.begin_value()
         << " to:" << globalNumbering.end_value()

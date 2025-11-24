@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2016 OpenFOAM Foundation
-    Copyright (C) 2017-2023 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,8 +32,13 @@ Description
     true/false, on/off, yes/no, any/none.
     Also accepts 0/1 as a string and shortcuts t/f, y/n.
 
+Note
+    The parser recognizes "default" but does not treat it as \c good()
+    since it could mean either yes or no, depending on the context.
+    It can nonetheless be useful to find when parsing for a Switch anyhow.
+
 SourceFiles
-    Switch.C
+    Switch.cxx
 
 \*---------------------------------------------------------------------------*/
 
@@ -54,6 +59,7 @@ SourceFiles
 #undef OFF
 #undef ON
 #undef NONE
+#undef DEFAULT
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -68,7 +74,7 @@ class Switch;
 
 // IOstream Operators
 
-//- Read Switch from stream using Foam::Switch(Istream&)
+//- Read Switch from stream
 Istream& operator>>(Istream& is, Switch& sw);
 
 //- Write Switch to stream as its text value (eg, "true", "false")
@@ -87,8 +93,8 @@ public:
         //- Switch enumerations corresponding to common text representations.
         //  \note The values here are critical for its proper behaviour.
         //  The values correspond to an index into the predefined output names
-        //  for the c_str() method and the lower bit is tested for
-        //  determining the true/false bool value.
+        //  for the c_str() method and the lower bit is tested to
+        //  determine the true/false bool value.
         enum switchType : unsigned char
         {
             FALSE   = 0 /*!< "false" */, TRUE = 1 /*!< "true" */,
@@ -96,8 +102,8 @@ public:
             OFF     = 4 /*!< "off" */,   ON   = 5 /*!< "on" */,
             NONE    = 6 /*!< "none" */,  ANY  = 7 /*!< "any" */,
             INVALID = 8 /*!< "invalid" (output only) */,
+            DEFAULT = 9 /*!< "default" (not good: could be yes or no) */,
         };
-
 
 private:
 
@@ -109,10 +115,12 @@ private:
 
     // Private Member Functions
 
-        //- Find switchType for given string. Return 'INVALID' if not found.
-        //  With failOnError, trigger FatalError if not found
-        static switchType parse(const std::string& str, const bool failOnError);
+        //- From string content to switchType.
+        //  \returns switchType::INVALID if not found
+        static switchType parse(const char* s, size_t len) noexcept;
 
+        //- From char sequence (with nullptr protection) to switchType
+        static inline switchType parse(const char* s);
 
 public:
 
@@ -134,30 +142,34 @@ public:
         {}
 
         //- Implicit construct from enumerated value
-        constexpr Switch(const switchType sw) noexcept
+        constexpr Switch(switchType sw) noexcept
         :
             value_(sw)
         {}
 
         //- Implicit construct from bool
-        constexpr Switch(const bool b) noexcept
+        constexpr Switch(bool b) noexcept
         :
             value_(b ? switchType::TRUE : switchType::FALSE)
         {}
 
         //- Implicit construct from int (treat integer as bool value)
-        constexpr Switch(const int i) noexcept
+        constexpr Switch(int i) noexcept
         :
             value_(i ? switchType::TRUE : switchType::FALSE)
         {}
 
-        //- Construct from string - catches bad input.
-        //  Use static find() method for a failsafe alternative
-        explicit Switch(const std::string& str);
-
         //- Construct from character array - catches bad input.
         //  Use static find() method for a failsafe alternative
-        explicit Switch(const char* str);
+        explicit Switch(const char* s);
+
+        //- Construct from string - catches bad input.
+        //  Use static find() method for a failsafe alternative
+        explicit Switch(const std::string& s);
+
+        //- Construct from string_view - catches bad input.
+        //  Use static find() method for a failsafe alternative
+        explicit Switch(std::string_view s);
 
         //- Construct from float with rounding to zero given by
         //- the tolerance (default: 0.5)
@@ -211,33 +223,41 @@ public:
         (
             const word& key,        //!< Lookup key. Uses LITERAL (not REGEX)
             dictionary& dict,       //!< dictionary
-            const Switch deflt = switchType::FALSE //!< default value to add
+            const Switch deflt = switchType::FALSE  //!< default value to add
         );
 
 
     // Static Member Functions
 
         //- A string representation of bool as "false" / "true"
-        static const char* name(const bool b) noexcept;
+        static const char* name(bool b) noexcept;
 
         //- True if there is a switch type corresponding to the given string.
-        static bool contains(const std::string& str);
+        static bool contains(std::string_view s) noexcept;
 
-        //- Find switchType for the given string, returning as a Switch that
+        //- Find switchType for the given string, returning a Switch that
         //- can be tested for good() or bad().
-        static Switch find(const std::string& str);
+        static Switch find(const char* s);
+
+        //- Find switchType for the given string, returning a Switch that
+        //- can be tested for good() or bad().
+        static Switch find(const std::string& s) noexcept;
+
+        //- Find switchType for the given string, returning a Switch that
+        //- can be tested for good() or bad().
+        static Switch find(std::string_view s) noexcept;
 
 
     // Member Functions
 
         //- True if the Switch represents a valid enumeration
-        bool good() const noexcept;
+        bool good() const noexcept { return (value_ < switchType::INVALID); }
 
         //- True if the Switch does not represent a valid enumeration
         bool bad() const noexcept { return !good(); }
 
         //- The underlying enumeration value
-        switchType type() const noexcept;
+        switchType type() const noexcept { return switchType(value_); }
 
         //- Flip the type, so OFF becomes ON, etc.
         //  Ignored if the Switch is INVALID
@@ -257,6 +277,27 @@ public:
         );
 
 
+    // Convenience Tests
+
+        //- Test for 'any' type
+        bool is_any() const noexcept
+        {
+            return (value_ == switchType::ANY);
+        }
+
+        //- Test for 'none' type
+        bool is_none() const noexcept
+        {
+            return (value_ == switchType::NONE);
+        }
+
+        //- Test for 'default' type
+        bool is_default() const noexcept
+        {
+            return (value_ == switchType::DEFAULT);
+        }
+
+
     // Member Operators
 
         //- Conversion to bool
@@ -266,16 +307,16 @@ public:
         }
 
         //- Assignment from enumerated value
-        Switch& operator=(const switchType sw) noexcept
+        Switch& operator=(switchType sw) noexcept
         {
             value_ = sw;
             return *this;
         }
 
         //- Assignment from bool
-        Switch& operator=(const bool b) noexcept
+        Switch& operator=(bool b) noexcept
         {
-            value_ = (b ? Switch::TRUE : Switch::FALSE);
+            value_ = (b ? switchType::TRUE : switchType::FALSE);
             return *this;
         }
 

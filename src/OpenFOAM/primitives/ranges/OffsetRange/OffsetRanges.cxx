@@ -5,8 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2011 OpenFOAM Foundation
-    Copyright (C) 2020-2022 OpenCFD Ltd.
+    Copyright (C) 2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,64 +25,66 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "wallNormalInfo.H"
+#include "OffsetRange.H"
+#include "token.H"
+#include "Istream.H"
+#include "Ostream.H"
 
-// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
-Foam::Ostream& Foam::operator<<
-(
-    Ostream& os,
-    const wallNormalInfo& rhs
-)
+namespace
 {
-    if (os.format() == IOstreamOption::ASCII)
-    {
-        os << rhs.normal();
-    }
-    else
-    {
-        os.write
-        (
-            reinterpret_cast<const char*>(&rhs.normal_),
-            sizeof(vector)
-        );
-    }
+
+template<class IS, class T>
+inline IS& input(IS& is, Foam::OffsetRange<T>& range)
+{
+    is.readBegin("OffsetRange");
+    is >> range.start() >> range.size() >> range.total();
+    is.readEnd("OffsetRange");
+
+    is.check(FUNCTION_NAME);
+    return is;
+}
+
+template<class OS, class T>
+inline OS& output(OS& os, const Foam::OffsetRange<T>& range)
+{
+    os  << Foam::token::BEGIN_LIST
+        << range.start() << Foam::token::SPACE
+        << range.size() << Foam::token::SPACE
+        << range.total()
+        << Foam::token::END_LIST;
 
     os.check(FUNCTION_NAME);
     return os;
 }
 
+} // End anonymous namespace
 
-Foam::Istream& Foam::operator>>
-(
-    Istream& is,
-    wallNormalInfo& rhs
-)
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+Foam::Istream& Foam::operator>>(Istream& is, OffsetRange<int32_t>& range)
 {
-    if (is.format() == IOstreamOption::ASCII)
-    {
-        is >> rhs.normal_;
-    }
-    else if (!is.checkScalarSize<scalar>())
-    {
-        // Non-native scalar size
-        is.beginRawRead();
+    return input(is, range);
+}
 
-        readRawScalar(is, rhs.normal_.data(), vector::nComponents);
 
-        is.endRawRead();
-    }
-    else
-    {
-        is.read
-        (
-            reinterpret_cast<char*>(&rhs.normal_),
-            sizeof(vector)
-        );
-    }
+Foam::Istream& Foam::operator>>(Istream& is, OffsetRange<int64_t>& range)
+{
+    return input(is, range);
+}
 
-    is.check(FUNCTION_NAME);
-    return is;
+
+Foam::Ostream& Foam::operator<<(Ostream& os, const OffsetRange<int32_t>& range)
+{
+    return output(os, range);
+}
+
+
+Foam::Ostream& Foam::operator<<(Ostream& os, const OffsetRange<int64_t>& range)
+{
+    return output(os, range);
 }
 
 

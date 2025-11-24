@@ -47,6 +47,7 @@ SourceFiles
 #include "Map.H"
 #include "Enum.H"
 #include "ListOps.H"
+#include "OffsetRange.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -585,7 +586,7 @@ protected:
 
     // Static Functions
 
-        //- Broadcast buffer contents from rank=0 to all ranks.
+        //- Broadcast buffer contents to all ranks (default: from rank=0).
         //- The sizes must match on all processes.
         //  For \b non-parallel : do nothing.
         //
@@ -598,7 +599,8 @@ protected:
             void* buf,
             std::streamsize count,
             const UPstream::dataTypes dataTypeId,
-            const int communicator
+            const int communicator,
+            const int root = 0  //!< The broadcast root (usually 0 == master)
         );
 
         //- In-place reduction of \c values with result on rank 0.
@@ -633,6 +635,23 @@ protected:
             const int communicator,
             //! [out] request information (for non-blocking)
             UPstream::Request* req = nullptr
+        );
+
+        //- In-place scan/exscan reduction of \c values.
+        //  Includes internal parallel guard and checks on data types, opcode.
+        //
+        //  \note The method uses a \c void pointer and the required data type
+        //  (as per MPI). This means it should almost never be called directly
+        //  but always via a compile-time checked caller.
+        static void mpi_scan_reduce
+        (
+            void* values,
+            int count,
+            const UPstream::dataTypes dataTypeId,
+            const UPstream::opCodes opCodeId,
+            const int communicator,
+            //! Use exclusive scan
+            const bool exclusive
         );
 
         //- Send buffer contents of specified data type to given processor.
@@ -1693,8 +1712,8 @@ public:
 
     // Broadcast Functions
 
-        //- Broadcast buffer contents (contiguous types), from rank=0
-        //- to all ranks. The sizes must match on all processes.
+        //- Broadcast buffer contents (contiguous types) to all ranks
+        //- (default: from rank=0). The sizes must match on all processes.
         //  For \b non-parallel : do nothing.
         //  \return True on success
         template<class Type>
@@ -1702,7 +1721,20 @@ public:
         (
             Type* buffer,
             std::streamsize count,
-            const int communicator
+            const int communicator,
+            int root = 0  //!< The broadcast root (usually 0 == master)
+        );
+
+        //- Broadcast fixed-list content (contiguous types) to all ranks
+        //- (default: from rank=0). The sizes must match on all processes.
+        //  For \b non-parallel : do nothing.
+        //  \return True on success
+        template<class Type, unsigned N>
+        inline static bool broadcast
+        (
+            FixedList<Type, N>& list,
+            const int communicator,
+            int root = 0  //!< The broadcast root (usually 0 == master)
         );
 
 
@@ -1719,6 +1751,16 @@ public:
             const int communicator
         );
 
+        //- MPI_Reduce (blocking) for known operators
+        //  For \b non-parallel : do nothing.
+        template<UPstream::opCodes opCode, class T>
+        static void mpiReduce
+        (
+            T values[],
+            int count,
+            const int communicator
+        );
+
         //- MPI_Allreduce (blocking) for known operators
         //  For \b non-parallel : do nothing.
         template<class T>
@@ -1727,6 +1769,16 @@ public:
             T values[],
             int count,
             const UPstream::opCodes opCodeId,
+            const int communicator
+        );
+
+        //- MPI_Allreduce (blocking) for known operators
+        //  For \b non-parallel : do nothing.
+        template<UPstream::opCodes opCode, class T>
+        static void mpiAllReduce
+        (
+            T values[],
+            int count,
             const int communicator
         );
 
@@ -1741,6 +1793,114 @@ public:
             const int communicator,
             UPstream::Request& req
         );
+
+        //- MPI_Iallreduce (non-blocking) for known operators
+        //  For \b non-parallel : do nothing.
+        template<UPstream::opCodes opCode, class T>
+        static void mpiAllReduce
+        (
+            T values[],
+            int count,
+            const int communicator,
+            UPstream::Request& req
+        );
+
+
+    // Partial reductions
+
+        //- Inclusive/exclusive scan (in-place).
+        //  In exclusive mode, the degenerate value on rank=0 has no meaning
+        //  and will normally be treated like non-exclusive mode
+        //  (ie, original values).
+        //  However, for the \b \c opCodes::op_sum type we can provide a
+        //  sensible value and overwrite it with a zero-initialized value.
+        //
+        //  \note For \b non-parallel : do nothing.
+        template<Foam::UPstream::opCodes opCode, class T>
+        static void mpiScan
+        (
+            T values[],
+            int count,
+            const int communicator,
+            //! Use exclusive scan (MPI_Exscan vs MPI_Scan)
+            const bool exclusive = false
+        );
+
+        //- Inclusive/exclusive scan returning the result.
+        //- In exclusive mode, the degenerate value on rank=0 has no meaning
+        //- but is treated like non-exclusive mode (ie, original values)
+        //
+        //  \note For \b non-parallel : return own value
+        template<Foam::UPstream::opCodes opCode, class T>
+        static T mpiScan
+        (
+            const T& localValue,
+            const int communicator,
+            //! Use exclusive scan (MPI_Exscan vs MPI_Scan)
+            const bool exclusive = false
+        );
+
+        #undef  Pstream_ScanRoutines
+        #define Pstream_ScanRoutines(OpName, OpCode)                          \
+                                                                              \
+        /*!\brief Inclusive/exclusive \b \c OpName scan (in-place) */         \
+        /*! See UPstream::mpiScan for notes about the behaviour */            \
+        template<class T>                                                     \
+        static void mpiScan_##OpName                                          \
+        (                                                                     \
+            T values[],                                                       \
+            int count,                                                        \
+            const int communicator,                                           \
+            /*! Use exclusive scan (MPI_Exscan vs MPI_Scan) */                \
+            const bool exclusive = false                                      \
+        )                                                                     \
+        {                                                                     \
+            UPstream::mpiScan<OpCode>(values, count, communicator, exclusive);\
+        }                                                                     \
+                                                                              \
+        /*!\brief Exclusive \b \c OpName scan (in-place) */                   \
+        /*! See UPstream::mpiScan for notes about the behaviour */            \
+        template<class T>                                                     \
+        static void mpiExscan_##OpName                                        \
+        (                                                                     \
+            T values[],                                                       \
+            int count,                                                        \
+            const int communicator                                            \
+        )                                                                     \
+        {                                                                     \
+            UPstream::mpiScan<OpCode>(values, count, communicator, true);     \
+        }                                                                     \
+                                                                              \
+        /*!\brief Inclusive/exclusive \b \c OpName scan returning result */   \
+        /*! See UPstream::mpiScan for notes about the behaviour */            \
+        template<class T>                                                     \
+        static T mpiScan_##OpName                                             \
+        (                                                                     \
+            const T& value,                                                   \
+            const int communicator,                                           \
+            /*! Use exclusive scan (MPI_Exscan vs MPI_Scan) */                \
+            const bool exclusive = false                                      \
+        )                                                                     \
+        {                                                                     \
+            return UPstream::mpiScan<OpCode>(value, communicator, exclusive); \
+        }                                                                     \
+                                                                              \
+        /*!\brief Exclusive \b \c OpName scan returning result */             \
+        /*! See UPstream::mpiScan for notes about the behaviour */            \
+        template<class T>                                                     \
+        static T mpiExscan_##OpName                                           \
+        (                                                                     \
+            const T& value,                                                   \
+            const int communicator                                            \
+        )                                                                     \
+        {                                                                     \
+            return UPstream::mpiScan<OpCode>(value, communicator, true);      \
+        }
+
+        Pstream_ScanRoutines(min, UPstream::opCodes::op_min);
+        Pstream_ScanRoutines(max, UPstream::opCodes::op_max);
+        Pstream_ScanRoutines(sum, UPstream::opCodes::op_sum);
+        #undef Pstream_ScanRoutines
 
 
     // Logical reductions
@@ -1764,8 +1924,8 @@ public:
 
     // Housekeeping
 
-        //- Create new communicator with sub-ranks on the parent communicator
-        //  \deprecated(2025-02)
+        //- \deprecated(2025-02) prefer newCommunicator
+        FOAM_DEPRECATED_FOR(2025-02, "newCommunicator()")
         static label allocateCommunicator
         (
             const label parent,
@@ -1776,8 +1936,8 @@ public:
             return newCommunicator(parent, subRanks, withComponents);
         }
 
-        //- Create new communicator with sub-ranks on the parent communicator
-        //  \deprecated(2025-02)
+        //- \deprecated(2025-02) prefer newCommunicator
+        FOAM_DEPRECATED_FOR(2025-02, "newCommunicator()")
         static label allocateCommunicator
         (
             const label parent,
@@ -2076,14 +2236,20 @@ public:
     // Factory Methods
 
         //- Transcribe internally indexed communicator to wrapped value.
+        //
         //  Example,
         //  \code
         //  PstreamUtils::Cast::to_mpi
         //  (
-        //      UPstream::Communicator::lookup(UPstream::commWorld())
+        //      UPstream::Communicator::lookup(UPstream::worldComm)
         //  )
         //  \endcode
-        static Communicator lookup(const int comm);
+        static Communicator lookup
+        (
+            //! The internally indexed communicator.
+            //! The default (-1) is the same as UPstream::worldComm.
+            int communicator = -1
+        );
 
 
     // Member Functions

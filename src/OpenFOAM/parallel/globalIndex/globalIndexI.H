@@ -28,6 +28,26 @@ License
 
 #include "ListOps.H"
 
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+inline void Foam::globalIndex::checkOverflowAndExit
+(
+    const label idx,
+    const label prevOffset,
+    const label count
+)
+{
+    if (prevOffset >= 0 && count >= 0)
+    {
+        label next = (prevOffset + count);
+        if (next < prevOffset)
+        {
+            reportOverflowAndExit(idx, prevOffset, count);
+        }
+    }
+}
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 inline Foam::globalIndex::globalIndex
@@ -295,6 +315,25 @@ inline Foam::labelRange Foam::globalIndex::range(const label proci) const
 inline Foam::labelRange Foam::globalIndex::range() const
 {
     return range(UPstream::myProcNo(UPstream::worldComm));
+}
+
+
+inline Foam::OffsetRange<Foam::label>
+Foam::globalIndex::offsetRange(const label proci) const
+{
+    return OffsetRange<label>
+    (
+        offsets_[proci],
+        offsets_[proci+1] - offsets_[proci],
+        totalSize()
+    );
+}
+
+
+inline Foam::OffsetRange<Foam::label>
+Foam::globalIndex::offsetRange() const
+{
+    return offsetRange(UPstream::myProcNo(UPstream::worldComm));
 }
 
 
