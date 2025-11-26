@@ -75,17 +75,26 @@ protected:
 
     // Protected Data
 
-        //- The number of field points for the current Piece
-        label numberOfPoints_;
-
-        //- The number of field cells for the current Piece
-        label numberOfCells_;
-
         //- Reference to the OpenFOAM mesh (or subset)
         const polyMesh& mesh_;
 
         //- The volume cells (internalMesh)
         const vtk::vtuCells& vtuCells_;
+
+        //- Slab addressing for field points of the current Piece
+        OffsetRange<label> pointSlab_;
+
+        //- Slab addressing for field cells of the current Piece
+        OffsetRange<label> cellSlab_;
+
+
+    // Protected Member Functions
+
+        //- Total number of field points for the current Piece
+        label nTotalPoints() const noexcept { return pointSlab_.total(); }
+
+        //- Total number of field cells for the current Piece
+        label nTotalCells() const noexcept { return cellSlab_.total(); }
 
 
 private:
@@ -99,16 +108,13 @@ private:
         void writePoints();
 
         //- Write cells (connectivity and type), legacy format
-        //  \param pointOffset processor-local point offset
-        void writeCellsLegacy(const label pointOffset);
+        void writeCells_legacy();
 
         //- Write cells connectivity
-        //  \param pointOffset processor-local point offset
-        void writeCellsConnectivity(const label pointOffset);
+        void writeCellsConnectivity();
 
         //- Write cells face streams
-        //  \param pointOffset processor-local point offset
-        void writeCellsFaces(const label pointOffset);
+        void writeCellsFaces();
 
 public:
 
