@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2018 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -80,14 +80,17 @@ class lagrangianWriter
         //- The cloud name
         const word cloudName_;
 
-        //- The number of field points for the current Piece
-        label numberOfPoints_;
+        //- Slab addressing for field points of the current Piece
+        OffsetRange<label> pointSlab_;
 
         //- Write as CellData (verts) instead of as PointData.
         const bool useVerts_;
 
 
     // Private Member Functions
+
+        //- Total number of field points for the current Piece
+        label nTotalPoints() const noexcept { return pointSlab_.total(); }
 
         //- The cloud directory for the current cloud name.
         fileName cloudDir() const;

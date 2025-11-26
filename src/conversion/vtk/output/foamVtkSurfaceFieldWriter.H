@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2016 OpenFOAM Foundation
-    Copyright (C) 2016-2018 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -78,8 +78,11 @@ class surfaceFieldWriter
         //- Reference to the OpenFOAM mesh (or subset)
         const fvMesh& mesh_;
 
-        //- The number of field points for the current Piece
-        label numberOfPoints_;
+        //- Slab addressing for field points of the current Piece
+        OffsetRange<label> pointSlab_;
+
+        //- Total number of field points for the current Piece
+        label nTotalPoints() const noexcept { return pointSlab_.total(); }
 
 public:
 

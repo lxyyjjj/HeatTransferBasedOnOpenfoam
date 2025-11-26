@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2024 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,32 +35,44 @@ License
 
 void Foam::vtk::patchMeshWriter::beginPiece()
 {
+    // Note: also store the connectivity counts for this writer.
+    // The additional information has minimal storage and it avoids
+    // re-walking all faces of all patch types (again) and repeating
+    // the communication.
+
     // Basic sizes
     const polyBoundaryMesh& patches = mesh_.boundaryMesh();
 
-    nLocalPoints_ = nLocalPolys_ = 0;
-    nLocalPolyConn_ = 0;
+    label nPoints = 0;      // Number of points
+    label nFaces = 0;       // Number of faces
+    label nConnectivity = 0; // Connectivity = sum of number of face points
 
     for (const label patchId : patchIDs_)
     {
         const polyPatch& pp = patches[patchId];
 
-        nLocalPoints_ += pp.nPoints();
-        nLocalPolys_  += pp.size();
+        nPoints += pp.nPoints();
+        nFaces  += pp.size();
 
         for (const face& f : pp)
         {
-            nLocalPolyConn_ += f.size();
+            nConnectivity += f.size();
         }
     }
 
-    numberOfPoints_ = nLocalPoints_;
-    numberOfCells_ = nLocalPolys_;
+    pointSlab_ = nPoints;
+    cellSlab_  = nFaces;
+    connectivitySlab_ = nConnectivity;
 
     if (parallel_)
     {
-        reduce(numberOfPoints_, sumOp<label>());
-        reduce(numberOfCells_,  sumOp<label>());
+        Foam::reduceOffsets
+        (
+            UPstream::worldComm,
+            pointSlab_,
+            cellSlab_,
+            connectivitySlab_
+        );
     }
 
 
@@ -74,8 +86,8 @@ void Foam::vtk::patchMeshWriter::beginPiece()
             .tag
             (
                 vtk::fileTag::PIECE,
-                vtk::fileAttr::NUMBER_OF_POINTS, numberOfPoints_,
-                vtk::fileAttr::NUMBER_OF_POLYS,  numberOfCells_
+                vtk::fileAttr::NUMBER_OF_POINTS, nTotalPoints(),
+                vtk::fileAttr::NUMBER_OF_POLYS,  nTotalCells()
             );
     }
 }
@@ -85,7 +97,7 @@ void Foam::vtk::patchMeshWriter::writePoints()
 {
     const polyBoundaryMesh& patches = mesh_.boundaryMesh();
 
-    this->beginPoints(numberOfPoints_);
+    this->beginPoints(nTotalPoints());
 
     if (parallel_ ? UPstream::master() : bool(format_))
     {
@@ -143,32 +155,24 @@ void Foam::vtk::patchMeshWriter::writePoints()
 }
 
 
-void Foam::vtk::patchMeshWriter::writePolysLegacy(const label pointOffset)
+void Foam::vtk::patchMeshWriter::writePolys_legacy()
 {
+    // The processor-local point offset
+    const label pointOffset = pointSlab_.start();
+
     const polyBoundaryMesh& patches = mesh_.boundaryMesh();
 
     // Connectivity count without additional storage (done internally)
+    const label nVerts = connectivitySlab_.total();
 
-    label nPolys = nLocalPolys_;
-    label nPolyConn = nLocalPolyConn_;
+    legacy::beginPolys(os_, nTotalCells(), nVerts);
 
-    if (parallel_)
-    {
-        reduce(nPolys, sumOp<label>());
-        reduce(nPolyConn, sumOp<label>());
-    }
-
-    if (nPolys != numberOfCells_)
-    {
-        FatalErrorInFunction
-            << "Expecting " << numberOfCells_
-            << " faces, but found " << nPolys
-            << exit(FatalError);
-    }
-
-    legacy::beginPolys(os_, nPolys, nPolyConn);
-
-    labelList vertLabels(nLocalPolys_ + nLocalPolyConn_);
+    // Local work array for the face connectivity.
+    // The legacy format includes extra nPts prefix for each face
+    labelList vertLabels
+    (
+        cellSlab_.size() + connectivitySlab_.size()
+    );
 
     {
         // Legacy: size + connectivity together
@@ -214,8 +218,11 @@ void Foam::vtk::patchMeshWriter::writePolysLegacy(const label pointOffset)
 }
 
 
-void Foam::vtk::patchMeshWriter::writePolys(const label pointOffset)
+void Foam::vtk::patchMeshWriter::writePolys()
 {
+    // The processor-local point offset
+    const label pointOffset = pointSlab_.start();
+
     if (format_)
     {
         format().tag(vtk::fileTag::POLYS);
@@ -227,14 +234,10 @@ void Foam::vtk::patchMeshWriter::writePolys(const label pointOffset)
     // 'connectivity'
     //
     {
-        labelList vertLabels(nLocalPolyConn_);
+        // Local work array for the face connectivity
+        labelList vertLabels(connectivitySlab_.size());
 
-        label nVerts = nLocalPolyConn_;
-
-        if (parallel_)
-        {
-            reduce(nVerts, sumOp<label>());
-        }
+        const label nVerts = connectivitySlab_.total();
 
         if (format_)
         {
@@ -289,20 +292,18 @@ void Foam::vtk::patchMeshWriter::writePolys(const label pointOffset)
 
     //
     // 'offsets'  (connectivity offsets)
+    // For XML these are non-overlapping [end] offsets. One per element.
     //
     {
-        labelList vertOffsets(nLocalPolys_);
-        label nOffs = vertOffsets.size();
+        // Local work array for the offsets into connectivity
+        labelList vertOffsets(cellSlab_.size());
 
-        if (parallel_)
-        {
-            reduce(nOffs, sumOp<label>());
-        }
+        const label nOffsets = cellSlab_.total();
 
         if (format_)
         {
             const uint64_t payLoad =
-                vtk::sizeofData<label>(nOffs);
+                vtk::sizeofData<label>(nOffsets);
 
             format().beginDataArray<label>(vtk::dataArrayAttr::OFFSETS);
             format().writeSize(payLoad);
@@ -310,11 +311,7 @@ void Foam::vtk::patchMeshWriter::writePolys(const label pointOffset)
 
 
         // processor-local connectivity offsets
-        label off =
-        (
-            parallel_ ? globalIndex::calcOffset(nLocalPolyConn_) : 0
-        );
-
+        label off = connectivitySlab_.start();
 
         auto iter = vertOffsets.begin();
 
@@ -365,14 +362,11 @@ Foam::vtk::patchMeshWriter::patchMeshWriter
 )
 :
     vtk::fileWriter(vtk::fileTag::POLY_DATA, opts),
-    numberOfPoints_(0),
-    numberOfCells_(0),
-    nLocalPoints_(0),
-    nLocalPolys_(0),
-    nLocalPolyConn_(0),
-
     mesh_(mesh),
-    patchIDs_(patchIDs)
+    patchIDs_(patchIDs),
+    pointSlab_(0),
+    cellSlab_(0),
+    connectivitySlab_(0)
 {
     // We do not currently support append mode
     opts_.append(false);
@@ -470,18 +464,13 @@ bool Foam::vtk::patchMeshWriter::writeGeometry()
 
     writePoints();
 
-    const label pointOffset =
-    (
-        parallel_ ? globalIndex::calcOffset(nLocalPoints_) : 0
-    );
-
     if (legacy())
     {
-        writePolysLegacy(pointOffset);
+        writePolys_legacy();
     }
     else
     {
-        writePolys(pointOffset);
+        writePolys();
     }
 
     return true;
@@ -490,13 +479,13 @@ bool Foam::vtk::patchMeshWriter::writeGeometry()
 
 bool Foam::vtk::patchMeshWriter::beginCellData(label nFields)
 {
-    return enter_CellData(numberOfCells_, nFields);
+    return enter_CellData(nTotalCells(), nFields);
 }
 
 
 bool Foam::vtk::patchMeshWriter::beginPointData(label nFields)
 {
-    return enter_PointData(numberOfPoints_, nFields);
+    return enter_PointData(nTotalPoints(), nFields);
 }
 
 
@@ -515,15 +504,8 @@ void Foam::vtk::patchMeshWriter::writePatchIDs()
 
     const polyBoundaryMesh& patches = mesh_.boundaryMesh();
 
-    label nPolys = nLocalPolys_;
 
-    if (parallel_)
-    {
-        reduce(nPolys, sumOp<label>());
-    }
-
-
-    this->beginDataArray<label>("patchID", nPolys);
+    this->beginDataArray<label>("patchID", nTotalCells());
 
     if (parallel_ ? UPstream::master() : bool(format_))
     {
@@ -587,11 +569,15 @@ void Foam::vtk::patchMeshWriter::writePatchIDs()
 
 bool Foam::vtk::patchMeshWriter::writeProcIDs()
 {
-    if (this->isPointData())
-    {
-        return vtk::fileWriter::writeProcIDs(nLocalPoints_);
-    }
-    return vtk::fileWriter::writeProcIDs(nLocalPolys_);
+    // These are local counts - the backend does the rest
+    const label nValues =
+    (
+        this->isPointData()
+      ? pointSlab_.size()   // Local number of points
+      : cellSlab_.size()    // Local number of faces
+    );
+
+    return vtk::fileWriter::writeProcIDs(nValues);
 }
 
 
@@ -616,15 +602,7 @@ bool Foam::vtk::patchMeshWriter::writeNeighIDs()
 
     const polyBoundaryMesh& patches = mesh_.boundaryMesh();
 
-    label nPolys = nLocalPolys_;
-
-    if (parallel_)
-    {
-        reduce(nPolys, sumOp<label>());
-    }
-
-
-    this->beginDataArray<label>("neighID", nPolys);
+    this->beginDataArray<label>("neighID", nTotalCells());
 
     bool good = true;
 
@@ -680,7 +658,7 @@ bool Foam::vtk::patchMeshWriter::writeNeighIDs()
                 const auto* pp = isA<processorPolyPatch>(patches[patchId]);
 
                 send[i] = patches[patchId].size();
-                send[i+1] = (pp ?  pp->neighbProcNo() : -1);
+                send[i+1] = (pp ? pp->neighbProcNo() : -1);
 
                 i += 2;
             }

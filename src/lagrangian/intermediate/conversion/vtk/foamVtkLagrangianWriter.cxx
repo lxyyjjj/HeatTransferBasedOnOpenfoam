@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2018 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -60,7 +60,7 @@ void Foam::vtk::lagrangianWriter::writeVerts()
     // No collectives - can skip on sub-processes
     if (!format_) return;
 
-    const label nVerts = numberOfPoints_;
+    const label nVerts = nTotalPoints();
 
     // Same payload for connectivity and offsets
     const uint64_t payLoad = vtk::sizeofData<label>(nVerts);
@@ -102,13 +102,13 @@ void Foam::vtk::lagrangianWriter::writeVerts()
 
 bool Foam::vtk::lagrangianWriter::beginCellData(label nFields)
 {
-    return enter_CellData(numberOfPoints_, nFields);
+    return enter_CellData(nTotalPoints(), nFields);
 }
 
 
 bool Foam::vtk::lagrangianWriter::beginPointData(label nFields)
 {
-    return enter_PointData(numberOfPoints_, nFields);
+    return enter_PointData(nTotalPoints(), nFields);
 }
 
 
@@ -125,7 +125,7 @@ Foam::vtk::lagrangianWriter::lagrangianWriter
     vtk::fileWriter(vtk::fileTag::POLY_DATA, opts),
     mesh_(mesh),
     cloudName_(cloudName),
-    numberOfPoints_(0),
+    pointSlab_(0),
     useVerts_(useVerts)
 {
     opts_.append(false); // No append mode (horrible for streaming)
@@ -204,11 +204,11 @@ bool Foam::vtk::lagrangianWriter::writeGeometry()
     // Transcribe cloud into pointField
     pointField cloudPoints(positions());
 
-    numberOfPoints_ = cloudPoints.size();
+    pointSlab_ = cloudPoints.size();
 
     if (parallel_)
     {
-        reduce(numberOfPoints_, sumOp<label>());
+        Foam::reduceOffset(pointSlab_);
     }
 
 
@@ -221,8 +221,8 @@ bool Foam::vtk::lagrangianWriter::writeGeometry()
                 .tag
                 (
                     vtk::fileTag::PIECE,
-                    fileAttr::NUMBER_OF_POINTS, numberOfPoints_,
-                    fileAttr::NUMBER_OF_VERTS,  numberOfPoints_
+                    fileAttr::NUMBER_OF_POINTS, nTotalPoints(),
+                    fileAttr::NUMBER_OF_VERTS,  nTotalPoints()
                 );
         }
         else
@@ -231,7 +231,7 @@ bool Foam::vtk::lagrangianWriter::writeGeometry()
                 .tag
                 (
                     vtk::fileTag::PIECE,
-                    fileAttr::NUMBER_OF_POINTS, numberOfPoints_
+                    fileAttr::NUMBER_OF_POINTS, nTotalPoints()
                 );
         }
     }
@@ -242,7 +242,7 @@ bool Foam::vtk::lagrangianWriter::writeGeometry()
         if (format_)
         {
             const uint64_t payLoad =
-                vtk::sizeofData<float,3>(numberOfPoints_);
+                vtk::sizeofData<float,3>(nTotalPoints());
 
             format().tag(vtk::fileTag::POINTS)
                 .beginDataArray<float,3>(vtk::dataArrayAttr::POINTS);

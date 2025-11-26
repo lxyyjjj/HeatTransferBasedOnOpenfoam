@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2021 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,15 +39,16 @@ void Foam::vtk::patchMeshWriter::writeUniform
 {
     label nValues(0);
 
+    // These are local counts - the backend does the rest
     if (isState(outputState::CELL_DATA))
     {
         ++nCellData_;
-        nValues = nLocalPolys_;
+        nValues = cellSlab_.size();
     }
     else if (isState(outputState::POINT_DATA))
     {
         ++nPointData_;
-        nValues = nLocalPoints_;
+        nValues = pointSlab_.size();
     }
     else
     {

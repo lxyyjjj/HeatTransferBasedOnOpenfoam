@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2024 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -71,7 +71,7 @@ Foam::vtk::surfaceFieldWriter::surfaceFieldWriter
 :
     vtk::fileWriter(vtk::fileTag::POLY_DATA, opts),
     mesh_(mesh),
-    numberOfPoints_(0)
+    pointSlab_(0)
 {
     opts_.append(false); // No append mode (horrible for streaming)
     opts_.legacy(false); // Disallow legacy (inconvenient)
@@ -148,11 +148,11 @@ bool Foam::vtk::surfaceFieldWriter::writeGeometry()
     const pointField& centres = mesh_.faceCentres();
 
     // PointData for each face.
-    numberOfPoints_ = centres.size();
+    pointSlab_ = centres.size();
 
     if (parallel_)
     {
-        reduce(numberOfPoints_, sumOp<label>());
+        Foam::reduceOffset(pointSlab_);
     }
 
     // <Piece>
@@ -162,12 +162,12 @@ bool Foam::vtk::surfaceFieldWriter::writeGeometry()
             .tag
             (
                 vtk::fileTag::PIECE,
-                fileAttr::NUMBER_OF_POINTS, numberOfPoints_
+                fileAttr::NUMBER_OF_POINTS, nTotalPoints()
             );
     }
 
     // <Point>
-    this->beginPoints(numberOfPoints_);
+    this->beginPoints(nTotalPoints());
 
     if (parallel_)
     {
@@ -208,7 +208,7 @@ bool Foam::vtk::surfaceFieldWriter::beginCellData(label nFields)
 bool Foam::vtk::surfaceFieldWriter::beginPointData(label nFields)
 {
     // No legacy
-    return enter_PointData(numberOfPoints_, 0);
+    return enter_PointData(nTotalPoints(), 0);
 }
 
 
@@ -225,22 +225,10 @@ void Foam::vtk::surfaceFieldWriter::write(const surfaceVectorField& field)
             << exit(FatalError);
     }
 
-    label nFaces = field.mesh().nFaces();
+    // PointData for each face, so nFaces == nPoints
+    const label nFacesTotal = nTotalPoints();
 
-    if (parallel_)
-    {
-        reduce(nFaces, sumOp<label>());
-    }
-
-    if (nFaces != numberOfPoints_)
-    {
-        FatalErrorInFunction
-            << "Expecting " << numberOfPoints_
-            << " faces, but found " << nFaces
-            << exit(FatalError);
-    }
-
-    this->beginDataArray<vector>(field.name(), nFaces);
+    this->beginDataArray<vector>(field.name(), nFacesTotal);
 
 
     // Internal field

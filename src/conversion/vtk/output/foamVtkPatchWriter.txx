@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2021 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,15 +48,7 @@ void Foam::vtk::patchWriter::write
     }
 
 
-    label nPoints = nLocalPoints_;
-
-    if (parallel_)
-    {
-        reduce(nPoints, sumOp<label>());
-    }
-
-
-    this->beginDataArray<Type>(field.name(), nPoints);
+    this->beginDataArray<Type>(field.name(), nTotalPoints());
 
     // Write for master
     if (parallel_ ? UPstream::master() : bool(format_))
@@ -89,7 +81,7 @@ void Foam::vtk::patchWriter::write
             Field<Type> recv;
 
             // Receive each patch field and write
-            for (const int subproci : Pstream::subProcs())
+            for (const int subproci : UPstream::subProcs())
             {
                 IPstream fromProc(UPstream::commsTypes::scheduled, subproci);
 
@@ -150,15 +142,7 @@ void Foam::vtk::patchWriter::write
             << exit(FatalError);
     }
 
-    label nFaces = nLocalPolys_;
-
-    if (parallel_)
-    {
-        reduce(nFaces, sumOp<label>());
-    }
-
-
-    this->beginDataArray<Type>(field.name(), nFaces);
+    this->beginDataArray<Type>(field.name(), nTotalCells());
 
     // Write for master
     if (parallel_ ? UPstream::master() : bool(format_))
@@ -183,12 +167,12 @@ void Foam::vtk::patchWriter::write
         // Patch Ids are identical across all processes
         const label nPatches = patchIDs_.size();
 
-        if (Pstream::master())
+        if (UPstream::master())
         {
             Field<Type> recv;
 
             // Receive each patch field and write
-            for (const int subproci : Pstream::subProcs())
+            for (const int subproci : UPstream::subProcs())
             {
                 IPstream fromProc(UPstream::commsTypes::scheduled, subproci);
 
@@ -248,15 +232,7 @@ void Foam::vtk::patchWriter::write
             << exit(FatalError);
     }
 
-    label nPoints = nLocalPoints_;
-
-    if (parallel_)
-    {
-        reduce(nPoints, sumOp<label>());
-    }
-
-
-    this->beginDataArray<Type>(field.name(), nPoints);
+    this->beginDataArray<Type>(field.name(), nTotalPoints());
 
     // Write for master
     if (parallel_ ? UPstream::master() : bool(format_))
