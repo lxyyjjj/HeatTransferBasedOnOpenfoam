@@ -147,9 +147,15 @@ Foam::Ostream& Foam::JSONformatter::writeDict(const dictionary& dict)
 
         const auto& tokens = e.stream();
 
-        if (tokens.empty()) continue; // error?
+        if (tokens.empty())
+        {
+            WarningInFunction
+                << "Empty entry for keyword " << keyword << nl
+                << "    - treating value as null" << endl;
 
-        if (tokens.size() == 1)
+            os_  << "null";
+        }
+        else if (tokens.size() == 1)
         {
             writeToken(tokens[0]);
         }
