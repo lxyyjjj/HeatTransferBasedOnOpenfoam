@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2020-2023 OpenCFD Ltd.
+    Copyright (C) 2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,21 +23,28 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
+Description
+    Implementation of IO operators for Foam::IntRange
+
 \*---------------------------------------------------------------------------*/
 
+#ifndef Foam_IntRangeIO_H
+#define Foam_IntRangeIO_H
+
+#include "IntRange.H"
 #include "token.H"
-#include "List.H"
 #include "Istream.H"
 #include "Ostream.H"
-#include <numeric>
 
-// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
-namespace
-{
-
-template<class IS, class T>
-inline IS& input(IS& is, Foam::IntRange<T>& range)
+// Format is identical to Tuple2
+template<class T>
+Foam::Istream& Foam::operator>>
+(
+    Foam::Istream& is,
+    Foam::IntRange<T>& range
+)
 {
     is.readBegin("IntRange");
     is >> range.start() >> range.size();
@@ -47,8 +54,14 @@ inline IS& input(IS& is, Foam::IntRange<T>& range)
     return is;
 }
 
-template<class OS, class T>
-inline OS& output(OS& os, const Foam::IntRange<T>& range)
+
+// Format is identical to Tuple2
+template<class T>
+Foam::Ostream& Foam::operator<<
+(
+    Foam::Ostream& os,
+    const Foam::IntRange<T>& range
+)
 {
     os  << Foam::token::BEGIN_LIST
         << range.start() << Foam::token::SPACE
@@ -59,65 +72,9 @@ inline OS& output(OS& os, const Foam::IntRange<T>& range)
     return os;
 }
 
-} // End anonymous namespace
 
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
-
-Foam::List<Foam::label> Foam::identity(const IntRange<int32_t>& range)
-{
-    List<label> result;
-
-    if (range.size() > 0)
-    {
-        result.resize(range.size());
-        std::iota(result.begin(), result.end(), range.start());
-    }
-
-    return result;
-}
-
-
-#if defined(WM_LABEL_SIZE) && (WM_LABEL_SIZE >= 64)
-Foam::List<Foam::label> Foam::identity(const IntRange<int64_t>& range)
-{
-    List<label> result;
-
-    if (range.size() > 0)
-    {
-        result.resize(range.size());
-        std::iota(result.begin(), result.end(), range.start());
-    }
-
-    return result;
-}
 #endif
-
-
-// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
-
-Foam::Istream& Foam::operator>>(Istream& is, IntRange<int32_t>& range)
-{
-    return input(is, range);
-}
-
-
-Foam::Istream& Foam::operator>>(Istream& is, IntRange<int64_t>& range)
-{
-    return input(is, range);
-}
-
-
-Foam::Ostream& Foam::operator<<(Ostream& os, const IntRange<int32_t>& range)
-{
-    return output(os, range);
-}
-
-
-Foam::Ostream& Foam::operator<<(Ostream& os, const IntRange<int64_t>& range)
-{
-    return output(os, range);
-}
-
 
 // ************************************************************************* //

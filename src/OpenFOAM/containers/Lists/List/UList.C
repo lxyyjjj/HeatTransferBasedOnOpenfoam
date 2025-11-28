@@ -27,8 +27,6 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "UList.H"
-#include "labelRange.H"
-
 #include <random>
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //

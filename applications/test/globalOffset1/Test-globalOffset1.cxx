@@ -24,17 +24,16 @@ Description
 #include "OPstream.H"
 #include "IOstreams.H"
 
+#include "globalIndex.H"
 #include "globalOffset.H"
-#include "OffsetRange.H"
-// #include "globalIndex.H"
 
 using namespace Foam;
 
 template<class T>
 void printInfo(const OffsetRange<T>& range)
 {
-    Pout<< "min:" << range.min()
-        << " max:" << range.max()
+    Pout<< "min:" << range.begin_value()
+        << " max:" << range.rbegin_value()
         << " size:" << range.size()
         << " (total:" << range.total() << ')' << nl;
 }
@@ -45,6 +44,7 @@ void printInfo(const OffsetRange<T>& range)
 
 int main(int argc, char *argv[])
 {
+    argList::noBanner();
     argList::noFunctionObjects();
     argList::noCheckProcessorDirectories();
     #include "setRootCase.H"
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
         << "Default construct int64_t: " << OffsetRange<int64_t>() << nl;
 
     Info<< "  one: " << intRange(10) << nl
-        << "  two: " << intRange(5, 10) << nl;
+        << "three: " << intRange(5, 10, 25) << nl;
 
     Pout<< nl;
     {
@@ -165,6 +165,13 @@ int main(int argc, char *argv[])
         Pout<< "  calcOffsetRange(25) = " << range4 << endl;
     }
 
+    // Output tests for (mostly) arbitrary types
+    {
+        Info<< "range uint8: "
+            << OffsetRange<direction>{sizeof(direction)} << nl
+            << "range int16: " << OffsetRange<int16_t>{sizeof(int16_t)} << nl
+            << "range uint32: " << OffsetRange<uint32_t>{sizeof(int32_t)} << nl;
+    }
 
     Info<< "\nEnd\n" << endl;
 

@@ -31,7 +31,7 @@ Description
     A range or interval of labels defined by a start and a size.
 
 SourceFiles
-    labelRange.C
+    labelRange.cxx
     labelRangeI.H
 
 \*---------------------------------------------------------------------------*/
@@ -47,8 +47,15 @@ namespace Foam
 {
 
 // Forward Declarations
+class labelRange;
 template<class T> class MinMax;
 template<class T> class Pair;
+
+//- Read from Istream as bracketed (start size) tuple
+Istream& operator>>(Istream&, labelRange&);
+
+//- Write to Ostream as bracketed (start size) tuple
+Ostream& operator<<(Ostream&, const labelRange&);
 
 /*---------------------------------------------------------------------------*\
                          Class labelRange Declaration
@@ -137,10 +144,6 @@ public:
 
 
     // Other
-
-        //- Return list of labels corresponding to the range.
-        //  Same as Foam::identity()
-        List<label> labels() const;
 
         //- Return true if the ranges overlap.
         //  Optional test for ranges that also just touch each other

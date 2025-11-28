@@ -43,8 +43,9 @@ SourceFiles
 #ifndef Foam_globalOffset_H
 #define Foam_globalOffset_H
 
-#include "UPstream.H"
 #include "OffsetRange.H"
+#include "OffsetRangeIO.H"
+#include "UPstream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -54,17 +55,9 @@ namespace Foam
 // Forward Declarations
 template<class IntType> class GlobalOffset;
 
-template<class IntType>
-Istream& operator>>(Istream& os, GlobalOffset<IntType>&);
-
-template<class IntType>
-Ostream& operator<<(Ostream& os, const GlobalOffset<IntType>&);
-
-// Common types
-
+// Common Types
 //- A GlobalOffset with label for the addressing
 typedef GlobalOffset<label> globalOffset;
-
 
 /*---------------------------------------------------------------------------*\
                         Class GlobalOffset Declaration
@@ -76,6 +69,16 @@ class GlobalOffset
     public OffsetRange<IntType>
 {
 public:
+
+    // Static Functions
+
+        //- Return a null GlobalOffset (reference to a nullObject).
+        //- Behaves like an empty range.
+        static const GlobalOffset<IntType>& null() noexcept
+        {
+            return NullObjectRef<GlobalOffset<IntType>>();
+        }
+
 
     // Generated Methods: copy/move construct, copy/move assignment
 
@@ -93,9 +96,14 @@ public:
         GlobalOffset
         (
             IntType len,
-            const int communicator,   //!< communicator
-            const bool parallel = UPstream::parRun()  //!< use parallel comms
+            int communicator,                   //!< communicator
+            bool parallel = UPstream::parRun()  //!< use parallel comms
         );
+
+        //- Copy construct from OffsetRange.
+        //  Should be left as implicit to allow assignment from
+        //  the results of the calculate() method
+        inline GlobalOffset(const OffsetRange<IntType>& range) noexcept;
 
         //- Read construct from start/size/total tuple
         explicit GlobalOffset(Istream& is);
@@ -103,33 +111,32 @@ public:
 
     // Member Functions
 
+    // Access
+
+        //- Same as total() - method name as per globalIndex
+        IntType totalSize() const noexcept { return this->total(); }
+
+
     // Edit
 
-        //- Reset to zero
-        inline void clear() noexcept;
-
         //- Reset from local size with zero offset.
-        inline void reset(IntType len = 0) noexcept;
+        inline void reset(IntType len) noexcept;
 
         //- Reset from local size, with parallel coordination of
         //- the offsets and total size
         inline void reset
         (
-            const IntType len,
-            const int communicator,   //!< communicator
-            const bool parallel = UPstream::parRun()  //!< use parallel comms
+            IntType len,
+            int communicator,                   //!< communicator
+            bool parallel = UPstream::parRun()  //!< use parallel comms
         );
 
 
     // Parallel Functions
 
         //- Based on the local input size,
-        //- calculate a globally-consistent local start and total.
-        //  See globalIndex::calcOffsetRange, globalIndex::calcOffsetTotal
-        void reduce
-        (
-            const int communicator = UPstream::worldComm  //!< communicator
-        );
+        //- determine the globally-consistent start offset and total size
+        void reduce(int communicator = UPstream::worldComm);
 
 
     // Some functionality as per globalIndex

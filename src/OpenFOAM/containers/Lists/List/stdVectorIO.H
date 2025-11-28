@@ -25,10 +25,12 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "UList.H"
+#ifndef Foam_stdVectorIO_H
+#define Foam_stdVectorIO_H
+
+#include <vector>
 #include "Ostream.H"
 #include "token.H"
-#include <vector>
 
 // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
@@ -40,7 +42,7 @@ Foam::Ostream& Foam::operator<<(Ostream& os, const std::vector<T>& list)
 
     // Write ascii list contents, no line breaks
 
-    os << label(list.size()) << token::BEGIN_LIST;
+    os << static_cast<label>(list.size()) << token::BEGIN_LIST;
 
     // Contents
     if (iter != last)
@@ -59,5 +61,9 @@ Foam::Ostream& Foam::operator<<(Ostream& os, const std::vector<T>& list)
     return os;
 }
 
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#endif
 
 // ************************************************************************* //

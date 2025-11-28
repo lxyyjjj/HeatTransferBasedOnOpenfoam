@@ -26,7 +26,6 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "bitSet.H"
-#include "labelRange.H"
 #include "IOstreams.H"
 #include "UPstream.H"
 #include "addToRunTimeSelectionTable.H"

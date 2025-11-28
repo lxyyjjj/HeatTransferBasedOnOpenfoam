@@ -47,10 +47,16 @@ namespace Foam
 {
 
 // Forward Declarations
+class sliceRange;
 class Istream;
 class Ostream;
-template<class T> class List;
 template<class T, unsigned N> class FixedList;
+
+//- Read sliceRange from Istream as (start size stride) tuple, no checks
+Istream& operator>>(Istream& is, sliceRange& range);
+
+//- Write sliceRange to Ostream as (start size stride) tuple
+Ostream& operator<<(Ostream& os, const sliceRange& range);
 
 /*---------------------------------------------------------------------------*\
                          Class sliceRange Declaration
@@ -143,9 +149,6 @@ public:
         //- The (inclusive) upper value of the range.
         //- Ill-defined for an empty range
         label max() const noexcept { return start_ + (size_-1) * stride_; }
-
-        //- Return list of labels corresponding to the slice
-        List<label> labels() const;
 
 
     // Comparison
@@ -476,15 +479,6 @@ public:
             }
         };
 };
-
-
-// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
-
-//- Read sliceRange from Istream as (start size stride) tuple, no checks
-Istream& operator>>(Istream& is, sliceRange& range);
-
-//- Write sliceRange to Ostream as (start size stride) tuple
-Ostream& operator<<(Ostream& os, const sliceRange& range);
 
 
 // * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //

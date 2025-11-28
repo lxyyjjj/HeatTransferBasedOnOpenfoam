@@ -27,7 +27,6 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "CompactListList.H"
-#include "labelRange.H"
 
 // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 

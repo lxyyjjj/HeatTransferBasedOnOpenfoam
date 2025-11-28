@@ -23,20 +23,27 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
+Description
+    Implementation of IO operators for Foam::OffsetRange
+
 \*---------------------------------------------------------------------------*/
+
+#ifndef Foam_OffsetRangeIO_H
+#define Foam_OffsetRangeIO_H
 
 #include "OffsetRange.H"
 #include "token.H"
 #include "Istream.H"
 #include "Ostream.H"
 
-// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
-namespace
-{
-
-template<class IS, class T>
-inline IS& input(IS& is, Foam::OffsetRange<T>& range)
+template<class T>
+Foam::Istream& Foam::operator>>
+(
+    Foam::Istream& is,
+    Foam::OffsetRange<T>& range
+)
 {
     is.readBegin("OffsetRange");
     is >> range.start() >> range.size() >> range.total();
@@ -46,8 +53,13 @@ inline IS& input(IS& is, Foam::OffsetRange<T>& range)
     return is;
 }
 
-template<class OS, class T>
-inline OS& output(OS& os, const Foam::OffsetRange<T>& range)
+
+template<class T>
+Foam::Ostream& Foam::operator<<
+(
+    Foam::Ostream& os,
+    const Foam::OffsetRange<T>& range
+)
 {
     os  << Foam::token::BEGIN_LIST
         << range.start() << Foam::token::SPACE
@@ -59,33 +71,9 @@ inline OS& output(OS& os, const Foam::OffsetRange<T>& range)
     return os;
 }
 
-} // End anonymous namespace
 
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
-
-Foam::Istream& Foam::operator>>(Istream& is, OffsetRange<int32_t>& range)
-{
-    return input(is, range);
-}
-
-
-Foam::Istream& Foam::operator>>(Istream& is, OffsetRange<int64_t>& range)
-{
-    return input(is, range);
-}
-
-
-Foam::Ostream& Foam::operator<<(Ostream& os, const OffsetRange<int32_t>& range)
-{
-    return output(os, range);
-}
-
-
-Foam::Ostream& Foam::operator<<(Ostream& os, const OffsetRange<int64_t>& range)
-{
-    return output(os, range);
-}
-
+#endif
 
 // ************************************************************************* //

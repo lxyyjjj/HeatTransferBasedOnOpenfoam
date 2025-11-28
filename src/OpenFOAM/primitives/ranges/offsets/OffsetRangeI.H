@@ -49,19 +49,6 @@ template<class IntType>
 inline constexpr Foam::OffsetRange<IntType>::OffsetRange
 (
     IntType beg,
-    IntType len
-) noexcept
-:
-    start_(beg),
-    size_(len),
-    total_(len)
-{}
-
-
-template<class IntType>
-inline constexpr Foam::OffsetRange<IntType>::OffsetRange
-(
-    IntType beg,
     IntType len,
     IntType tot
 ) noexcept
@@ -73,6 +60,13 @@ inline constexpr Foam::OffsetRange<IntType>::OffsetRange
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class IntType>
+inline IntType Foam::OffsetRange<IntType>::at_value(IntType i) const noexcept
+{
+    return (start_ + ((i < 0 || i > size_) ? size_ : i));
+}
+
 
 template<class IntType>
 inline IntType Foam::OffsetRange<IntType>::begin_value() const noexcept
@@ -105,7 +99,9 @@ inline IntType Foam::OffsetRange<IntType>::rend_value() const noexcept
 template<class IntType>
 inline void Foam::OffsetRange<IntType>::clear() noexcept
 {
-    reset(0);
+    start_ = 0;
+    size_ = 0;
+    total_ = 0;
 }
 
 
@@ -113,19 +109,6 @@ template<class IntType>
 inline void Foam::OffsetRange<IntType>::reset(IntType len) noexcept
 {
     start_ = 0;
-    size_ = len;
-    total_ = len;
-}
-
-
-template<class IntType>
-inline void Foam::OffsetRange<IntType>::reset
-(
-    IntType beg,
-    IntType len
-) noexcept
-{
-    start_ = beg;
     size_ = len;
     total_ = len;
 }
@@ -148,9 +131,7 @@ inline void Foam::OffsetRange<IntType>::reset
 template<class IntType>
 inline bool Foam::OffsetRange<IntType>::contains(IntType value) const noexcept
 {
-    // Avoid overflow risk:
-    //   (value < (start_ + size_)) --> ((value - start_) < size_)
-
+    // This check is non-overflowing...
     return (size_ && start_ <= value && (value - start_) < size_);
 }
 
@@ -190,6 +171,16 @@ inline int Foam::OffsetRange<IntType>::compare
     if (b.total() < a.total()) return +1;
 
     return 0;
+}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+template<class IntType>
+inline constexpr IntType
+Foam::OffsetRange<IntType>::operator[](IntType i) const noexcept
+{
+    return (start_ + i);
 }
 
 

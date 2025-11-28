@@ -94,7 +94,6 @@ SourceFiles
 #ifndef Foam_CircularBuffer_H
 #define Foam_CircularBuffer_H
 
-#include "labelRange.H"
 #include "List.H"
 #include "SubList.H"
 

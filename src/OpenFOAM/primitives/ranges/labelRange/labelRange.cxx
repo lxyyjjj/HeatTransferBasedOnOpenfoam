@@ -30,6 +30,8 @@ License
 #include "List.H"
 #include "MinMax.H"
 #include "Pair.H"
+#include "Istream.H"
+#include "Ostream.H"
 #include <numeric>
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -77,20 +79,6 @@ Foam::labelRange::labelRange(Istream& is)
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-Foam::List<Foam::label> Foam::labelRange::labels() const
-{
-    List<label> result;
-
-    if (this->size() > 0)
-    {
-        result.resize(this->size());
-        std::iota(result.begin(), result.end(), this->start());
-    }
-
-    return result;
-}
-
 
 void Foam::labelRange::adjust() noexcept
 {
@@ -207,6 +195,40 @@ Foam::labelRange Foam::labelRange::subset0(const label size) const
     }
 
     return labelRange();
+}
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+// Format is identical to IntRange, Tuple2
+Foam::Istream& Foam::operator>>
+(
+    Foam::Istream& is,
+    Foam::labelRange& range
+)
+{
+    is.readBegin("labelRange");
+    is >> range.start() >> range.size();
+    is.readEnd("labelRange");
+
+    is.check(FUNCTION_NAME);
+    return is;
+}
+
+
+// Format is identical to IntRange, Tuple2
+Foam::Ostream& Foam::operator<<
+(
+    Foam::Ostream& os,
+    const Foam::labelRange& range
+)
+{
+    os  << Foam::token::BEGIN_LIST
+        << range.start() << Foam::token::SPACE
+        << range.size()
+        << Foam::token::END_LIST;
+
+    os.check(FUNCTION_NAME);
+    return os;
 }
 
 

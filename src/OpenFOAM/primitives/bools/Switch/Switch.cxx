@@ -34,7 +34,7 @@ License
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 // Number of names[]
-constexpr unsigned char numNames = (1+Foam::Switch::switchType::DEFAULT);
+constexpr unsigned char numNames = (1+Foam::Switch::switchType::INVALID);
 
 // The names corresponding to the switchType enumerations
 static const char* names[numNames] =
@@ -44,7 +44,6 @@ static const char* names[numNames] =
     "off",   "on",
     "none",  "any",
     "invalid",  //< Output representation only
-    "default",  //< parsed, but not good: could be yes or no
 };
 
 
@@ -161,26 +160,6 @@ Foam::Switch::parse(const char* s, size_t len) noexcept
                     )
                     {
                         return switchType::FALSE;
-                    }
-                    break;
-                }
-            }
-            break;
-        }
-        case 7:  // (default)
-        {
-            switch (s[0])
-            {
-                case 'd':  // (default)
-                {
-                    if
-                    (
-                        s[1] == 'e' && s[2] == 'f'
-                     && s[3] == 'a' && s[4] == 'u'
-                     && s[5] == 'l' && s[6] == 't'
-                    )
-                    {
-                        return switchType::DEFAULT;
                     }
                     break;
                 }

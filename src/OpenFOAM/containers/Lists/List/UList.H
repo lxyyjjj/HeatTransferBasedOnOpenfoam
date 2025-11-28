@@ -51,6 +51,7 @@ SourceFiles
 #include "zero.H"
 #include "one.H"
 #include "stdFoam.H"
+#include "labelRange.H"
 #include "nullObject.H"
 #include "Hash.H"
 #include "ListPolicy.H"  // Also includes "contiguous"
@@ -63,8 +64,6 @@ namespace Foam
 {
 
 // Forward Declarations
-class labelRange;
-
 template<class T> class List;
 template<class T> class SubList;
 template<class T> class UList;
@@ -872,7 +871,8 @@ struct sizeOp
 #ifdef NoRepository
     #include "UList.C"
     #include "UListIO.C"
-    #include "stdVectorIO.C"
+    #include "IntRangeIO.H"
+    #include "stdVectorIO.H"
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

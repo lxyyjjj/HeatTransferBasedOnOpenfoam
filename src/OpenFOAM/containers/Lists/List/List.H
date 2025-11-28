@@ -456,6 +456,14 @@ Istream& operator>>(Istream& is, List<T>& list)
 //  Optionally with an alternative start index, so that (map[i] == i+start)
 labelList identity(const label len, label start=0);
 
+//- Return an identity map corresponding to the index range (start, size)
+template<class IntType>
+labelList identity(const IntRange<IntType>& range)
+{
+    return Foam::identity(label(range.size()), label(range.start()));
+}
+
+
 //- Return the (stable) sort order for the list
 template<class T>
 labelList sortedOrder(const UList<T>& input);

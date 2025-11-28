@@ -24,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Description
-    Test slice range
+    Test stride range
 
 \*---------------------------------------------------------------------------*/
 
@@ -52,8 +52,7 @@ void printInfo(const sliceCoeffs& coeffs)
         << "min:    " << range.min() << nl
         << "*begin  " << *range.begin() << nl
         << "max:    " << range.max() << nl
-        << "*end    " << *range.end() << nl
-        << "values: " << flatOutput(range.labels()) << nl;
+        << "*end    " << *range.end() << nl << nl;
 
     Info<< "for  :";
     for (const label val : range)

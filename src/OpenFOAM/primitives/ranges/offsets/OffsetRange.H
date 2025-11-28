@@ -28,25 +28,32 @@ Class
 
 Description
     A tuple of integers comprising start, size, total.
-    This frequently corresponds to processor addressing
-    (eg, Foam::globalIndex)
-    but representing the local rank addressing only.
+
+    This frequently corresponds what is termed a "hyperslab", a "slice"
+    or a "selection" for MPI addressing. For this type of use, the
+    OffsetRange would represent the local rank addressing. Apart from
+    the total size, it would not have information about any other ranks
+    (like Foam::globalIndex does).
 
 Note
-    Only a minimum of IO operators are defined, to avoid incurring
-    too many dependencies or cyclic dependencies.
+    Since this range is low-level, the IO operators are defined
+    in the separate OffsetRangeIO.H header.
+
+SeeAlso
+    Foam::globalIndex
+    Foam::GlobalOffset
 
 SourceFiles
     OffsetRangeI.H
-    OffsetRanges.cxx
+    OffsetRangeIO.H
 
 \*---------------------------------------------------------------------------*/
 
 #ifndef Foam_OffsetRange_H
 #define Foam_OffsetRange_H
 
-#include "labelFwd.H"
-#include <type_traits>
+#include "IndexIterator.H"
+#include "IntRange.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -54,8 +61,18 @@ namespace Foam
 {
 
 // Forward Declarations
+template<class T> class OffsetRange;
 class Istream;
 class Ostream;
+
+//- Read from Istream as bracketed (start size total) tuple
+template<class T> Istream& operator>>(Istream&, OffsetRange<T>&);
+
+//- Write to Ostream as bracketed (start size total) tuple
+template<class T> Ostream& operator<<(Ostream&, const OffsetRange<T>&);
+
+// Common Types
+// FUTURE?: offsetRange, labelOffsetRange, ...?
 
 /*---------------------------------------------------------------------------*\
                          Class OffsetRange Declaration
@@ -78,6 +95,12 @@ class OffsetRange
         IntType total_;
 
 
+    // Private Member Functions
+
+        //- The value "at" the local index \p idx, with bounds checking.
+        //  If index is out-of-bounds, returns the end_value()
+        inline IntType at_value(IntType idx) const noexcept;
+
 public:
 
     // STL type definitions
@@ -88,25 +111,38 @@ public:
         //- The type that can represent the size
         typedef IntType size_type;
 
+        //- Input iterator with const access
+        using const_iterator = IndexIterator<IntType>;
 
-    // Generated Methods: copy/move construct, copy/move assignment
+        //- Reverse input iterator with const access
+        using const_reverse_iterator = ReverseIndexIterator<IntType>;
+
+
+    // Generated Methods
+
+        //- Copy construct
+        OffsetRange(const OffsetRange&) noexcept = default;
+
+        //- Move construct
+        OffsetRange(OffsetRange&&) noexcept = default;
+
+        //- Copy assignment
+        OffsetRange& operator=(const OffsetRange&) noexcept = default;
+
+        //- Move assignment
+        OffsetRange& operator=(OffsetRange&&) noexcept = default;
+
 
     // Constructors
 
         //- Default construct as (0,0,0)
         inline constexpr OffsetRange() noexcept;
 
-        //- Construct with specified length, starting at zero.
-        //- Sets total = size
+        //- Construct with start=0 and specified size, assigns total=size
         inline constexpr OffsetRange(IntType len) noexcept;
 
-        //- Construct from start/length, no checks
-        //- Sets total = size
-        inline constexpr OffsetRange
-        (
-            IntType beg,
-            IntType len
-        ) noexcept;
+        // No construct from (start, size).
+        // Unclear if the total should be [size] or [start+size]
 
         //- Construct from all components, no checks
         inline constexpr OffsetRange
@@ -142,13 +178,8 @@ public:
         //- Non-const access to the total size
         IntType& total() noexcept { return total_; }
 
-        //- The (inclusive) lower value of the range,
-        //- same as start(), begin_value()
-        IntType min() const noexcept { return start_; }
-
-        //- The (inclusive) upper value of the range,
-        //- same as rbegin_value(). Ill-defined for an empty range
-        IntType max() const noexcept { return (start_ + (size_ - 1)); }
+        //- The (state,size) range
+        IntRange<IntType> range() const noexcept { return { start_, size_ }; }
 
 
     // Edit
@@ -156,11 +187,12 @@ public:
         //- Reset to zero
         inline void clear() noexcept;
 
-        //- Reset from size, start=0, total = size
-        inline void reset(IntType len = 0) noexcept;
+        //- Reset to the specified size, with start=0 and total=size
+        //  Can also use operator= assignment
+        inline void reset(IntType len) noexcept;
 
-        //- Reset from start/size. Assigns total = size
-        inline void reset(IntType beg, IntType len) noexcept;
+        // No reset from (start, size).
+        // Unclear if the total should be [size] or [start+size]
 
         //- Reset all components
         inline void reset(IntType beg, IntType len, IntType tot) noexcept;
@@ -176,60 +208,93 @@ public:
         inline int compare(const OffsetRange& b) const noexcept;
 
 
+    // Operators
+
+        //- Assign to the specified size, with start=0 and total=size
+        void operator=(IntType len) noexcept
+        {
+            reset(len);
+        }
+
+        //- Assign from an OffsetRange with the same or lower representation
+        template
+        <
+            class IntT2,
+            class = std::enable_if_t
+            <std::is_integral_v<IntT2> && (sizeof(IntT2) <= sizeof(IntType))>
+        >
+        void operator=(const OffsetRange<IntT2>& rhs) noexcept
+        {
+            start_ = rhs.start(); size_ = rhs.size(); total_ = rhs.total();
+        }
+
+
+        //- Return const_iterator to a position within the range,
+        //- with bounds checking.
+        //  \return iterator at the requested position, or end() for
+        //      out-of-bounds
+        const_iterator at(IntType i) const { return at_value(i); }
+
+        //- Offset dereference, without bounds checking
+        inline constexpr IntType operator[](IntType i) const noexcept;
+
+        //- True if the value is between the start and size range.
+        //  Behaviour identical to contains() - usable as a predicate
+        bool operator()(IntType i) const noexcept { return contains(i); }
+
+
     // Search
 
-        //- True if the (global) value is within the start/size interval.
+        //- True if the value is between the start and size range range.
         inline bool contains(IntType value) const noexcept;
 
 
-    // Iterator ranges (as per IntRange)
+    // Iterator range values
 
-        //- The value at the beginning of the range - same as start()
+        //- The value at the beginning of the start/size range - same as start()
         inline IntType begin_value() const noexcept;
 
-        //- The value 1 beyond the end of the range.
+        //- The value 1 beyond the end of the start/size range.
         inline IntType end_value() const noexcept;
 
-        //- The max value of the range.
+        //- The max value of the start/size range.
         inline IntType rbegin_value() const noexcept;
 
-        //- The value 1 before the begin of range
+        //- The value 1 before the begin of start/size range
         inline IntType rend_value() const noexcept;
 
 
-    // Method name compatibility with globalIndex
-    // (may change in the future)
+    // Bidirectional input iterators (const)
 
-        //- Same as start() - method name as per globalIndex
-        IntType localStart() const noexcept { return start_; }
+        //- A const_iterator set to the beginning of the range
+        const_iterator begin() const noexcept { return begin_value(); }
 
-        //- Same as size() - method name as per globalIndex
-        IntType localSize() const noexcept { return size_; }
+        //- A const_iterator set to the beginning of the range
+        const_iterator cbegin() const noexcept { return begin_value(); }
 
-        //- Same as total() - method name as per globalIndex
-        IntType totalSize() const noexcept { return total_; }
+        //- A const_iterator set to 1 beyond the end of the range.
+        const_iterator cend() const noexcept { return end_value(); }
+
+        //- A const_iterator set to 1 beyond the end of the range.
+        const_iterator end() const noexcept { return end_value(); }
+
+
+    // Bidirectional reverse input iterators (const)
+
+        //- A const_reverse_iterator set to 1 before the end of range
+        const_reverse_iterator
+        rbegin() const noexcept { return rbegin_value(); }
+
+        //- A const_reverse_iterator set to 1 before the end of range
+        const_reverse_iterator
+        crbegin() const noexcept { return rbegin_value(); }
+
+        //- A const_reverse_iterator set to 1 before the begin of range
+        const_reverse_iterator rend() const noexcept { return rend_value(); }
+
+        //- A const_reverse_iterator set to 1 before the begin of range
+        const_reverse_iterator crend() const noexcept { return rend_value(); }
 };
-
-
-// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
-
-// Input operators for common integer types
-
-//- Read IntRange from Istream as bracketed (start size total) tuple
-Istream& operator>>(Istream& os, OffsetRange<int32_t>& range);
-
-//- Read OffsetRange from Istream as bracketed (start size total) tuple
-Istream& operator>>(Istream& os, OffsetRange<int64_t>& range);
-
-
-// Output operators for common integer types
-
-//- Write OffsetRange to Ostream as bracketed (start size total) tuple
-Ostream& operator<<(Ostream& os, const OffsetRange<int32_t>& range);
-
-//- Write OffsetRange to Ostream as bracketed (start size total) tuple
-Ostream& operator<<(Ostream& os, const OffsetRange<int64_t>& range);
-
 
 // * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
 

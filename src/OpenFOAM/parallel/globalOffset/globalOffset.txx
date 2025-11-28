@@ -219,40 +219,4 @@ IntType2 Foam::GlobalOffset<IntType>::toLocal(const IntType2 i) const
 }
 
 
-// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
-
-template<class IntType>
-Foam::Istream& Foam::operator>>
-(
-    Foam::Istream& is,
-    Foam::GlobalOffset<IntType>& rhs
-)
-{
-    is.readBegin("GlobalOffset");
-    is >> rhs.start() >> rhs.size() >> rhs.total();
-    is.readEnd("GlobalOffset");
-
-    is.check(FUNCTION_NAME);
-    return is;
-}
-
-
-template<class IntType>
-Foam::Ostream& Foam::operator<<
-(
-    Foam::Ostream& os,
-    const Foam::GlobalOffset<IntType>& rhs
-)
-{
-    os  << token::BEGIN_LIST
-        << rhs.start() << token::SPACE
-        << rhs.size() << token::SPACE
-        << rhs.total()
-        << token::END_LIST;
-
-    os.check(FUNCTION_NAME);
-    return os;
-}
-
-
 // ************************************************************************* //
