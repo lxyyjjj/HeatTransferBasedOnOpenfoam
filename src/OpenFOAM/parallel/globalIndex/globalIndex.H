@@ -28,11 +28,26 @@ Class
     Foam::globalIndex
 
 Description
-    Calculates a unique integer (label so might not have enough room - 2G max)
-    for processor + local index. E.g.
+    Calculates a non-overlapping list of offsets based on an input size
+    (eg, number of cells) from different MPI ranks.
+    These offsets can be used to define a unique (global) indexing
+    number.
 
-    globalIndex globalFaces(mesh.nFaces());
-    label globalFacei = globalFaces.toGlobal(facei);
+    For example,
+    \verbatim
+        globalIndex globalFaces(mesh.nFaces());
+        label globalFacei = globalFaces.toGlobal(facei);
+    \endverbatim
+
+Note
+    The globalIndex is generally used when the ranks need information
+    about each other's position, whereas GlobalOffset and OffsetRange
+    are used when only the local addressing information (and total Size)
+    is needed without additional information about other ranks.
+
+Warning
+    The unique integer is a Foam::label, so may be subject to overflow
+    problems (2G max) with a 32-bit label compilation.
 
 SourceFiles
     globalIndex.cxx
@@ -99,8 +114,23 @@ class globalIndex
             const label count           // The count to add to prevOffset
         );
 
+        //- Return start/size range addressing for proci data
+        inline labelRange range_impl(label proci) const noexcept;
+
+        //- Return start/size/total slab addressing for proci data
+        inline OffsetRange<label> slice_impl(label proci) const noexcept;
+
 
 public:
+
+    // STL type definitions
+
+        //- Type of values contained
+        typedef label value_type;
+
+        //- The type that can represent the size
+        typedef label size_type;
+
 
     // Public Data Types
 
@@ -146,7 +176,7 @@ public:
         //- No communication required
         inline globalIndex
         (
-            const globalIndex::gatherNone,
+            globalIndex::gatherNone,
             const labelUList& localSizes
         );
 
@@ -154,7 +184,7 @@ public:
         //- with default/specified communicator if parallel.
         inline explicit globalIndex
         (
-            const label localSize,
+            label localSize,
             const label comm = UPstream::worldComm,   //!< communicator
             const bool parallel = UPstream::parRun()  //!< use parallel comms
         );
@@ -162,8 +192,8 @@ public:
         //- Construct with a single (local size) entry, no communication
         inline globalIndex
         (
-            const globalIndex::gatherNone,
-            const label localSize,
+            globalIndex::gatherNone,
+            label localSize,
             const label comm = -1   //!< no communicator needed
         );
 
@@ -174,8 +204,8 @@ public:
         //  \note can be used when Pstream::parRun() is false.
         inline globalIndex
         (
-            const globalIndex::gatherOnly,
-            const label localSize,
+            globalIndex::gatherOnly,
+            label localSize,
             const label comm = UPstream::worldComm  //!< communicator
         );
 
@@ -187,8 +217,8 @@ public:
         //  \note can be used when Pstream::parRun() is false.
         inline globalIndex
         (
-            const globalIndex::gatherNonLocal,
-            const label localSize,
+            globalIndex::gatherNonLocal,
+            label localSize,
             const label comm = UPstream::worldComm  //!< communicator
         );
 
@@ -207,7 +237,7 @@ public:
 
         //- Global sum of localSizes. Same as totalSize()
         FOAM_DEPRECATED_STRICT(2022-10, "totalSize() - unambiguous")
-        inline label size() const;
+        label size() const noexcept { return totalSize(); }
 
         //- The span size covered by the offsets, zero if empty
         inline label span() const noexcept;
@@ -284,7 +314,7 @@ public:
         //- with default/specified communicator if parallel.
         void reset
         (
-            const label localSize,
+            label localSize,
             const label comm = UPstream::worldComm,   //!< communicator
             const bool parallel = UPstream::parRun()  //!< use parallel comms
         );
@@ -301,9 +331,9 @@ public:
         //- Reset to a single (local size) entry, no communication
         inline void reset
         (
-            const globalIndex::gatherNone,
-            const label localSize,
-            const label comm = -1   //!< no communicator needed
+            globalIndex::gatherNone,
+            label localSize,
+            int communicator = 0   //!< (unused) no communicator needed
         );
 
         //- Reset as 'one-sided' from local sizes.
@@ -313,8 +343,8 @@ public:
         //  \note can be used when Pstream::parRun() is false.
         inline void reset
         (
-            const globalIndex::gatherOnly,
-            const label localSize,
+            globalIndex::gatherOnly,
+            label localSize,
             const label comm = UPstream::worldComm  //!< communicator
         );
 
@@ -326,8 +356,8 @@ public:
         //  \note can be used when Pstream::parRun() is false.
         inline void reset
         (
-            const globalIndex::gatherNonLocal,
-            const label localSize,
+            globalIndex::gatherNonLocal,
+            label localSize,
             const label comm = UPstream::worldComm  //!< communicator
         );
 
@@ -356,10 +386,10 @@ public:
         label maxNonLocalSize(const label proci) const;
 
         //- Return start/size range of proci data
-        inline labelRange range(const label proci) const;
+        inline labelRange range(label proci) const noexcept;
 
-        //- Return start/size/total range of proci data
-        inline OffsetRange<label> offsetRange(const label proci) const;
+        //- Return start/size/total slab addressing for proci data
+        inline OffsetRange<label> slice(label proci) const noexcept;
 
         //- Is on processor proci
         inline bool isLocal(const label proci, const label i) const;
@@ -425,8 +455,8 @@ public:
         //- Return start/size range of local (myProcNo) data
         inline labelRange range() const;
 
-        //- Return start/size/total range of local (myProcNo) data
-        inline OffsetRange<label> offsetRange() const;
+        //- Return start/size/total slab addressing for local (myProcNo) data
+        inline OffsetRange<label> slice() const;
 
         //- Is on local processor
         inline bool isLocal(const label i) const;
@@ -539,27 +569,6 @@ public:
         //  \note Restricted to integral types.
         template<class IntType>
         static IntType calcOffset
-        (
-            IntType localSize,
-            const label comm = UPstream::worldComm  //!< communicator
-        );
-
-        //- Based on the local input size(s),
-        //- calculate a globally-consistent local start offset
-        //- and the total size.
-        //  \note Restricted to integral types.
-        template<class IntType>
-        static std::pair<IntType,IntType> calcOffsetTotal
-        (
-            IntType localSize,
-            const label comm = UPstream::worldComm  //!< communicator
-        );
-
-        //- Based on the local input size(s),
-        //- calculate a globally-consistent local start/size/total
-        //  \note Restricted to integral types.
-        template<class IntType>
-        static OffsetRange<IntType> calcOffsetRange
         (
             IntType localSize,
             const label comm = UPstream::worldComm  //!< communicator
@@ -1149,7 +1158,7 @@ public:
         FOAM_DEPRECATED_FOR(2022-03, "construct without message tag")
         globalIndex
         (
-            const label localSize,
+            label localSize,
             const int tag,          // message tag (unused)
             const label comm,       // communicator
             const bool parallel     // use parallel comms
@@ -1163,7 +1172,7 @@ public:
         FOAM_DEPRECATED_FOR(2022-03, "reset without message tag")
         void reset
         (
-            const label localSize,
+            label localSize,
             const int tag,          // message tag (unused)
             const label comm,       // communicator
             const bool parallel     // use parallel comms

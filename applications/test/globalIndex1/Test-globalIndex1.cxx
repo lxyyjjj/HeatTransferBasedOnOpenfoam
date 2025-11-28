@@ -33,6 +33,7 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include "globalIndex.H"
+#include "globalOffset.H"
 #include "globalMeshData.H"
 #include "argList.H"
 #include "Time.H"
@@ -57,8 +58,7 @@ int main(int argc, char *argv[])
 
     Pout<< "local-offset: " << globalIndex::calcOffset(mesh.nCells()) << nl;
     Pout<< "local-range: " << globalIndex::calcRange(mesh.nCells()) << nl;
-    Pout<< "offset-range: "
-        << globalIndex::calcOffsetRange(mesh.nCells()) << nl;
+    Pout<< "offset-range: " << globalOffset::calculate(mesh.nCells()) << nl;
 
     Info<< "cells from:" << globalNumbering.begin_value()
         << " to:" << globalNumbering.end_value()

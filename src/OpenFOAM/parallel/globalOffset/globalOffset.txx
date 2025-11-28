@@ -26,120 +26,58 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "globalOffset.H"
-#include <array>
 
-// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-namespace Foam
-{
-namespace PstreamDetail
-{
-
-// Reduction of OffsetRange is similar to globalIndex::calcOffsetTotal
-// but retaining all of the values as member data
-template<class IntType>
-void reduce_offsetRange
-(
-    Foam::OffsetRange<IntType>& range,
-    const int communicator  // The parallel communicator
-)
-{
-    if (UPstream::is_parallel(communicator))
-    {
-        // Exscan (sum) yields the offsets, assigns 0 for rank=0
-        IntType work = range.size();
-        UPstream::mpiExscan_sum(&work, 1, communicator);
-
-        // For the truly paranoid:
-        // if (UPstream::master(communicator)) work = 0;
-
-        range.start() = work;
-
-        // The rank=(nProcs-1) knows the total - broadcast to others
-        const auto root = (UPstream::nProcs(communicator)-1);
-        if (root == UPstream::myProcNo(communicator))
-        {
-            // Update work as total == (start + size)
-            work += range.size();
-        }
-        UPstream::broadcast(&work, 1, communicator, root);
-
-        range.total() = work;
-    }
-}
-
-
-// Implementation for reduceOffsets
-//
-// Equivalent to GlobalOffset::reduce (like globalIndex::calcOffsetTotal)
-// but bundles values and performs operations on multiple values,
-// which avoids calling MPI repeatedly
-template
-<
-    class IntType,      // Should match GlobalOffset::value_type
-    std::size_t... Is,
-    class... OffsetRanges
->
-void reduce_offsetRanges
-(
-    const int communicator,       // The parallel communicator
-    std::index_sequence<Is...>,   // Indices into items
-    OffsetRanges&... items
-)
-{
-    if (UPstream::is_parallel(communicator))
-    {
-        using value_type = IntType;
-
-        // Like globalIndex::calcOffsetTotal
-        // but handling multiple items at once to reduce communication
-
-        // Pack all sizes into the work buffer
-        std::array<value_type, sizeof...(items)> work{ (items.size())... };
-
-        // Exscan (sum) yields the offsets, assigns 0 for rank=0
-        UPstream::mpiExscan_sum(work.data(), work.size(), communicator);
-
-        // For the truly paranoid:
-        // if (UPstream::master(communicator)) work.fill(0);
-
-        // The work buffer now contains the offsets, copy back to starts
-        ((items.start() = work[Is]), ...);
-
-        // The rank=(nProcs-1) knows the total - broadcast to others
-        const auto root = (UPstream::nProcs(communicator)-1);
-        if (root == UPstream::myProcNo(communicator))
-        {
-            // Update work buffer as total == (start + size)
-            ((work[Is] += items.size()), ...);
-        }
-        UPstream::broadcast(work.data(), work.size(), communicator, root);
-
-        // The work buffer now contains the totals, copy back to total_
-        ((items.total() = work[Is]), ...);
-    }
-}
-
-} // End namespace PstreamDetail
-} // End namespace Foam
-
-
-// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+// Backends: template parameter has already been tested as integral
+// by the caller
 
 template<class IntType>
-Foam::OffsetRange<IntType>
-Foam::GlobalOffset<IntType>::calcOffsetRange
+template<class IntegralType>
+Foam::OffsetRange<IntegralType>
+Foam::GlobalOffset<IntType>::calculate_impl
 (
-    IntType localSize,
-    const int communicator
+    IntegralType localSize,
+    int communicator,
+    bool parallel
 )
 {
-    OffsetRange<IntType> result(localSize);
+    OffsetRange<IntegralType> result(localSize);
 
-    // Single-item reduction
-    Foam::PstreamDetail::reduce_offsetRange(result, communicator);
+    if (parallel)
+    {
+        // Single-item reduction
+        Foam::reduceOffset(result, communicator);
+    }
 
     return result;
+}
+
+
+template<class IntType>
+template<class IntegralType>
+Foam::List<Foam::OffsetRange<IntegralType>>
+Foam::GlobalOffset<IntType>::calculateList_impl
+(
+    const UList<IntegralType>& localSizes,
+    int communicator,
+    bool parallel
+)
+{
+    const label len = localSizes.size();
+    List<OffsetRange<IntegralType>> ranges(len);
+
+    for (label i = 0; i < len; ++i)
+    {
+        ranges[i] = localSizes[i];
+    }
+
+    if (parallel)
+    {
+        Foam::reduceOffsets(communicator, ranges);
+    }
+
+    return ranges;
 }
 
 
@@ -157,31 +95,10 @@ Foam::GlobalOffset<IntType>::GlobalOffset(Istream& is)
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 template<class IntType>
-void Foam::GlobalOffset<IntType>::reduce
-(
-    const int communicator
-)
+void Foam::GlobalOffset<IntType>::reduce(int communicator)
 {
     // Single-item reduction
-    Foam::PstreamDetail::reduce_offsetRange(*this, communicator);
-}
-
-
-template<class IntType>
-template<class IntType2>
-Foam::List<IntType2> Foam::GlobalOffset<IntType>::toGlobal
-(
-    const UList<IntType2>& labels
-) const
-{
-    // Or using std::transform
-
-    //std::transform(labels.begin(), labels.end(), result.begin(),
-    //    [=](auto id) { return id += start_ });
-
-    List<IntType2> result(labels);
-    inplaceToGlobal(result);
-    return result;
+    Foam::reduceOffset(*this, communicator);
 }
 
 
@@ -204,15 +121,30 @@ void Foam::GlobalOffset<IntType>::inplaceToGlobal
 
 template<class IntType>
 template<class IntType2>
-IntType2 Foam::GlobalOffset<IntType>::toLocal(const IntType2 i) const
+Foam::List<IntType2> Foam::GlobalOffset<IntType>::toGlobal
+(
+    const UList<IntType2>& labels
+) const
 {
-    // !this->contains(i)
-    if (i < this->begin_value() || this->end_value() <= i)
+    List<IntType2> result(labels);
+    inplaceToGlobal(result);
+    return result;
+}
+
+
+template<class IntType>
+template<class IntType2>
+IntType2 Foam::GlobalOffset<IntType>::toLocal(IntType2 i) const
+{
+    // (error_checking)
     {
-        FatalErrorInFunction
-            << "Global id:" << i << " not contained in the interval ["
-            << this->begin_value() << "," << this->end_value() << "]\n"
-            << abort(FatalError);
+        if (!this->contains(i))
+        {
+            FatalErrorInFunction
+                << "Global id:" << i << " not contained in the interval ["
+                << this->begin_value() << "," << this->end_value() << "]\n"
+                << abort(FatalError);
+        }
     }
 
     return (i - this->start());

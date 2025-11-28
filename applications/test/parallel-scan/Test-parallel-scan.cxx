@@ -37,6 +37,7 @@ Description
 #include "vector.H"
 #include "Pstream.H"
 #include "globalIndex.H"
+#include "globalOffset.H"
 
 using namespace Foam;
 
@@ -64,16 +65,6 @@ void testGlobalIndex(const Type& localSize)
             << " (globalIndex calcOffset)" << endl;
     }
 
-    // With calcOffsetTotal
-    {
-        auto [start, total] = globalIndex::calcOffsetTotal(localSize, comm);
-
-        Pout<< "size: " << localSize
-            << " offset: " << start
-            << " total: " << total
-            << " (globalIndex calcOffsetTotal)" << endl;
-    }
-
     // With calcRange
     {
         IntRange<Type> range = globalIndex::calcRange(localSize, comm);
@@ -91,12 +82,28 @@ void testGlobalIndex(const Type& localSize)
             << " (globalIndex calcRange)" << endl;
     }
 
-    // With calcOffsetRange
+    // With calculate OffsetRange
     {
-        OffsetRange<Type> range = globalIndex::calcOffsetRange(localSize, comm);
+        // Bad: possible narrowing mismatch
+        // OffsetRange<Type> range =
+        //     globalOffset::calculate(localSize, comm);
+
+        // Possible implicit narrowing
+        // auto range = globalOffset::calculate(localSize, comm);
+
+        // OK: no possible mismatch
+        auto range = GlobalOffset<Type>::calculate(localSize, comm);
+
+        GlobalOffset<Type> other(10);
 
         Pout<< "range: " << range
-            << " (globalIndex calcOffsetRange)" << endl;
+            << " (globalOffset calculate)" << endl;
+
+        if (!range.empty())
+        {
+            other = range;
+            range.clear();
+        }
     }
 }
 
@@ -226,7 +233,7 @@ void testScan(const Type& localValue, const bool exclusive)
     }
 
 
-    // With calcOffsetRange
+    // Same as calculate OffsetRange
     if constexpr (std::is_integral_v<Type>)
     {
         const auto& size = localValue;
@@ -272,6 +279,19 @@ int main(int argc, char *argv[])
 
     const bool exclusive = args.found("exclusive");
     const scalar scaleFactor = args.getOrDefault<scalar>("factor", 1);
+
+
+    // Note: regular call will cast the parameter so that the following
+    // is not flagged as a problem
+    {
+        float value(3.14159);
+        auto range0 = globalOffset::calculate(value);
+
+        Info<< "offset of " << value << " : " << range0 << nl;
+
+        // This one will refuse to compile...
+        // auto range1 = globalOffset::calculate<float>(value);
+    }
 
     Info<< nl;
     {

@@ -34,6 +34,7 @@ SourceFiles
     UPstream.C
     UPstream.txx
     UPstreamCommsStruct.C
+    UPstreamReduceOffsets.H
 
 \*---------------------------------------------------------------------------*/
 
@@ -2432,6 +2433,7 @@ Ostream& operator<<(Ostream&, const UPstream::commsStruct&);
 
 #ifdef NoRepository
     #include "UPstream.txx"
+    #include "UPstreamReduceOffsets.H"
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
