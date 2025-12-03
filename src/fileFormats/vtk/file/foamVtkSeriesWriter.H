@@ -77,6 +77,12 @@ namespace vtk
 
 class seriesWriter
 {
+    // Data Types
+
+        //- Select between "series" (default for vtk) and "json" endings
+        enum class endingType : unsigned char { SERIES, JSON };
+
+
     // Private Member Data
 
         //- A list of file/time entries
@@ -84,6 +90,12 @@ class seriesWriter
 
         //- Hash of existing (known) file names
         HashSet<fileName> existing_;
+
+        //- The preferred ending name
+        endingType extType_ = endingType::SERIES;
+
+
+    // Private Member Functions
 
         //- Append the specified file/time instant.
         //  Overwrites existing entry that has the same name,
@@ -98,8 +110,8 @@ public:
 
     // Constructors
 
-        //- Construct an empty series
-        seriesWriter() = default;
+        //- Construct an empty series (.series ending)
+        inline seriesWriter() noexcept;
 
         //- Copy construct
         seriesWriter(const seriesWriter&) = default;
@@ -191,6 +203,13 @@ public:
         //- The number of data sets
         inline label size() const noexcept;
 
+        //- Preferred extension is "json" instead of "series"
+        inline bool json() const noexcept;
+
+        //- Toggle the preferred extension to "json" on/off.
+        //- Return the old json state.
+        inline bool json(bool on) noexcept;
+
 
     // Content Management
 
@@ -211,17 +230,15 @@ public:
 
         //- Clear contents and reload by parsing the specified file.
         //
-        //  \param seriesName the base name of the series to scan, without
-        //      the ".series" ending.
-        //  \param checkFiles verify that the files also exist
-        //  \param restartTime ignore entries with a time greater/equal
-        //      to the specified restart time.
-        //
         //  \return the number of entries
         label load
         (
+            //! Base name of the series to scan, without the ".series" ending
             const fileName& seriesName,
+            //! Verify that the files also exist
             const bool checkFiles = false,
+            //! Ignore entries with a time greater-equal to the
+            //! specified restart time
             const scalar restartTime = ROOTVGREAT
         );
 
@@ -232,15 +249,13 @@ public:
         //     <!-- ... time='3.14159' ... -->
         //  \endverbatim
         //
-        //  \param seriesName the base name of the series to scan, without
-        //      the ".series" ending.
-        //  \param restartTime ignore entries with a time greater/equal
-        //      to the specified restart time.
-        //
         //  \return the number of entries
         label scan
         (
+            //! Base name of the series to scan, without the ".series" ending
             const fileName& seriesName,
+            //! Ignore entries with a time greater-equal to the
+            //! specified restart time
             const scalar restartTime = ROOTVGREAT
         );
 
@@ -259,7 +274,7 @@ public:
         inline void print(Ostream& os) const;
 
         //- Write file series as (JSON format) to disk
-        inline void write(const fileName& seriesName) const;
+        void write(const fileName& seriesName) const;
 };
 
 

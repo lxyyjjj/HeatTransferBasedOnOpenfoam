@@ -282,7 +282,8 @@ bool Foam::functionObjects::vtkWrite::write()
     }
 
 
-    fileName vtkName = time_.globalCaseName();
+    // The base for naming output files
+    const fileName vtkName = time_.globalCaseName();
 
     vtk::vtmWriter vtmMultiRegion;
 
@@ -401,7 +402,7 @@ bool Foam::functionObjects::vtkWrite::write()
                 << endl;
 
             // No sub-block for internal
-            vtmWriter.append_vtu
+            vtmWriter.append_ugrid
             (
                 "internal",
                 vtmOutputBase.name()/"internal"
@@ -447,7 +448,7 @@ bool Foam::functionObjects::vtkWrite::write()
             );
 
             // No sub-block for one-patch
-            vtmWriter.append_vtp
+            vtmWriter.append_poly
             (
                 "boundary",
                 vtmOutputBase.name()/"boundary"
@@ -506,13 +507,13 @@ bool Foam::functionObjects::vtkWrite::write()
                     vtmBoundaries.beginBlock("boundary");
                 }
 
-                vtmWriter.append_vtp
+                vtmWriter.append_poly
                 (
                     pp.name(),
                     vtmOutputBase.name()/"boundary"/pp.name()
                 );
 
-                vtmBoundaries.append_vtp
+                vtmBoundaries.append_poly
                 (
                     pp.name(),
                     "boundary"/pp.name()

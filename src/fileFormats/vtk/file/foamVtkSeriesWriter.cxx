@@ -179,7 +179,7 @@ Foam::Ostream& Foam::vtk::seriesWriter::print
     // Each entry
     //   { "name" : "<stem><sep>name<ext>",  "time" : value }
 
-    for (const instant& inst : series)
+    for (const auto& inst : series)
     {
         os  << "    { \"name\" : \""
             << stem << sep << inst.name() << ext
@@ -214,7 +214,7 @@ Foam::Ostream& Foam::vtk::seriesWriter::print
     // Each entry
     //   { "name" : "<file>",  "time" : <value> }
 
-    for (const fileNameInstant& inst : series)
+    for (const auto& inst : series)
     {
         os  << "    { \"name\" : \""
             << inst.name().name()
@@ -240,18 +240,21 @@ void Foam::vtk::seriesWriter::write
     const char sep
 )
 {
-    mkDir(seriesName.path());
+    Foam::mkDir(seriesName.path());
 
-    autoPtr<OFstream> osPtr =
-    (
-        seriesName.has_ext("series")
-      ? autoPtr<OFstream>::New(seriesName)
-      : autoPtr<OFstream>::New(seriesName + ".series")
-    );
+    autoPtr<OFstream> osPtr;
+
+    if (seriesName.has_ext("json") || seriesName.has_ext("series"))
+    {
+        osPtr = autoPtr<OFstream>::New(seriesName);
+    }
+    else
+    {
+        osPtr = autoPtr<OFstream>::New(seriesName + ".series");
+    }
 
     print(*osPtr, seriesName, series, sep);
 }
-
 
 
 void Foam::vtk::seriesWriter::write
@@ -260,14 +263,18 @@ void Foam::vtk::seriesWriter::write
     const UList<fileNameInstant>& series
 )
 {
-    mkDir(seriesName.path());
+    Foam::mkDir(seriesName.path());
 
-    autoPtr<OFstream> osPtr =
-    (
-        seriesName.has_ext("series")
-      ? autoPtr<OFstream>::New(seriesName)
-      : autoPtr<OFstream>::New(seriesName + ".series")
-    );
+    autoPtr<OFstream> osPtr;
+
+    if (seriesName.has_ext("json") || seriesName.has_ext("series"))
+    {
+        osPtr = autoPtr<OFstream>::New(seriesName);
+    }
+    else
+    {
+        osPtr = autoPtr<OFstream>::New(seriesName + ".series");
+    }
 
     print(*osPtr, series);
 }
@@ -282,9 +289,7 @@ bool Foam::vtk::seriesWriter::appendCheck(fileNameInstant inst)
         return false;
     }
 
-    const auto iter = existing_.find(inst.name());
-
-    if (iter.good())
+    if (const auto iter = existing_.find(inst.name()); iter.good())
     {
         for (fileNameInstant& dst : entries_)
         {
@@ -297,7 +302,7 @@ bool Foam::vtk::seriesWriter::appendCheck(fileNameInstant inst)
         }
     }
 
-    entries_.append(inst);
+    entries_.push_back(inst);
     existing_.insert(inst.name());
 
     return true;
@@ -376,12 +381,24 @@ Foam::label Foam::vtk::seriesWriter::load
     clear();
 
     fileName seriesFile(seriesName);
-    if (!seriesFile.has_ext("series"))
+
+    if (seriesName.has_ext("json") || seriesName.has_ext("series"))
     {
-        seriesFile.ext("series");
+        // No adjustment needed
+    }
+    else
+    {
+        if (this->json())
+        {
+            seriesFile.ext("json");
+        }
+        else
+        {
+            seriesFile.ext("series");
+        }
     }
 
-    if (!isFile(seriesFile))
+    if (!Foam::isFile(seriesFile))
     {
         return size();
     }
@@ -594,14 +611,15 @@ Foam::label Foam::vtk::seriesWriter::scan
 
     const fileName path = seriesName.path();
 
-    if (!isDir(path))
+    if (!Foam::isDir(path))
     {
         return size();
     }
 
     fileName seriesFile(seriesName);
 
-    if (seriesName.has_ext("series"))
+    // From "outputNNN.vtm.series" -> "outputNNN.vtm"
+    if (seriesName.has_ext("json") || seriesName.has_ext("series"))
     {
         seriesFile.remove_ext();
     }
@@ -750,6 +768,25 @@ bool Foam::vtk::seriesWriter::removeNewer(const scalar timeValue)
 void Foam::vtk::seriesWriter::sort()
 {
     Foam::sort(entries_, seriesLess());
+}
+
+
+void Foam::vtk::seriesWriter::write(const fileName& seriesName) const
+{
+    if
+    (
+        this->json()
+     && !(seriesName.has_ext("json") || seriesName.has_ext("series"))
+    )
+    {
+        fileName newName(seriesName + ".json");
+        seriesWriter::write(newName, entries_);
+    }
+    else
+    {
+        // No adjustment needed, or let the routine append ".series" if needed
+        seriesWriter::write(seriesName, entries_);
+    }
 }
 
 

@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2018 OpenCFD Ltd.
+    Copyright (C) 2018-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
         fileName base = "region1_0001";
 
         writer1.beginBlock("internal");
-        writer1.append_vtu
+        writer1.append_ugrid
         (
             base/"internal"
         );
@@ -52,16 +52,16 @@ int main(int argc, char *argv[])
 
         {
             writer1.beginBlock("boundary");
-            writer1.append_vtp
+            writer1.append_poly
             (
                 base/"patch0"
             );
             writer1.append("");  // bad entry
-            writer1.append_vtp
+            writer1.append_poly
             (
                 base/"patch1"
             );
-            writer1.append_vtp
+            writer1.append_poly
             (
                 base/"patch2"
             );
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
         fileName base = "region2_0001";
 
         writer2.beginBlock("internal");
-        writer2.append_vtu
+        writer2.append_ugrid
         (
             base/"internal"
         );
@@ -116,16 +116,16 @@ int main(int argc, char *argv[])
 
         {
             writer2.beginBlock("boundary");
-            writer2.append_vtp
+            writer2.append_poly
             (
                 base/"patch0"
             );
             writer2.append("");  // bad entry
-            writer2.append_vtp
+            writer2.append_poly
             (
                 base/"patch1"
             );
-            writer2.append_vtp
+            writer2.append_poly
             (
                 base/"patch2"
             );
@@ -153,6 +153,73 @@ int main(int argc, char *argv[])
 
     Info<< nl << "Combined:" << nl;
     writer3.dump(Info);
+
+    Info<< nl << "XML:" << nl;
+    writer3.write_xml(Info);
+
+    // With hdf names
+    {
+        vtk::vtmWriter vtmMultiRegion;
+
+        for (const word& regionName : { "fluid", "solid" })
+        {
+            // Combined internal + boundary in a vtm file
+            vtk::vtmWriter vtmWriter;
+
+            // No sub-block for internal
+            vtmWriter.append_hdf<vtk::fileTag::UNSTRUCTURED_GRID>
+            (
+                "internal",
+                regionName/"internal"
+            );
+
+            // Collect individual boundaries into a vtm file
+            vtk::vtmWriter vtmBoundaries;
+
+            vtmWriter.beginBlock("boundary");
+            vtmBoundaries.beginBlock("boundary");
+
+            vtmWriter.append_hdf<vtk::fileTag::POLY_DATA>
+            (
+                "patch0",
+                regionName/"boundary"/"patch0",
+            );
+            vtmBoundaries.append_hdf<vtk::fileTag::POLY_DATA>
+            (
+                "patch0",
+                "boundary/patch0"
+            );
+
+            vtmWriter.append_hdf<vtk::fileTag::POLY_DATA>
+            (
+                "patch1",
+                regionName/"boundary"/"patch1"
+            );
+            vtmBoundaries.append_hdf<vtk::fileTag::POLY_DATA>
+            (
+                "patch1",
+                "boundary/patch1"
+            );
+
+            vtmWriter.endBlock("boundary");
+            vtmBoundaries.endBlock("boundary");
+
+            // Add to multi-region vtm
+            vtmMultiRegion.add(regionName, regionName, vtmWriter);
+
+            Info<< nl << "region = " << regionName << nl;
+            vtmWriter.write_xml(Info);
+
+            Info<< nl << "region = " << regionName << " boundary" << nl;
+            vtmBoundaries.write_xml(Info);
+        }
+
+        // Info<< nl << "multi-region:" << nl;
+        // vtmMultiRegion.dump(Info);
+
+        Info<< nl << "XML:" << nl;
+        vtmMultiRegion.write_xml(Info);
+    }
 
     return 0;
 }

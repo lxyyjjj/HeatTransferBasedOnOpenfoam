@@ -184,7 +184,7 @@ Description
                     ++n;
                 }
 
-                vtmBoundaries.append_vtp
+                vtmBoundaries.append_poly
                 (
                     patchName,
                     dirName/patchName

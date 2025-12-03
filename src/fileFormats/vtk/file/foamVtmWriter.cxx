@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2018-2023 OpenCFD Ltd.
+    Copyright (C) 2018-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,16 +25,16 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include <fstream>
 #include "foamVtmWriter.H"
-#include "Time.H"
+#include "OFstream.H"
 #include "OSspecific.H"
+#include "Time.H"
 
 // * * * * * * * * * * * * * * * * Local Class * * * * * * * * * * * * * * * //
 
 void Foam::vtk::vtmWriter::vtmEntry::clear()
 {
-    type_ = NONE;
+    type_ = entryType::NONE;
     name_.clear();
     file_.clear();
 }
@@ -44,16 +44,15 @@ bool Foam::vtk::vtmWriter::vtmEntry::good() const noexcept
 {
     return
     (
-        type_ == vtmEntry::BEGIN_BLOCK
-     || type_ == vtmEntry::END_BLOCK
-     || (type_ == vtmEntry::DATA && file_.size())
+        (type_ == entryType::BEGIN_BLOCK || type_ == entryType::END_BLOCK)
+     || (type_ == entryType::DATA && file_.size())
     );
 }
 
 
 bool Foam::vtk::vtmWriter::vtmEntry::write(vtk::formatter& format) const
 {
-    if (type_ == vtmEntry::BEGIN_BLOCK)
+    if (type_ == entryType::BEGIN_BLOCK)
     {
         format.openTag(vtk::fileTag::BLOCK);
         if (name_.size())
@@ -64,12 +63,12 @@ bool Foam::vtk::vtmWriter::vtmEntry::write(vtk::formatter& format) const
 
         return true;
     }
-    else if (type_ == vtmEntry::END_BLOCK)
+    else if (type_ == entryType::END_BLOCK)
     {
         format.endBlock();
         return true;
     }
-    else if (type_ == vtmEntry::DATA && file_.size())
+    else if (type_ == entryType::DATA && file_.size())
     {
         format.openTag(vtk::fileTag::DATA_SET);
 
@@ -79,6 +78,38 @@ bool Foam::vtk::vtmWriter::vtmEntry::write(vtk::formatter& format) const
         }
 
         format.xmlAttr("file", file_);
+
+        // Normally only useful for vtkhdf management where the file
+        // extension doesn't convey any information
+
+        bool printDataType = file_.has_ext("vtkhdf");
+
+        /// #ifdef FULLDEBUG
+        /// printDataType = true;
+        /// #endif
+
+        if (printDataType)
+        {
+            switch (content_)
+            {
+                case vtk::fileTag::POLY_DATA :
+                {
+                    format.xmlAttr("_Type", "PolyData");
+                    break;
+                }
+                case vtk::fileTag::MULTI_BLOCK :
+                {
+                    format.xmlAttr("_Type", "MultiBlock");
+                    break;
+                }
+                case vtk::fileTag::UNSTRUCTURED_GRID :
+                {
+                    format.xmlAttr("_Type", "UnstructuredGrid");
+                    break;
+                }
+                default:  break;
+            }
+        }
 
         format.closeTag(true);  // Empty tag. ie, <DataSet ... />
         return true;
@@ -240,9 +271,9 @@ void Foam::vtk::vtmWriter::repair(bool collapse)
     }
 
     // Close any dangling blocks
-    while (depth--)
+    while (depth-- > 0)
     {
-        entries_.append(vtmEntry::endblock());
+        entries_.push_back(vtmEntry::endblock());
     }
 
     blocks_.clear();
@@ -316,17 +347,17 @@ void Foam::vtk::vtmWriter::dump(Ostream& os) const
 
 Foam::vtk::vtmWriter::vtmWriter()
 :
-    vtmWriter(true)
+    timeValue_(0),
+    autoName_(true),
+    hasTime_(false)
 {}
 
 
 Foam::vtk::vtmWriter::vtmWriter(bool autoName)
 :
+    timeValue_(0),
     autoName_(autoName),
-    hasTime_(false),
-    entries_(),
-    blocks_(),
-    timeValue_(Zero)
+    hasTime_(false)
 {}
 
 
@@ -337,7 +368,7 @@ void Foam::vtk::vtmWriter::clear()
     entries_.clear();
     blocks_.clear();
 
-    timeValue_ = Zero;
+    timeValue_ = 0;
     hasTime_ = false;
 }
 
@@ -388,8 +419,8 @@ void Foam::vtk::vtmWriter::setTime(const Time& t)
 
 Foam::label Foam::vtk::vtmWriter::beginBlock(const word& blockName)
 {
-    entries_.append(vtmEntry::block(blockName));
-    blocks_.append(blockName);
+    entries_.push_back(vtmEntry::block(blockName));
+    blocks_.push_back(blockName);
 
     return blocks_.size();
 }
@@ -408,8 +439,8 @@ Foam::label Foam::vtk::vtmWriter::endBlock(const word& blockName)
                 << endl;
         }
 
-        blocks_.pop_back();
         entries_.push_back(vtmEntry::endblock());
+        blocks_.pop_back();
     }
 
     return blocks_.size();
@@ -453,7 +484,7 @@ bool Foam::vtk::vtmWriter::append
         return false;
     }
 
-    entries_.append(vtmEntry::entry(name, file));
+    entries_.push_back(vtmEntry::entry(name, file));
     return true;
 }
 
@@ -472,11 +503,11 @@ bool Foam::vtk::vtmWriter::append
 
     if (file.has_ext(vtk::fileExtension[contentType]))
     {
-        entries_.append(vtmEntry::entry(name, file));
+        entries_.push_back(vtmEntry::entry(name, file));
     }
     else
     {
-        entries_.append
+        entries_.push_back
         (
             vtmEntry::entry
             (
@@ -507,6 +538,8 @@ void Foam::vtk::vtmWriter::add
 
     for (const vtmEntry& e : other.entries_)
     {
+        if (!good) break;
+
         switch (e.type_)
         {
             case vtmEntry::NONE:
@@ -517,11 +550,11 @@ void Foam::vtk::vtmWriter::add
             {
                 if (e.good())
                 {
-                    entries_.append(e);
+                    entries_.push_back(e);
 
                     if (prefix.size())
                     {
-                        fileName& f = entries_.last().file_;
+                        auto& f = entries_.back().file_;
 
                         f = prefix/f;
                     }
@@ -532,30 +565,28 @@ void Foam::vtk::vtmWriter::add
             case vtmEntry::BEGIN_BLOCK:
             {
                 ++depth;
-                entries_.append(e);
+                entries_.push_back(e);
                 break;
             }
             case vtmEntry::END_BLOCK:
             {
                 good = (depth > 0);
-                --depth;
-                if (good)
+                if (depth > 0)
                 {
-                    entries_.append(e);
+                    --depth;
+                    entries_.push_back(e);
                 }
                 break;
             }
         }
-
-        if (!good) break;
     }
 
-    while (depth--)
+    while (depth-- > 0)
     {
-        entries_.append(vtmEntry::endblock());
+        entries_.push_back(vtmEntry::endblock());
     }
 
-    entries_.append(vtmEntry::endblock());
+    entries_.push_back(vtmEntry::endblock());
 
     if (!hasTime_ && other.hasTime_)
     {
@@ -575,37 +606,26 @@ void Foam::vtk::vtmWriter::add
 }
 
 
-Foam::label Foam::vtk::vtmWriter::write(const fileName& file)
+Foam::label Foam::vtk::vtmWriter::write_xml(std::ostream& os) const
 {
-    std::ofstream os_;
+    // Attach formatter to the std stream
+    auto formatter = vtk::newFormatter(os, formatType::INLINE_ASCII);
 
-    mkDir(file.path());
-
-    if (file.has_ext(ext()))
-    {
-        os_.open(file);
-    }
-    else
-    {
-        os_.open(file + "." + ext());
-    }
-
-    auto format = vtk::newFormatter(os_, formatType::INLINE_ASCII);
-
+    auto& format = formatter();
 
     // Contents Header
     {
-        format().xmlHeader();
+        format.xmlHeader();
 
         if (hasTime_)
         {
-            format().xmlComment
+            format.xmlComment
             (
                 "time='" + Foam::name(timeValue_) + "'"
             );
         }
 
-        format().beginVTKFile<vtk::fileTag::MULTI_BLOCK>();
+        format.beginVTKFile<vtk::fileTag::MULTI_BLOCK>();
     }
 
 
@@ -649,33 +669,64 @@ Foam::label Foam::vtk::vtmWriter::write(const fileName& file)
             // Too many end blocks - stop output now. Should we warn?
             break;
         }
-        e.write(format());
+        e.write(format);
     }
 
     // Close any dangling blocks
-    while (depth--)
+    while (depth-- > 0)
     {
-        format().endBlock();
+        format.endBlock();
     }
 
-    format().endTag(vtk::fileTag::MULTI_BLOCK);
+    format.endTag(vtk::fileTag::MULTI_BLOCK);
 
 
     // FieldData for TimeValue
     if (hasTime_)
     {
-        format()
+        format
             .beginFieldData()
             .writeTimeValue(timeValue_)
             .endFieldData();
     }
 
-    format().endVTKFile();
+    format.endVTKFile();
 
-    format.clear();
-    os_.close();
+    formatter.reset(nullptr);
 
     return ndata;
+}
+
+
+Foam::label Foam::vtk::vtmWriter::write_xml(OSstream& os) const
+{
+    // Write with a formatter attached to the std stream
+    return write_xml(os.stdStream());
+}
+
+
+Foam::label Foam::vtk::vtmWriter::write_xml(const fileName& file) const
+{
+    std::ofstream os;
+
+    Foam::mkDir(file.path());
+
+    if (file.has_ext(ext()))
+    {
+        os.open(file);
+    }
+    else
+    {
+        os.open(file + "." + ext());
+    }
+
+    return write_xml(os);
+}
+
+
+Foam::label Foam::vtk::vtmWriter::write(const fileName& file) const
+{
+    return write_xml(file);
 }
 
 

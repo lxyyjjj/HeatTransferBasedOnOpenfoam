@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2018-2021 OpenCFD Ltd.
+    Copyright (C) 2018-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,6 +40,7 @@ using namespace Foam;
 
 int main(int argc, char *argv[])
 {
+    argList::noBanner();
     argList::addBoolOption("sort", "Sort value / name");
     argList::addBoolOption("check", "Check for existence of files");
     argList::addOption("time", "value", "Filter based on given time");
@@ -99,17 +100,16 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (args.found("scan"))
+    if (fileName file; args.readIfPresent("scan", file))
     {
+        Info<< "Scan file: " << file << nl << nl;
+
         vtk::seriesWriter writer;
+        writer.scan(file);
 
-        writer.scan(args.get<fileName>("scan"));
-
-        Info<< "scanned for files" << nl;
         writer.print(Info);
-        Info<< nl << nl;
+        Info<< nl;
     }
-
 
     Info<< "\nEnd\n" << nl;
 

@@ -107,7 +107,7 @@ Description
         );
 
         // No sub-block for internal
-        vtmWriter.append_vtu
+        vtmWriter.append_ugrid
         (
             "internal",
             vtmOutputBase.name()/"internal"
@@ -162,7 +162,7 @@ Description
         );
 
         // No sub-block for one-patch
-        vtmWriter.append_vtp
+        vtmWriter.append_poly
         (
             "boundary",
             vtmOutputBase.name()/"boundary"
@@ -222,13 +222,13 @@ Description
                 vtmBoundaries.beginBlock("boundary");
             }
 
-            vtmWriter.append_vtp
+            vtmWriter.append_poly
             (
                 pp.name(),
                 vtmOutputBase.name()/"boundary"/pp.name()
             );
 
-            vtmBoundaries.append_vtp
+            vtmBoundaries.append_poly
             (
                 pp.name(),
                 "boundary"/pp.name()
