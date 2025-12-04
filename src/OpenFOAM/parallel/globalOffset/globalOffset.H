@@ -27,12 +27,17 @@ Class
     Foam::GlobalOffset
 
 Description
-    A Foam::OffsetRange tuple of start/size/total with some additional
-    parallel functionality.
+    A Foam::OffsetRange (start, size, total) tuple with some additional
+    parallel functionality. A common use case for OffsetRange would be
+    the definition of non-overlapping global addressing.
 
-    In general use OffsetRange for parameters requiring addressing
-    information, and use GlobalOffset for creating and managing
-    that addressing locally.
+    OffsetRange is used for the addressing information,
+    and GlobalOffset for creating and managing that addressing.
+
+Note
+    In contrast to Foam::globalIndex, both GlobalOffset and OffsetRange
+    only have their own local addressing information (and total size)
+    without additional information about other ranks.
 
 SourceFiles
     globalOffset.txx
@@ -43,8 +48,9 @@ SourceFiles
 #ifndef Foam_globalOffset_H
 #define Foam_globalOffset_H
 
-#include "UPstream.H"
 #include "OffsetRange.H"
+#include "OffsetRangeIO.H"
+#include "UPstream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -54,17 +60,9 @@ namespace Foam
 // Forward Declarations
 template<class IntType> class GlobalOffset;
 
-template<class IntType>
-Istream& operator>>(Istream& os, GlobalOffset<IntType>&);
-
-template<class IntType>
-Ostream& operator<<(Ostream& os, const GlobalOffset<IntType>&);
-
-// Common types
-
+// Common Types
 //- A GlobalOffset with label for the addressing
 typedef GlobalOffset<label> globalOffset;
-
 
 /*---------------------------------------------------------------------------*\
                         Class GlobalOffset Declaration
@@ -75,6 +73,28 @@ class GlobalOffset
 :
     public OffsetRange<IntType>
 {
+    // Private Member Functions
+
+        //- Return a list of globally-consistent start/size/total ranges
+        //- based on the given local input sizes.
+        template<class IntegralType>
+        static OffsetRange<IntegralType> calculate_impl
+        (
+            IntegralType localSize,
+            int communicator,
+            bool parallel
+        );
+
+        //- Return a list of globally-consistent start/size/total ranges
+        //- based on the given local input sizes.
+        template<class IntegralType>
+        static List<OffsetRange<IntegralType>> calculateList_impl
+        (
+            const UList<IntegralType>& localSizes,
+            int communicator,  //!< communicator
+            bool parallel      //!< use parallel comms
+        );
+
 public:
 
     // Generated Methods: copy/move construct, copy/move assignment
@@ -93,9 +113,14 @@ public:
         GlobalOffset
         (
             IntType len,
-            const int communicator,   //!< communicator
-            const bool parallel = UPstream::parRun()  //!< use parallel comms
+            int communicator,                   //!< communicator
+            bool parallel = UPstream::parRun()  //!< use parallel comms
         );
+
+        //- Copy construct from OffsetRange.
+        //  Should be left as implicit to allow assignment from
+        //  the results of the calculate() method
+        inline GlobalOffset(const OffsetRange<IntType>& range) noexcept;
 
         //- Read construct from start/size/total tuple
         explicit GlobalOffset(Istream& is);
@@ -103,38 +128,95 @@ public:
 
     // Member Functions
 
+    // Access
+
+        //- Same as start() - method name as per globalIndex
+        IntType localStart() const noexcept { return this->start(); }
+
+        //- Same as size() - method name as per globalIndex
+        IntType localSize() const noexcept { return this->size(); }
+
+        //- Same as total() - method name as per globalIndex
+        IntType totalSize() const noexcept { return this->total(); }
+
+
     // Edit
 
-        //- Reset to zero
-        inline void clear() noexcept;
-
         //- Reset from local size with zero offset.
-        inline void reset(IntType len = 0) noexcept;
+        inline void reset(IntType len) noexcept;
 
         //- Reset from local size, with parallel coordination of
         //- the offsets and total size
         inline void reset
         (
-            const IntType len,
-            const int communicator,   //!< communicator
-            const bool parallel = UPstream::parRun()  //!< use parallel comms
+            IntType len,
+            int communicator,                   //!< communicator
+            bool parallel = UPstream::parRun()  //!< use parallel comms
         );
 
 
     // Parallel Functions
 
         //- Based on the local input size,
-        //- calculate a globally-consistent local start and total.
-        //  See globalIndex::calcOffsetRange, globalIndex::calcOffsetTotal
-        void reduce
+        //- determine the globally-consistent start offset and total size
+        void reduce(int communicator = UPstream::worldComm);
+
+        //- Calculate a globally-consistent set of start/size/total
+        //- based on the given local input size.
+        static OffsetRange<IntType> calculate
         (
-            const int communicator = UPstream::worldComm  //!< communicator
-        );
+            IntType localSize,
+            int communicator = UPstream::worldComm,  //!< communicator
+            bool parallel = UPstream::parRun()       //!< use parallel comms
+        )
+        {
+            return calculate_impl<IntType>(localSize, communicator, parallel);
+        }
+
+        //- Calculate a globally-consistent set of start/size/total
+        //- based on the given local input size.
+        template
+        <
+            class Int,
+            class = std::enable_if_t<std::is_integral_v<Int>>
+        >
+        static OffsetRange<Int> calculate
+        (
+            IntType localSize,
+            int communicator = UPstream::worldComm,  //!< communicator
+            bool parallel = UPstream::parRun()       //!< use parallel comms
+        )
+        {
+            return calculate_impl<Int>(localSize, communicator, parallel);
+        }
+
+        //- Return a list of globally-consistent start/size/total ranges
+        //- based on the given local input sizes.
+        template
+        <
+            class Int,
+            class = std::enable_if_t<std::is_integral_v<Int>>
+        >
+        static List<OffsetRange<Int>> calculate
+        (
+            const UList<Int>& localSizes,
+            int communicator = UPstream::worldComm,  //!< communicator
+            bool parallel = UPstream::parRun()       //!< use parallel comms
+        )
+        {
+            return calculateList_impl<Int>(localSizes, communicator, parallel);
+        }
 
 
     // Some functionality as per globalIndex
 
     // Local queries and renumbering
+
+        //- Test if index is within the range. Same as contains()
+        bool isLocal(IntType i) const noexcept
+        {
+            return this->contains(i);
+        }
 
         //- From local to global index
         template<class IntType2>
@@ -154,18 +236,7 @@ public:
         //- From global to local
         //  FatalError for an out-of-range value
         template<class IntType2>
-        IntType2 toLocal(const IntType2 i) const;
-
-
-    // Helper Functions
-
-        //- Calculate a globally-consistent OffsetRange based on the
-        //- the local input size.
-        static OffsetRange<IntType> calcOffsetRange
-        (
-            IntType localSize,
-            const int communicator = UPstream::worldComm  //!< communicator
-        );
+        IntType2 toLocal(IntType2 i) const;
 };
 
 } // End namespace Foam
@@ -179,84 +250,6 @@ public:
 #ifdef NoRepository
     #include "globalOffset.txx"
 #endif
-
-// * * * * * * * * * * * * * * * Global Reduction  * * * * * * * * * * * * * //
-
-namespace Foam
-{
-
-//- Parallel reduction of OffsetRange (eg, GlobalOffset) on its size to
-//- yield the globally-consistent offset and the total size across all ranks
-template<class IntType>
-void reduceOffset
-(
-    OffsetRange<IntType>& range,
-    const int communicator = UPstream::worldComm
-)
-{
-    // Single-item reduction
-    Foam::PstreamDetail::reduce_offsetRange<IntType>
-    (
-        range,
-        communicator
-    );
-}
-
-
-//- Parallel reduction of multiple OffsetRange (eg, GlobalOffset) items.
-//  To avoid MPI multiple times it packs/unpacks values into a local work
-//  array.
-//
-//  \note OffsetRange is already restricted to integral types,
-//  but this wrapper also requires that the parameters have the same
-//  representation (ie, cannot mix int32/int64, signed/unsigned etc)
-template
-<
-    class First,
-    class... Rest,
-    class = std::enable_if_t
-    <
-    (
-        std::is_integral_v<typename First::value_type>
-     && std::is_base_of_v
-        <Foam::OffsetRange<typename First::value_type>, First>
-     && (std::is_base_of_v
-        <Foam::OffsetRange<typename First::value_type>, Rest> && ...)
-    )>
->
-void reduceOffsets
-(
-    const int communicator,
-    First& first,
-    Rest&... rest
-)
-{
-    if constexpr (sizeof...(rest) == 0)
-    {
-        // Single-item reduction
-        Foam::PstreamDetail::reduce_offsetRange<typename First::value_type>
-        (
-            first,
-            communicator
-        );
-    }
-    else
-    {
-        // Reduce multiple items, use pack/unpack
-        Foam::PstreamDetail::reduce_offsetRanges<typename First::value_type>
-        (
-            communicator,
-            std::make_index_sequence<1 + sizeof...(rest)>{},
-            first,
-            rest...
-        );
-    }
-}
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

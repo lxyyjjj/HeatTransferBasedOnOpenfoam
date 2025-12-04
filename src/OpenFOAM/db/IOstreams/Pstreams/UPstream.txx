@@ -33,7 +33,7 @@ bool Foam::UPstream::broadcast
     Type* buffer,
     std::streamsize count,
     const int communicator,
-    int root
+    const int root
 )
 {
     // Likely no reason to check for nullptr
@@ -73,7 +73,7 @@ bool Foam::UPstream::broadcast
 (
     FixedList<Type, N>& list,
     const int communicator,
-    int root
+    const int root
 )
 {
     return UPstream::broadcast(list.data(), list.size(), communicator, root);

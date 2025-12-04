@@ -40,62 +40,6 @@ Foam::globalIndex::calcOffset(IntType localSize, const label comm)
 }
 
 
-// template<class IntType, unsigned N>
-// Foam::FixedList<IntType, N>
-// Foam::globalIndex::calcOffset
-// (
-//     const FixedList<IntType, N>& localSizes,
-//     const label comm
-// )
-// {
-//     static_assert(std::is_integral_v<IntType>, "Integral required");
-//     FixedList<IntType, N> starts(localSizes);
-//     UPstream::mpiExscan_sum(starts.data(), starts.size(), comm);
-//     return starts;
-// }
-
-
-template<class IntType>
-std::pair<IntType,IntType>
-Foam::globalIndex::calcOffsetTotal(IntType localSize, const label comm)
-{
-    static_assert(std::is_integral_v<IntType>, "Integral required");
-
-    if (!UPstream::is_parallel(comm))
-    {
-        return {0, localSize};
-    }
-
-    IntType start = globalIndex::calcOffset(localSize, comm);
-    IntType total = (start + localSize);
-
-    // Broadcast from nProcs-1 as root
-    UPstream::broadcast(&total, 1, comm, UPstream::nProcs(comm)-1);
-    return {start, total};
-}
-
-
-template<class IntType>
-Foam::OffsetRange<IntType>
-Foam::globalIndex::calcOffsetRange(IntType localSize, const label comm)
-{
-    static_assert(std::is_integral_v<IntType>, "Integral required");
-
-    if (!UPstream::is_parallel(comm))
-    {
-        return OffsetRange<IntType>(localSize);
-    }
-
-    IntType start = globalIndex::calcOffset(localSize, comm);
-    IntType total = (start + localSize);
-
-    // Broadcast from nProcs-1 as root
-    UPstream::broadcast(&total, 1, comm, UPstream::nProcs(comm)-1);
-
-    return OffsetRange<IntType>(start, localSize, total);
-}
-
-
 template<class IntType>
 Foam::List<IntType>
 Foam::globalIndex::calcRecvSizes(IntType localSize, const label comm)
@@ -104,10 +48,9 @@ Foam::globalIndex::calcRecvSizes(IntType localSize, const label comm)
 
     List<IntType> count(UPstream::listGatherValues(localSize, comm));
     // Replace element [0] with the max receive count
-    if (!count.empty())
+    if (count.size() > 1)
     {
-        count[0] = 0;
-        count[0] = *(std::max_element(count.begin(), count.end()));
+        count[0] = *(std::max_element(count.begin()+1, count.end()));
     }
     return count;
 }
@@ -125,9 +68,7 @@ Foam::globalIndex::calcOffsets
 {
     labelList values;
 
-    const label len = counts.size();
-
-    if (len)
+    if (const label len = counts.size(); len > 0)
     {
         values.resize(len+1);
 
@@ -161,9 +102,7 @@ Foam::globalIndex::calcListOffsets
 {
     labelList values;
 
-    const label len = lists.size();
-
-    if (len)
+    if (const label len = lists.size(); len > 0)
     {
         values.resize(len+1);
 

@@ -35,7 +35,7 @@ SourceFiles
     bitSetI.H
     bitSet.C
     bitSetIO.C
-    bitSetTemplates.C
+    bitSet.txx
 
 See also
     Foam::BitOps
@@ -605,7 +605,21 @@ public:
         inline bitSet& operator-=(const bitSet& other);
 
 
-    // IOstream Operators
+    // Reading/writing
+
+
+        //- Read contents in "compact" format, which is the listing
+        //- of the 'on' bits (toc)
+        //  This function mostly useful for relatively sparse sets.
+        //  \note currently ASCII only.
+        Istream& readListToc(Istream& is);
+
+        //- Write contents in "compact" format, which is the listing
+        //- of the 'on' bits (toc), with line-breaks in ASCII guided
+        //- by shortLen parameter ('0' suppresses line-breaks entirely).
+        //  This function mostly useful for relatively sparse sets.
+        //  \note currently ASCII only.
+        Ostream& writeListToc(Ostream& os, label shortLen=0) const;
 
         //- Return info proxy,
         //- used to print information to a stream
@@ -622,6 +636,15 @@ public:
         (
             //! The UPstream communicator (default is worldComm)
             int communicator = -1,
+            //! False: sizes already consistent. True: adjust sizes.
+            bool syncSizes = true
+        );
+
+        //- Broadcast the contents using the specified communicator/root
+        void broadcast
+        (
+            //! UPstream communicator and broadcast root
+            std::pair<int,int> communicator_root,
             //! False: sizes already consistent. True: adjust sizes.
             bool syncSizes = true
         );
@@ -727,7 +750,7 @@ inline bitSet operator-(const bitSet& a, const bitSet& b);
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #ifdef NoRepository
-    #include "bitSetTemplates.C"
+    #include "bitSet.txx"
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

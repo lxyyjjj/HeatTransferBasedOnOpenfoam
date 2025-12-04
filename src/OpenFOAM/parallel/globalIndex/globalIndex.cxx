@@ -71,16 +71,14 @@ Foam::globalIndex::calcOffsets
 {
     labelList values;
 
-    const label len = counts.size();
-
-    if (len)
+    if (const label len = counts.size(); len > 0)
     {
         values.resize(len+1);
 
         label start = 0;
         for (label i = 0; i < len; ++i)
         {
-            const label count = counts[i];
+            const auto count = counts[i];
             values[i] = start;
             start += count;
 
@@ -105,16 +103,14 @@ Foam::globalIndex::calcRanges
 {
     List<labelRange> values;
 
-    const label len = counts.size();
-
-    if (len)
+    if (const label len = counts.size(); len > 0)
     {
         values.resize(len);
 
         label start = 0;
         for (label i = 0; i < len; ++i)
         {
-            const label count = counts[i];
+            const auto count = counts[i];
             values[i].reset(start, count);
             start += count;
 
@@ -333,9 +329,7 @@ void Foam::globalIndex::reset
     const bool parallel
 )
 {
-    const label len = UPstream::nProcs(comm);
-
-    if (len)
+    if (const label len = UPstream::nProcs(comm); len > 0)
     {
         labelList counts;
 
@@ -369,9 +363,7 @@ void Foam::globalIndex::reset
     const bool checkOverflow
 )
 {
-    const label len = counts.size();
-
-    if (len)
+    if (const label len = counts.size(); len > 0)
     {
         offsets_.resize_nocopy(len+1);
 

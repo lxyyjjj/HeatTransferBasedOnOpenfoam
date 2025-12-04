@@ -41,6 +41,11 @@ void Foam::Pstream::broadcast
     {
         return;
     }
+    else if constexpr (std::is_same_v<bitSet, Type>)
+    {
+        // Handled properly by bitSet itself (is internal contiguous)
+        value.broadcast(communicator);
+    }
     else if constexpr (is_contiguous_v<Type>)
     {
         UPstream::broadcast
@@ -78,6 +83,7 @@ void Foam::Pstream::broadcast
     }
     else if constexpr (is_contiguous_v<Type>)
     {
+        // UPstream has extra handling for FixedList
         UPstream::broadcast(list, communicator);
     }
     else
@@ -151,7 +157,7 @@ void Foam::Pstream::broadcastList
     }
     else if constexpr (std::is_same_v<bitSet, ListType>)
     {
-        // Specialized handling implemented within bitSet itself
+        // Handled properly by bitSet itself (is internal contiguous)
         list.broadcast(communicator);
     }
     else if constexpr (is_contiguous_v<typename ListType::value_type>)

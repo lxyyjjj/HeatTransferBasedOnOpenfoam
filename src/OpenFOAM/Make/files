@@ -211,8 +211,6 @@ $(sha1)/SHA1Digest.C
 primitives/random/Random/Random.C
 
 ranges = primitives/ranges
-$(ranges)/IntRange/IntRanges.cxx
-$(ranges)/OffsetRange/OffsetRanges.cxx
 $(ranges)/labelRange/labelRange.cxx
 $(ranges)/labelRange/labelRanges.cxx
 $(ranges)/scalarRange/scalarRange.cxx
@@ -736,9 +734,8 @@ $(derivedPointPatches)/wall/wallPointPatch.C
 pointBoundaryMesh = $(pointMesh)/pointBoundaryMesh
 $(pointBoundaryMesh)/pointBoundaryMesh.C
 
-meshes/boundBox/boundBox.C
-
-meshes/treeBoundBox/treeBoundBox.C
+meshes/boundBox/boundBox.cxx
+meshes/treeBoundBox/treeBoundBox.cxx
 
 meshTools = meshes/meshTools
 $(meshTools)/matchPoints.C

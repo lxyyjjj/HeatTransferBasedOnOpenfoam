@@ -108,7 +108,6 @@ namespace Foam
 
 // Forward Declarations
 template<unsigned Width> class PackedList;
-class labelRange;
 
 template<unsigned Width>
 Istream& operator>>(Istream& is, PackedList<Width>& list);

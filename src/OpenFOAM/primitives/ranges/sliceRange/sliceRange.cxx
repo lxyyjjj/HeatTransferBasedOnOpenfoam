@@ -28,7 +28,6 @@ License
 #include "sliceRange.H"
 #include "token.H"
 #include "FixedList.H"
-#include "List.H"
 #include "Istream.H"
 #include "Ostream.H"
 #include <numeric>
@@ -41,30 +40,6 @@ Foam::sliceRange::sliceRange(const FixedList<label,3>& coeffs)
     size_(std::max(label(0),coeffs[1])),   // No negative size
     stride_(std::max(label(0),coeffs[2]))  // No negative stride
 {}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-Foam::List<Foam::label> Foam::sliceRange::labels() const
-{
-    List<label> result(size_);
-
-    if (stride_ > 1)
-    {
-        std::copy(cbegin(), cend(), result.begin());
-    }
-    else if (stride_ == 1)
-    {
-        std::iota(result.begin(), result.end(), start_);
-    }
-    else
-    {
-        // stride = 0 (identical values!)
-        std::fill_n(result.begin(), result.size(), start_);
-    }
-
-    return result;
-}
 
 
 // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //

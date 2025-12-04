@@ -222,12 +222,12 @@ inline void push_request
 //  - UOPBstream::bufferIPCsend()
 //  - UOPBstream::send(Foam::zero, ...)
 
-inline bool broadcast_int64(int64_t& value, int comm)
+inline bool broadcast_int64(int64_t& value, int comm, int root = 0)
 {
     return
     (
         MPI_SUCCESS
-     == MPI_Bcast(&value, 1, MPI_INT64_T, 0, MPICommunicators_[comm])
+     == MPI_Bcast(&value, 1, MPI_INT64_T, root, MPICommunicators_[comm])
     );
 }
 

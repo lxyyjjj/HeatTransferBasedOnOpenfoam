@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2016 OpenFOAM Foundation
-    Copyright (C) 2016-2023 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,12 +27,12 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "boundBox.H"
-#include "PstreamReduceOps.H"
 #include "plane.H"
 #include "hexCell.H"
 #include "triangle.H"
 #include "MinMax.H"
 #include "Random.H"
+#include "PstreamReduceOps.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -69,13 +69,13 @@ const Foam::faceList& Foam::boundBox::hexFaces()
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::boundBox::boundBox(const boundBox& bb, const bool doReduce)
+Foam::boundBox::boundBox(const boundBox& bb, bool doReduce)
 :
     boundBox(bb)
 {
     if (doReduce)
     {
-        reduce();
+        this->reduce(UPstream::worldComm);
     }
 }
 
@@ -88,7 +88,7 @@ Foam::boundBox::boundBox(const UList<point>& points, bool doReduce)
 
     if (doReduce)
     {
-        reduce();
+        this->reduce(UPstream::worldComm);
     }
 }
 
@@ -101,7 +101,7 @@ Foam::boundBox::boundBox(const tmp<pointField>& tpoints, bool doReduce)
 
     if (doReduce)
     {
-        reduce();
+        this->reduce(UPstream::worldComm);
     }
 }
 
@@ -119,7 +119,7 @@ Foam::boundBox::boundBox
 
     if (doReduce)
     {
-        reduce();
+        this->reduce(UPstream::worldComm);
     }
 }
 
@@ -182,17 +182,36 @@ Foam::point Foam::boundBox::faceCentre(const direction facei) const
 }
 
 
+void Foam::boundBox::reduce(int communicator)
+{
+    const auto tag = UPstream::msgType();  // irrelevant (is_contiguous)
+    Foam::reduce(min_, minOp<point>(), tag, communicator);
+    Foam::reduce(max_, maxOp<point>(), tag, communicator);
+}
+
+
 void Foam::boundBox::reduce()
 {
-    Foam::reduce(min_, minOp<point>());
-    Foam::reduce(max_, maxOp<point>());
+    this->reduce(UPstream::worldComm);
+}
+
+
+Foam::boundBox Foam::boundBox::returnReduce
+(
+    const boundBox& bb,
+    int communicator
+)
+{
+    boundBox work(bb);
+    work.reduce(communicator);
+    return work;
 }
 
 
 Foam::boundBox Foam::boundBox::returnReduce(const boundBox& bb)
 {
     boundBox work(bb);
-    work.reduce();
+    work.reduce(UPstream::worldComm);
     return work;
 }
 

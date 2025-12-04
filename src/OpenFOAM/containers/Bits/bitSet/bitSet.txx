@@ -75,11 +75,10 @@ Foam::label Foam::bitSet::setMany(InputIter first, InputIter last)
 {
     // Check the max expected value first
     const auto max = std::max_element(first, last);
-    const label len = (max != last ? (1 + *max) : 0);
 
     label changed = 0;
 
-    if (len > 0)
+    if (const label len = (max != last ? (1 + *max) : 0); len > 0)
     {
         reserve(len);
 

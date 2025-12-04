@@ -32,11 +32,6 @@ Description
     true/false, on/off, yes/no, any/none.
     Also accepts 0/1 as a string and shortcuts t/f, y/n.
 
-Note
-    The parser recognizes "default" but does not treat it as \c good()
-    since it could mean either yes or no, depending on the context.
-    It can nonetheless be useful to find when parsing for a Switch anyhow.
-
 SourceFiles
     Switch.cxx
 
@@ -59,7 +54,6 @@ SourceFiles
 #undef OFF
 #undef ON
 #undef NONE
-#undef DEFAULT
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -102,7 +96,6 @@ public:
             OFF     = 4 /*!< "off" */,   ON   = 5 /*!< "on" */,
             NONE    = 6 /*!< "none" */,  ANY  = 7 /*!< "any" */,
             INVALID = 8 /*!< "invalid" (output only) */,
-            DEFAULT = 9 /*!< "default" (not good: could be yes or no) */,
         };
 
 private:
@@ -289,12 +282,6 @@ public:
         bool is_none() const noexcept
         {
             return (value_ == switchType::NONE);
-        }
-
-        //- Test for 'default' type
-        bool is_default() const noexcept
-        {
-            return (value_ == switchType::DEFAULT);
         }
 
 

@@ -26,7 +26,6 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "bitSet.H"
-#include "labelRange.H"
 #include "IOstreams.H"
 #include "UPstream.H"
 #include "addToRunTimeSelectionTable.H"
@@ -552,6 +551,101 @@ Foam::List<bool> Foam::bitSet::values() const
 
 // * * * * * * * * * * * * * *  Parallel Functions * * * * * * * * * * * * * //
 
+namespace
+{
+
+// Special purpose broadcast for bitSet which is more efficient than
+// either a regular broadcast (with serialization) or the usual
+// broadcast for lists.
+//
+// The initial broadcast sends both count (bits=on) and the length.
+// The receive clears out its bits and resizes (ie, all zeros and the proper
+// length).
+// This allows the final broadcast to be skipped if either
+// the length or the content is zero.
+//
+// With syncSizes=false it assumes that the lengths are identical on all ranks
+// and doesn't do the initial broadcast. In this case it can only decide
+// about the final broadcast based on the length information allow.
+
+void broadcast_bitSet
+(
+    Foam::bitSet& bitset,
+    int communicator,
+    int root,
+    bool syncSizes
+)
+{
+    using namespace Foam;
+
+    if (!UPstream::is_parallel(communicator))  // Probably already checked...
+    {
+        return;
+    }
+
+    // Broadcast data content?
+    bool bcastContent(true);
+
+    if (syncSizes)
+    {
+        int64_t count_size[2] = { 0, 0 };
+
+        if (root == UPstream::myProcNo(communicator))
+        {
+            // Sender: knows the count/size
+            count_size[0] = static_cast<int64_t>(bitset.count());
+            count_size[1] = static_cast<int64_t>(bitset.size());
+
+            UPstream::broadcast(count_size, 2, communicator, root);
+        }
+        else
+        {
+            // Receiver: gets the count/size and makes a clean bitset
+            UPstream::broadcast(count_size, 2, communicator, root);
+
+            bitset.clear();  // Clear old contents
+            bitset.resize(count_size[1]);
+        }
+
+        if (count_size[0] == 0)
+        {
+            // All content is zero, don't need to broadcast it
+            bcastContent = false;
+        }
+    }
+
+    if (bcastContent && !bitset.empty())
+    {
+        // Only broadcast with non-empty content
+        UPstream::broadcast
+        (
+            bitset.data(),
+            bitset.num_blocks(),
+            communicator,
+            root
+        );
+    }
+}
+
+} // End anonymous namespace
+
+
+void Foam::bitSet::broadcast
+(
+    std::pair<int,int> communicator_root,
+    bool syncSizes
+)
+{
+    int comm = communicator_root.first;
+    int root = communicator_root.second;
+
+    if (UPstream::is_parallel(comm))
+    {
+        broadcast_bitSet(*this, comm, root, syncSizes);
+    }
+}
+
+
 void Foam::bitSet::broadcast(int communicator, bool syncSizes)
 {
     if (communicator < 0)
@@ -559,28 +653,9 @@ void Foam::bitSet::broadcast(int communicator, bool syncSizes)
         communicator = UPstream::worldComm;
     }
 
-    if (!UPstream::is_parallel(communicator))
+    if (UPstream::is_parallel(communicator))
     {
-        return;
-    }
-
-    int64_t len(size());
-
-    if (syncSizes)
-    {
-        UPstream::broadcast(&len, 1, communicator);
-
-        if (UPstream::is_subrank(communicator))
-        {
-            fill(false);
-            resize(len);
-        }
-    }
-
-    if (len)
-    {
-        // Only broadcast non-empty
-        UPstream::broadcast(this->data(), this->num_blocks(), communicator);
+        broadcast_bitSet(*this, communicator, UPstream::masterNo(), syncSizes);
     }
 }
 

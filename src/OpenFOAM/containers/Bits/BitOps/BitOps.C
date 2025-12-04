@@ -29,7 +29,6 @@ License
 #include "bitSet.H"
 #include "HashSet.H"
 #include "List.H"
-#include "labelRange.H"
 
 // * * * * * * * * * * * * * * * * * BitOps  * * * * * * * * * * * * * * * * //
 

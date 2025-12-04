@@ -58,7 +58,7 @@ void printPost(const T& value)
 
 
 template<class T>
-void testBroadcast(T& value)
+void testBroadcast(T& value, int root = 0)
 {
     printPre(value);
     Pstream::broadcast(value);
@@ -66,7 +66,7 @@ void testBroadcast(T& value)
 }
 
 template<class T>
-void testBroadcast(List<T>& values)
+void testBroadcast(List<T>& values, int root = 0)
 {
     Info<< nl << "is_contiguous:" << is_contiguous_v<T> << endl;
     Pout<< "pre-broadcast: " << flatOutput(values) << endl;
@@ -75,13 +75,33 @@ void testBroadcast(List<T>& values)
 }
 
 
-void testBroadcast(bitSet& values)
+void testBroadcast(bitSet& values, int root = 0)
 {
-    Pout<< "pre-broadcast: "
-        << values.size() << ": " << flatOutput(values.values()) << endl;
+    Pout<< nl << "bitSet broadcast [root=" << root << "]" << endl;
+    const bitSet orig(values);
+
+    Pout<< "pre-broadcast: ";
+    orig.writeListToc(Pout) << endl;
+
+    if (root)
+    {
+        values.broadcast( {UPstream::worldComm, root} );
+    }
+    else
+    {
+        values.broadcast();
+    }
+
+    Pout<< "broadcast[root=" << root << "] ";
+    values.writeListToc(Pout) << endl;
+
+    // Again with Pstream interface
+    values = orig;
     Pstream::broadcast(values);
-    Pout<< "post-broadcast: "
-        << values.size() << ": " << flatOutput(values.values()) << endl;
+
+    Pout<< "pstream broadcast [0]: ";
+    values.writeListToc(Pout) << endl;
+
 }
 
 
@@ -160,20 +180,31 @@ int main(int argc, char *argv[])
         testBroadcast(values);
     }
 
+    for (int root : UPstream::allProcs())
     {
         bitSet values;
-        if (Pstream::master())
+
+        if (UPstream::master())
         {
-            values.set(labelList({1, 4, 8}));
+            labelList toc({0, 4, 6, 8});
+            values.set(toc);
             values.resize(10);
         }
         else
         {
             // Just something different
-            values.set(labelList({0, 2}));
-            values.resize(5);
+            labelList toc({0, 3, 5});
+            if (auto proci = UPstream::myProcNo(); proci > 0)
+            {
+                for (auto& i : toc)
+                {
+                    i += proci;
+                }
+            }
+            values.set(toc);
+            values.resize(values.size() + 4);
         }
-        testBroadcast(values);
+        testBroadcast(values, root);
     }
 
     Info<< "End\n" << endl;
