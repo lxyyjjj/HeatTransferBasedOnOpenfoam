@@ -499,18 +499,13 @@ bool Foam::shortestPathSet::genSingleLeakPath
     
     if (iter == 0 && !globalTargetFound)
     {
-        if (Pstream::master())
-        {
-            WarningInFunction
-                << "Point " << outsidePoint
-                << " not reachable by walk from " << insidePoint
-                << ". Probably mesh has island/regions."
-                << " Inside cell found: " << (insideCelli != -1 ? "yes" : "no")
-                << " on proc " << (insideCelli != -1 ? Pstream::myProcNo() : -1)
-                << ", Outside cell found: " << (outsideCelli != -1 ? "yes" : "no")
-                << " on proc " << (outsideCelli != -1 ? Pstream::myProcNo() : -1)
-                << ". Skipped route detection." << endl;
-        }
+        WarningInFunction
+            << "Point " << outsidePoint
+            << " not reachable by walk from " << insidePoint
+            << ". Probably mesh has island/regions."
+            << " Inside cell found: " << (insideCelli != -1 ? "yes" : "no")
+            << ", Outside cell found: " << (outsideCelli != -1 ? "yes" : "no")
+            << ". Skipped route detection." << endl;
     }
 
     if (!globalTargetFound)
@@ -999,7 +994,7 @@ void Foam::shortestPathSet::genSamples
     // Force calculation of base points (needs to be synchronised)
     (void)mesh.tetBasePtIs();
     
-    globalIndex globalCells(mesh.nCells());
+    const globalIndex& globalCells = mesh.globalData().globalMeshCellAddr();
     label localOutsideCelli = mesh.findCell(outsidePoint);
     label globalOutsideCelli = -1;
     if (localOutsideCelli != -1)
@@ -1308,11 +1303,10 @@ void Foam::shortestPathSet::genSamples
     label prevSegmenti = 0;
     scalar prevDistance = 0.0;
 
-    // Global cell index for parallel findCell
-    globalIndex globalCells(mesh.nCells());
-    
     // Force calculation of base points (needs to be synchronised)
     (void)mesh.tetBasePtIs();
+    
+    const globalIndex& globalCells = mesh.globalData().globalMeshCellAddr();
 
     for (auto insidePoint : insidePoints_)
     {
