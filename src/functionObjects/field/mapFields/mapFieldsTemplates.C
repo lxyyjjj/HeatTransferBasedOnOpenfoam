@@ -56,7 +56,7 @@ bool Foam::functionObjects::mapFields::mapFieldType() const
 {
     typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
 
-    const fvMesh& mapRegion = mapRegionPtr_();
+    const fvMesh& mapRegion = lookupMapRegion();
 
     wordList fieldNames(this->mesh_.sortedNames<VolFieldType>(fieldNames_));
 
@@ -106,7 +106,7 @@ bool Foam::functionObjects::mapFields::writeFieldType() const
 {
     typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
 
-    const fvMesh& mapRegion = mapRegionPtr_();
+    const fvMesh& mapRegion = lookupMapRegion();
 
     wordList fieldNames(this->mesh_.sortedNames<VolFieldType>(fieldNames_));
 

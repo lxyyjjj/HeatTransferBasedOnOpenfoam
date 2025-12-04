@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2023 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -142,8 +142,11 @@ class mapFields
 {
     // Private Data
 
-        //- Locally cached map region mesh (map to this mesh)
-        autoPtr<fvMesh> mapRegionPtr_;
+        //- Input dictionary
+        dictionary dict_;
+
+        // //- Locally cached map region mesh (map to this mesh)
+        // autoPtr<fvMesh> mapRegionPtr_;
 
         //- Mesh-to-mesh interpolation
         autoPtr<meshToMesh> interpPtr_;
@@ -154,8 +157,19 @@ class mapFields
 
     // Private Member Functions
 
+        //- On-the-fly lookup or load of the map region mesh
+        const fvMesh& lookupMapRegion() const;
+
         //- Helper function to create the mesh-to-mesh interpolation
-        void createInterpolation(const dictionary& dict);
+        void createInterpolation
+        (
+            const dictionary& dict,
+            const fvMesh& meshTarget,
+            const fvMesh& mapRegion
+        );
+
+        // //- Helper function to create the mesh-to-mesh interpolation
+        // void createInterpolation(const dictionary& dict);
 
         //- Helper function to evaluate constraint patches after mapping
         template<class Type>
