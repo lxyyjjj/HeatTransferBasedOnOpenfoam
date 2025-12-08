@@ -58,8 +58,7 @@ void Foam::vtk::patchWriter::write
             const auto& pfld = field.boundaryField()[patchId];
 
             // Only valuePointPatchField is actually derived from Field
-            const auto* vpp = isA<Field<Type>>(pfld);
-            if (vpp)
+            if (const auto* vpp = isA<Field<Type>>(pfld); vpp)
             {
                 vtk::writeList(format(), *vpp);
             }
@@ -107,8 +106,7 @@ void Foam::vtk::patchWriter::write
                 const auto& pfld = field.boundaryField()[patchId];
 
                 // Only valuePointPatchField is actually derived from Field
-                const auto* vpp = isA<Field<Type>>(pfld);
-                if (vpp)
+                if (const auto* vpp = isA<Field<Type>>(pfld); vpp)
                 {
                     toProc << *vpp;
                 }

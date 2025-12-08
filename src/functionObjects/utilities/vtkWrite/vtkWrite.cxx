@@ -369,6 +369,8 @@ bool Foam::functionObjects::vtkWrite::write()
 
         if (doInternal_)
         {
+            typedef vtk::internalWriter writerType;
+
             if (vtuMeshCells.empty())
             {
                 // Use the appropriate mesh (baseMesh or subMesh)
@@ -383,7 +385,7 @@ bool Foam::functionObjects::vtkWrite::write()
                 }
             }
 
-            internalWriter = autoPtr<vtk::internalWriter>::New
+            auto writer = autoPtr<writerType>::New
             (
                 meshProxy.mesh(),
                 vtuMeshCells,
@@ -394,12 +396,11 @@ bool Foam::functionObjects::vtkWrite::write()
                   ? vtmOutputBase
                   : (vtmOutputBase / "internal")
                 ),
-                Pstream::parRun()
+                UPstream::parRun()
             );
 
             Info<< "    Internal  : "
-                << time_.relativePath(internalWriter->output())
-                << endl;
+                << time_.relativePath(writer->output()) << nl;
 
             // No sub-block for internal
             vtmWriter.append_ugrid
@@ -408,8 +409,11 @@ bool Foam::functionObjects::vtkWrite::write()
                 vtmOutputBase.name()/"internal"
             );
 
-            internalWriter->writeTimeValue(timeValue);
-            internalWriter->writeGeometry();
+            writer->writeTimeValue(timeValue);
+            writer->writeGeometry();
+
+            // Transfer writer to outer for later use
+            internalWriter = std::move(writer);
 
             if (interpolate_)
             {
@@ -433,7 +437,9 @@ bool Foam::functionObjects::vtkWrite::write()
 
         if (oneBoundary_ && patchIds.size())
         {
-            auto writer = autoPtr<vtk::patchWriter>::New
+            typedef vtk::patchWriter writerType;
+
+            auto writer = autoPtr<writerType>::New
             (
                 meshProxy.mesh(),
                 patchIds,
@@ -444,7 +450,7 @@ bool Foam::functionObjects::vtkWrite::write()
                   ? (outputDir_/regionDir/"boundary"/"boundary" + timeDesc)
                   : (vtmOutputBase / "boundary")
                 ),
-                Pstream::parRun()
+                UPstream::parRun()
             );
 
             // No sub-block for one-patch
@@ -470,6 +476,8 @@ bool Foam::functionObjects::vtkWrite::write()
         }
         else if (patchIds.size())
         {
+            typedef vtk::patchWriter writerType;
+
             patchWriters.resize(patchIds.size());
             if (interpolate_)
             {
@@ -478,15 +486,17 @@ bool Foam::functionObjects::vtkWrite::write()
 
             label nPatchWriters = 0;
             label nPatchInterps = 0;
+            labelList selectedPatchId(1);
 
             for (const label patchId : patchIds)
             {
                 const polyPatch& pp = patches[patchId];
+                selectedPatchId[0] = pp.index();
 
-                auto writer = autoPtr<vtk::patchWriter>::New
+                auto writer = autoPtr<writerType>::New
                 (
                     meshProxy.mesh(),
-                    labelList(one{}, pp.index()),
+                    selectedPatchId,
                     writeOpts_,
                     // Output name for patch: "boundary"/name
                     (
@@ -498,7 +508,7 @@ bool Foam::functionObjects::vtkWrite::write()
                         )
                       : (vtmOutputBase / "boundary" / pp.name())
                     ),
-                    Pstream::parRun()
+                    UPstream::parRun()
                 );
 
                 if (!nPatchWriters)

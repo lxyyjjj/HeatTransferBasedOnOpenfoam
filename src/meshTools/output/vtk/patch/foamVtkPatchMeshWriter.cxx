@@ -120,9 +120,9 @@ void Foam::vtk::patchMeshWriter::writePoints()
             pointField recv;
 
             // Receive each point field and write
-            for (const int subproci : UPstream::subProcs())
+            for (const int proci : UPstream::subProcs())
             {
-                IPstream fromProc(UPstream::commsTypes::scheduled, subproci);
+                IPstream fromProc(UPstream::commsTypes::scheduled, proci);
 
                 for (label i=0; i < nPatches; ++i)
                 {
@@ -363,13 +363,49 @@ Foam::vtk::patchMeshWriter::patchMeshWriter
 :
     vtk::fileWriter(vtk::fileTag::POLY_DATA, opts),
     mesh_(mesh),
-    patchIDs_(patchIDs),
+    patchIDs_(),
     pointSlab_(0),
     cellSlab_(0),
     connectivitySlab_(0)
 {
     // We do not currently support append mode
     opts_.append(false);
+
+    if (const label len = patchIDs.size(); len > 1)
+    {
+        // Have two or more patches selected.
+        // Sort and remove any possible duplicates for overall consistency.
+
+        // Can use patchIDs_ both for the initial sort order as well
+        // as the output, since it will be non-overlapping.
+
+        auto& order = patchIDs_;
+        Foam::sortedOrder(patchIDs, order);
+
+        patchIDs_[0] = patchIDs[order[0]];
+
+        label nUnique = 1;
+        label prev = patchIDs_[0];
+
+        for (label i = 1; i < len; ++i)
+        {
+            label patchId = patchIDs[order[i]];
+
+            if (prev != patchId)
+            {
+                prev = patchId;
+                patchIDs_[nUnique] = patchId;
+                ++nUnique;
+            }
+        }
+
+        patchIDs_.resize(nUnique);
+    }
+    else
+    {
+        // Trivial case
+        patchIDs_ = patchIDs;
+    }
 }
 
 
@@ -517,22 +553,27 @@ void Foam::vtk::patchMeshWriter::writePatchIDs()
 
     if (parallel_)
     {
+        // Same number of patches on all ranks,
+        // can use a constant size buffer
+
+        labelList buffer(2*patchIDs_.size());
+
         if (UPstream::master())
         {
-            labelList recv;
-
-            // Receive each pair
-            for (const int subproci : UPstream::subProcs())
+            for (const int proci : UPstream::subProcs())
             {
-                IPstream fromProc(UPstream::commsTypes::scheduled, subproci);
+                UIPstream::read
+                (
+                    UPstream::commsTypes::scheduled,
+                    proci,
+                    buffer
+                );
 
-                fromProc >> recv;
-
-                // Receive as [size, id] pairs
-                for (label i=0; i < recv.size(); i += 2)
+                // Receive as [id, size] tuples
+                for (label i = 0; i < buffer.size(); i += 2)
                 {
-                    const label len = recv[i];
-                    const label val = recv[i+1];
+                    const label val = buffer[i];
+                    const label len = buffer[i+1];
 
                     vtk::write(format(), val, len);
                 }
@@ -540,28 +581,24 @@ void Foam::vtk::patchMeshWriter::writePatchIDs()
         }
         else
         {
-            // Send
-            OPstream toProc
-            (
-                UPstream::commsTypes::scheduled,
-                UPstream::masterNo()
-            );
-
-            // Encode as [size, id] pairs
-            labelList send(2*patchIDs_.size());
+            // Encode as [id, size] tuples
             label i = 0;
+
             for (const label patchId : patchIDs_)
             {
-                send[i] = patches[patchId].size();
-                send[i+1] = patchId;
-
+                buffer[i] = patchId;
+                buffer[i+1] = patches[patchId].size();
                 i += 2;
             }
 
-            toProc << send;
+            UOPstream::write
+            (
+                UPstream::commsTypes::scheduled,
+                UPstream::masterNo(),
+                buffer
+            );
         }
     }
-
 
     this->endDataArray();
 }
@@ -620,22 +657,27 @@ bool Foam::vtk::patchMeshWriter::writeNeighIDs()
 
     if (parallel_)
     {
+        // Same number of patches on all ranks,
+        // can use a constant size buffer
+
+        labelList buffer(2*patchIDs_.size());
+
         if (UPstream::master())
         {
-            labelList recv;
-
-            // Receive each pair
-            for (const int subproci : UPstream::subProcs())
+            for (const int proci : UPstream::subProcs())
             {
-                IPstream fromProc(UPstream::commsTypes::scheduled, subproci);
+                UIPstream::read
+                (
+                    UPstream::commsTypes::scheduled,
+                    proci,
+                    buffer
+                );
 
-                fromProc >> recv;
-
-                // Receive as [size, id] pairs
-                for (label i=0; i < recv.size(); i += 2)
+                // Receive as [id, size] tuples
+                for (label i = 0; i < buffer.size(); i += 2)
                 {
-                    const label len = recv[i];
-                    const label val = recv[i+1];
+                    const label val = buffer[i];
+                    const label len = buffer[i+1];
 
                     vtk::write(format(), val, len);
                 }
@@ -643,27 +685,23 @@ bool Foam::vtk::patchMeshWriter::writeNeighIDs()
         }
         else
         {
-            // Send
-            OPstream toProc
-            (
-                UPstream::commsTypes::scheduled,
-                UPstream::masterNo()
-            );
-
-            // Encode as [size, id] pairs
-            labelList send(2*patchIDs_.size());
+            // Encode as [id, size] tuples
             label i = 0;
             for (const label patchId : patchIDs_)
             {
                 const auto* pp = isA<processorPolyPatch>(patches[patchId]);
 
-                send[i] = patches[patchId].size();
-                send[i+1] = (pp ? pp->neighbProcNo() : -1);
-
+                buffer[i] = (pp ? pp->neighbProcNo() : -1);
+                buffer[i+1] = patches[patchId].size();
                 i += 2;
             }
 
-            toProc << send;
+            UOPstream::write
+            (
+                UPstream::commsTypes::scheduled,
+                UPstream::masterNo(),
+                buffer
+            );
         }
 
         // MPI barrier

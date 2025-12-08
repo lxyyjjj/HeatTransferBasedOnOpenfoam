@@ -75,6 +75,8 @@ Description
 
     if (doInternal)
     {
+        typedef vtk::internalWriter writerType;
+
         if (vtuMeshCells.empty())
         {
             // Use the appropriate mesh (baseMesh or subMesh)
@@ -92,7 +94,7 @@ Description
             }
         }
 
-        internalWriter = autoPtr<vtk::internalWriter>::New
+        auto writer = autoPtr<writerType>::New
         (
             meshProxy.mesh(),
             vtuMeshCells,
@@ -114,10 +116,13 @@ Description
         );
 
         Info<< "    Internal  : "
-            << args.relativePath(internalWriter->output()) << nl;
+            << args.relativePath(writer->output()) << nl;
 
-        internalWriter->writeTimeValue(mesh.time().value());
-        internalWriter->writeGeometry();
+        writer->writeTimeValue(mesh.time().value());
+        writer->writeGeometry();
+
+        // Transfer writer to outer for later use
+        internalWriter = std::move(writer);
 
         if (doPointValues)
         {
@@ -141,12 +146,13 @@ Description
 
     if (oneBoundary && patchIds.size())
     {
-        auto writer = autoPtr<vtk::patchWriter>::New
+        typedef vtk::patchWriter writerType;
+
+        auto writer = autoPtr<writerType>::New
         (
             meshProxy.mesh(),
             patchIds,
             writeOpts,
-            nearCellValue,
             // Output one patch: "boundary"
             (
                 writeOpts.legacy()
@@ -160,6 +166,11 @@ Description
             ),
             UPstream::parRun()
         );
+
+        if (nearCellValue)
+        {
+            writer->useCellValue(nearCellValue);
+        }
 
         // No sub-block for one-patch
         vtmWriter.append_poly
@@ -183,6 +194,8 @@ Description
     }
     else if (patchIds.size())
     {
+        typedef vtk::patchWriter writerType;
+
         patchWriters.resize(patchIds.size());
         if (doPointValues)
         {
@@ -191,17 +204,18 @@ Description
 
         label nPatchWriters = 0;
         label nPatchInterps = 0;
+        labelList selectedPatchId(1);
 
         for (const label patchId : patchIds)
         {
             const polyPatch& pp = patches[patchId];
+            selectedPatchId[0] = pp.index();
 
-            auto writer = autoPtr<vtk::patchWriter>::New
+            auto writer = autoPtr<writerType>::New
             (
                 meshProxy.mesh(),
-                labelList(one{}, pp.index()),
+                selectedPatchId,
                 writeOpts,
-                nearCellValue,
                 // Output patch: "boundary"/name
                 (
                     writeOpts.legacy()
@@ -215,6 +229,11 @@ Description
                 ),
                 UPstream::parRun()
             );
+
+            if (nearCellValue)
+            {
+                writer->useCellValue(nearCellValue);
+            }
 
             if (!nPatchWriters)
             {
