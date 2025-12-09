@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2017 OpenFOAM Foundation
-    Copyright (C) 2016-2024 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -61,7 +61,7 @@ SourceFiles
 #include "indexedOctree.H"
 #include "treeDataPrimitivePatch.H"
 #include "runTimeSelectionTables.H"
-
+#include "AMICache.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -78,6 +78,7 @@ public:
 
     // Public Data Types
 
+        //- Flag to store face-to-face intersection triangles; default = false
         static bool cacheIntersections_;
 
         //- Control use of local communicator for AMI communication
@@ -85,6 +86,10 @@ public:
         //  localComm : 1 : only processors with patch faces
         //  localComm : 2 : like 1 but always include master (for messages)
         static int useLocalComm_;
+
+        //- Tolerance used when caching the AMI to identify e.g. if the
+        //- current rotation angle has already been captured
+        static scalar cacheThetaTolerance_;
 
 
 protected:
@@ -145,7 +150,6 @@ protected:
             autoPtr<mapDistribute> srcMapPtr_;
 
 
-
         // Target patch
 
             //- Target face areas
@@ -173,8 +177,12 @@ protected:
             //- Target map pointer - parallel running only
             autoPtr<mapDistribute> tgtMapPtr_;
 
+
         //- Up-to-date flag
         bool upToDate_;
+
+        //- Cache
+        AMICache cache_;
 
 
     // Protected Member Functions
@@ -212,10 +220,10 @@ protected:
 
         // Access
 
-            //- Return the orginal src patch with optionally updated points
+            //- Return the original src patch with optionally updated points
             inline const primitivePatch& srcPatch0() const;
 
-            //- Return the orginal tgt patch with optionally updated points
+            //- Return the original tgt patch with optionally updated points
             inline const primitivePatch& tgtPatch0() const;
 
 
@@ -236,27 +244,6 @@ protected:
                 const bool conformal,
                 const bool output,
                 const scalar lowWeightTol,
-                const label comm
-            );
-
-
-        // Constructor helpers
-
-            static void agglomerate
-            (
-                const autoPtr<mapDistribute>& targetMap,
-                const scalarList& fineSrcMagSf,
-                const labelListList& fineSrcAddress,
-                const scalarListList& fineSrcWeights,
-
-                const labelList& sourceRestrictAddressing,
-                const labelList& targetRestrictAddressing,
-
-                scalarList& srcMagSf,
-                labelListList& srcAddress,
-                scalarListList& srcWeights,
-                scalarField& srcWeightsSum,
-                autoPtr<mapDistribute>& tgtMap,
                 const label comm
             );
 
@@ -366,6 +353,26 @@ public:
 
     // Member Functions
 
+        // Constructor helpers
+
+            static void agglomerate
+            (
+                const autoPtr<mapDistribute>& targetMap,
+                const scalarList& fineSrcMagSf,
+                const labelListList& fineSrcAddress,
+                const scalarListList& fineSrcWeights,
+
+                const labelList& sourceRestrictAddressing,
+                const labelList& targetRestrictAddressing,
+
+                scalarList& srcMagSf,
+                labelListList& srcAddress,
+                scalarListList& srcWeights,
+                scalarField& srcWeightsSum,
+                autoPtr<mapDistribute>& tgtMap,
+                const label comm
+            );
+
         // Access
 
             //- Is up-to-date?
@@ -378,6 +385,10 @@ public:
                 upToDate_ = flag;
                 return old;
             }
+
+            //- Return a reference to the AMI cache
+            const AMICache& cache() const noexcept { return cache_; }
+            AMICache& cache() noexcept { return cache_; }
 
             //- Distributed across processors (singlePatchProc == -1)
             inline bool distributed() const noexcept;
@@ -411,6 +422,8 @@ public:
             //  \returns old value
             inline label comm(label communicator) noexcept;
 
+            //- Return true if caching is active
+            inline bool cacheActive() const;
 
             // Source patch
 
@@ -531,7 +544,8 @@ public:
 
             // Low-level
 
-                //- Weighted sum of contributions
+                //- Weighted sum of contributions. Note: cop operates on
+                //- single Type only.
                 template<class Type, class CombineOp>
                 static void weightedSum
                 (
@@ -545,20 +559,35 @@ public:
                     const UList<Type>& defaultValues
                 );
 
-                //- Weighted sum of contributions
+                //- Weighted sum of contributions (includes caching+interp)
+                //- (for primitive types only)
                 template<class Type>
                 void weightedSum
                 (
-                    const bool interpolateToSource,
+                    const bool toSource,
                     const UList<Type>& fld,
                     List<Type>& result,
                     const UList<Type>& defaultValues
                 ) const;
 
-                //- Interpolate from target to source with supplied op
+                //- Weighted sum of (potentially distributed) contributions
+                //- and apply caching+interpolation. Note: iop
+                //- operates on single Type only
+                template<class Type, class CombineOp, class InterpolateOp>
+                void interpolate
+                (
+                    const bool toSource,
+                    const UList<Type>& fld,
+                    const CombineOp& cop,
+                    const InterpolateOp& iop,
+                    List<Type>& result,
+                    const UList<Type>& defaultValues
+                ) const;
+
+                //- Interpolate from source to target with supplied op
                 //- to combine existing value with remote value and weight
                 template<class Type, class CombineOp>
-                void interpolateToSource
+                void interpolateToTarget
                 (
                     const UList<Type>& fld,
                     const CombineOp& cop,
@@ -566,10 +595,10 @@ public:
                     const UList<Type>& defaultValues = UList<Type>::null()
                 ) const;
 
-                //- Interpolate from source to target with supplied op
+                //- Interpolate from target to source with supplied op
                 //- to combine existing value with remote value and weight
                 template<class Type, class CombineOp>
-                void interpolateToTarget
+                void interpolateToSource
                 (
                     const UList<Type>& fld,
                     const CombineOp& cop,
@@ -670,6 +699,12 @@ public:
                 point& srcPoint
             )
             const;
+
+            //- Restore AMI weights and addressing from the cache
+            bool restoreCache(const point& refPt);
+
+            //- Add AMI weights and addressing to the cache
+            void addToCache(const point& refPt);
 
 
         // Checks
