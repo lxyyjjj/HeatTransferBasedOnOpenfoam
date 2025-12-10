@@ -32,7 +32,6 @@ License
 #include "Pair.H"
 #include "Istream.H"
 #include "Ostream.H"
-#include <numeric>
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -162,8 +161,8 @@ Foam::labelRange Foam::labelRange::subset(const labelRange& range) const
 
 Foam::labelRange Foam::labelRange::subset
 (
-    const label start,
-    const label size
+    label start,
+    label size
 ) const
 {
     const label lower = Foam::max(this->min(), start);
@@ -180,22 +179,6 @@ Foam::labelRange Foam::labelRange::subset
     return labelRange();
 }
 
-
-Foam::labelRange Foam::labelRange::subset0(const label size) const
-{
-    const label lower = Foam::max(this->min(), 0);
-    const label upper = Foam::min(this->max(), Foam::max(0,size-1));
-    const label total = upper+1 - lower;
-    // last = start+size-1
-    // size = last+1-start
-
-    if (total > 0)
-    {
-        return labelRange(lower, total);
-    }
-
-    return labelRange();
-}
 
 // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 

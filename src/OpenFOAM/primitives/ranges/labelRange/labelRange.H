@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011 OpenFOAM Foundation
-    Copyright (C) 2017-2023 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -69,6 +69,12 @@ public:
 
     // STL type definitions
 
+        //- Type of values the range contains
+        typedef label value_type;
+
+        //- The type that can represent the size of the range
+        typedef label size_type;
+
         //- Input iterator with const access
         using IntRange<label>::const_iterator;
 
@@ -82,7 +88,19 @@ public:
         static int debug;
 
 
-    // Generated Methods: copy/move construct, copy/move assignment
+    // Generated Methods
+
+        //- Copy construct
+        labelRange(const labelRange&) noexcept = default;
+
+        //- Move construct
+        labelRange(labelRange&&) noexcept = default;
+
+        //- Copy assignment
+        labelRange& operator=(const labelRange&) noexcept = default;
+
+        //- Move assignment
+        labelRange& operator=(labelRange&&) noexcept = default;
 
 
     // Constructors
@@ -91,20 +109,15 @@ public:
         inline constexpr labelRange() noexcept;
 
         //- Construct a range with specified length, starting at zero (0,len)
-        inline explicit constexpr labelRange(const label len) noexcept;
+        inline explicit constexpr labelRange(label len) noexcept;
 
-        //- Construct a range from start/length, no checks
-        inline labelRange(const label beg, const label len) noexcept;
+        //- Construct a range from start/length. Applies clamp on length
+        inline labelRange(label beg, label len) noexcept;
 
         //- Construct a range from start/size, enforces non-negative size.
         //  Optionally adjust the start to avoid any negative indices.
         //  \see adjust()
-        inline labelRange
-        (
-            const label beg,
-            const label len,
-            const bool adjustStart
-        ) noexcept;
+        inline labelRange(label beg, label len, bool adjustStart) noexcept;
 
         //- Construct from a min/max range (both inclusive),
         //- enforces non-negative size.
@@ -116,7 +129,20 @@ public:
         //  Passing an invalid range results in an empty labelRange
         explicit labelRange(const Pair<label>& start_end) noexcept;
 
-        //- Construct from Istream.
+        //- Implicit construct from an IntRange with the same or lower
+        //- representation (no checks for signed vs unsigned).
+        template
+        <
+            class IntT,
+            class = std::enable_if_t
+            <std::is_integral_v<IntT> && (sizeof(IntT) <= sizeof(value_type))>
+        >
+        labelRange(const IntRange<IntT>& rhs) noexcept
+        :
+            IntRange<label>(rhs.start(), rhs.size())
+        {}
+
+        //- Construct from Istream. Read a bracketed (start size) tuple
         explicit labelRange(Istream& is);
 
 
@@ -135,12 +161,7 @@ public:
 
         //- Reset start and length, enforces non-negative size.
         //  Optionally adjust the start to avoid any negative indices.
-        inline void reset
-        (
-            const label beg,
-            const label len,
-            const bool adjustStart
-        ) noexcept;
+        inline void reset(label beg, label len, bool adjustStart) noexcept;
 
 
     // Other
@@ -161,12 +182,28 @@ public:
         //- Calculate the intersection with the given start/size range.
         //  If there is no intersection, it returns an empty range with zero
         //  for start/size.
-        labelRange subset(const label start, const label size) const;
+        labelRange subset(label start, label size) const;
 
         //- Calculate the intersection with the given 0/size range.
         //  If there is no intersection, it returns an empty range with zero
         //  for start/size.
-        labelRange subset0(const label size) const;
+        inline labelRange subset0(label len) const;
+
+
+    // Operators
+
+        //- Assign from an IntRange with the same or lower
+        //- representation (no checks for signed vs unsigned).
+        template
+        <
+            class IntT,
+            class = std::enable_if_t
+            <std::is_integral_v<IntT> && (sizeof(IntT) <= sizeof(value_type))>
+        >
+        void operator=(const IntRange<IntT>& rhs) noexcept
+        {
+            IntRange<label>::reset(rhs.start(), rhs.size());
+        }
 
 
     // Housekeeping
