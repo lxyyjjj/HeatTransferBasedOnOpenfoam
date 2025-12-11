@@ -101,6 +101,8 @@ Description
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS
 #endif
 #pragma clang diagnostic ignored "-Wbitwise-instead-of-logical"
+#pragma clang diagnostic ignored "-Wdeprecated-builtins"
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 #include <vector>
 #include <CGAL/Simple_cartesian.h>
@@ -169,7 +171,7 @@ triSurface triangulate
         const polyPatch& patch = bMesh[patchI];
         const pointField& points = patch.points();
 
-        label nTriTotal = 0;
+        //label nTriTotal = 0;
 
         forAll(patch, patchFaceI)
         {
@@ -187,7 +189,7 @@ triSurface triangulate
 
                 triangles.append(labelledTri(f[0], f[1], f[2], newPatchI));
 
-                nTriTotal++;
+                //nTriTotal++;
 
                 triSurfaceToAgglom[localTriFaceI++] = globalNumbering.toGlobal
                 (
@@ -702,11 +704,11 @@ int main(int argc, char *argv[])
 
     labelListList visibleFaceFaces(nCoarseFaces);
 
-    label nViewFactors = 0;
+    //label nViewFactors = 0;
     forAll(nVisibleFaceFaces, faceI)
     {
         visibleFaceFaces[faceI].setSize(nVisibleFaceFaces[faceI]);
-        nViewFactors += nVisibleFaceFaces[faceI];
+        //nViewFactors += nVisibleFaceFaces[faceI];
     }
 
     // - Construct compact numbering

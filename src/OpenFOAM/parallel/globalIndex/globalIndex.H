@@ -194,7 +194,7 @@ public:
         (
             globalIndex::gatherNone,
             label localSize,
-            const label comm = -1   //!< no communicator needed
+            int communicator = -1   //!< (unused) no communicator needed
         );
 
         //- Construct 'one-sided' from local sizes.
@@ -333,7 +333,7 @@ public:
         (
             globalIndex::gatherNone,
             label localSize,
-            int communicator = 0   //!< (unused) no communicator needed
+            int communicator = -1   //!< (unused) no communicator needed
         );
 
         //- Reset as 'one-sided' from local sizes.

@@ -581,7 +581,7 @@ inline void Foam::globalIndex::reset
 (
     globalIndex::gatherNone,
     label localSize,
-    const label /* comm (ignored) */
+    int communicator  /* unused: (not applicable) */
 )
 {
     offsets_.resize_nocopy(2);
