@@ -153,10 +153,24 @@ void velocityFilmShellFvPatchVectorField::updateCoeffs()
         return;
     }
 
-    // Create baffle if needed
+    // Create baffle if needed, but ignore if regionFaModels are disabled
     if (!baffle_)
     {
-        create_baffle();
+        if (regionModels::allowFaModels())
+        {
+            create_baffle();
+        }
+        else
+        {
+            static bool warned = false;
+            if (!warned)
+            {
+                warned = true;
+                InfoInFunction
+                    << "Ignoring, regionFaModels are disabled" << endl;
+            }
+            return;
+        }
     }
 
     // Execute the change only once per time-step

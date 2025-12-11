@@ -131,12 +131,25 @@ void thermalShellFvPatchScalarField::updateCoeffs()
 
     scalarField& pfld = *this;
 
-    // Create baffle if needed
+    // Create baffle if needed, but ignore if regionFaModels are disabled
     if (!baffle_)
     {
-        create_baffle();
+        if (regionModels::allowFaModels())
+        {
+            create_baffle();
+        }
+        else
+        {
+            static bool warned = false;
+            if (!warned)
+            {
+                warned = true;
+                InfoInFunction
+                    << "Ignoring, regionFaModels are disabled" << endl;
+            }
+            return;
+        }
     }
-
     auto& baffle = baffle_();
 
     baffle.evolve();
