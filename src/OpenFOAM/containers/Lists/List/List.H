@@ -404,28 +404,14 @@ public:
 
         //- Construct from value expression
         template<typename E>
-        explicit List
-        (
-            const Expression::ListExpression
-            <
-                E,
-                typename E::value_type
-            >& expr
-        )
+        explicit List(const Expression::ListExpression<E>& expr)
         {
             expr.evaluate(*this);
         }
 
         //- Assign values from expression
         template<typename E>
-        void operator=
-        (
-            const Expression::ListExpression
-            <
-                E,
-                typename E::value_type
-            >& expr
-        )
+        void operator=(const Expression::ListExpression<E>& expr)
         {
             expr.evaluate(*this);
         }

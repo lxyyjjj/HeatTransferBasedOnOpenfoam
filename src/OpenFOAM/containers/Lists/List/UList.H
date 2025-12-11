@@ -81,7 +81,7 @@ typedef UList<label> labelUList;    //!< A UList of labels
 
 namespace Expression
 {
-template<class E, typename ValType> class ListExpression;
+template<class E> class ListExpression;
 template<class T> class ListConstRefWrap;
 }
 
@@ -731,28 +731,15 @@ public:
         //- Wrap value as expression
         auto expr() const
         {
-            return Expression::ListConstRefWrap<T>
-            (
-                reinterpret_cast<const List<T>&>(*this)
-            );
+            return Expression::ListConstRefWrap<T>(*this);
         }
 
         //- Assign values from expression
         template<typename E>
-        void operator=
-        (
-            const Expression::ListExpression
-            <
-                E,
-                typename E::value_type
-            >& expr
-        )
+        void operator=(const Expression::ListExpression<E>& expr)
         {
             // bypass expr.evaluate to avoid resize ...
-            for (label i = 0; i < expr.size(); ++i)
-            {
-                operator[](i) = expr[i];
-            }
+            expr.fill(*this);
         }
 };
 
