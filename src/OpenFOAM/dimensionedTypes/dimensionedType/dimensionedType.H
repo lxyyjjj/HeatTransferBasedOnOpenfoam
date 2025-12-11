@@ -63,7 +63,7 @@ Istream& operator>>(Istream& is, dimensioned<Type>& dt);
 namespace Expression
 {
 template<class T> class UniformListWrap;
-template<class GeoField> class UniformGeometricFieldWrap;
+template<class GeoField, class Type> class UniformGeometricFieldWrap;
 }
 
 /*---------------------------------------------------------------------------*\
@@ -471,7 +471,7 @@ public:
         template<class GeoField>
         auto expr(const GeoField& fld) const
         {
-            return Expression::UniformGeometricFieldWrap<GeoField>
+            return Expression::UniformGeometricFieldWrap<GeoField, Type>
             (
                 fld,
                 *this

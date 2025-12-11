@@ -39,6 +39,7 @@ SourceFiles
 #define Foam_GeometricFieldExpression_H
 
 #include "ListExpression.H"
+#include "orientedType.H"
 #include "pointMesh.H"
 //#include "fixedValuePointPatchField.H"  // no assignable yet. tbd.
 //#include <boost/core/demangle.hpp>
@@ -55,6 +56,8 @@ namespace Expression
 /*---------------------------------------------------------------------------*\
                    Namespace Expression Declarations
 \*---------------------------------------------------------------------------*/
+
+template<class GeoField> class UniformGeometricFieldWrap2;
 
 
 // Expression of GeometricField
@@ -166,57 +169,136 @@ public:
         ListRefWrap<ActualType> wfld(fld.internalFieldRef(), internalField());
 
         // Do boundary field
+        typedef Field<ActualType> FieldType;
         auto& bfld = fld.boundaryFieldRef();
         const label n = bfld.size();
-        for (label i = 0; i < n; ++i)
+#ifdef FOAM_OFFLOAD
+        constexpr bool foam_offload = true;
+#else
+        constexpr bool foam_offload = false;
+#endif
+        if constexpr (foam_offload)
         {
-            auto& pfld = bfld[i];
-            if (force || pfld.assignable())
-            {
-                if (pfld.coupled())
-                {
-                    // Get patch expression
-                    const auto patchExpr = this->coupledPatchField(i);
+            // Wrap multiple containers into single container so there is only
+            // a single kernel. Looking up individual container is fast enough.
 
-                    // Note: check can be removed once assignable also on
-                    //       pointPatchFields. TBD.
-                    if constexpr
-                    (
-                        std::is_same_v<pointMesh, typename GeoField::Mesh>
-                    )
+            constexpr bool is_pointField =
+                std::is_same_v<pointMesh, typename GeoField::Mesh>;
+
+            auto do_something = [](auto& data, label& i, auto& pfld)
+            {
+                if constexpr (is_pointField)
+                {
+                    if (auto* vp = isA<FieldType>(pfld))
                     {
-                        const auto* vp = isA<Field<Type>>(pfld);
-                        if (vp)
-                        {
-                            patchExpr.evaluate(const_cast<Field<Type>&>(*vp));
-                        }
-                    }
-                    else
-                    {
-                        patchExpr.evaluate(pfld);
+                        data[i++] = const_cast<FieldType*>(vp);
                     }
                 }
                 else
                 {
-                    // Get patch expression
-                    const auto patchExpr = this->patchField(i);
+                    data[i++] = &static_cast<FieldType&>(pfld);
+                }
+            };
 
-                    // Note: check can be removed once assignable also on
-                    //       pointPatchFields. TBD.
-                    if constexpr
-                    (
-                        std::is_same_v<pointMesh, typename GeoField::Mesh>
-                    )
+            // Note: avoid calling isA for pointFields
+            ListsRefWrap<FieldType> expr
+            (
+                fld.boundaryFieldRef(),
+                do_something
+            );
+
+            std::vector<UncoupledPatchExpr> unc_patchExpr;
+            std::vector<CoupledPatchExpr> cou_patchExpr;
+            std::vector<int> coupledID;
+            std::vector<int> uncoupledID;
+
+            // Assume most patches are uncoupled
+            unc_patchExpr.reserve(n);
+            uncoupledID.reserve(n);
+
+            for (label i = 0; i < n; ++i)
+            {
+                auto& pfld = bfld[i];
+                if (force || pfld.assignable())
+                {
+                    if (pfld.coupled())
                     {
-                        const auto* vp = isA<Field<Type>>(pfld);
-                        if (vp)
+                        // Get patch expression
+                        const auto patchExpr = this->coupledPatchField(i);
+                        cou_patchExpr.emplace_back(patchExpr);
+                        coupledID.emplace_back(i);
+                    }
+                    else
+                    {
+                        const auto patchExpr = this->patchField(i);
+                        unc_patchExpr.emplace_back(patchExpr);
+                        uncoupledID.emplace_back(i);
+                    }
+                }
+            }
+
+            ListsRefWrap<UncoupledPatchExpr> uncpatchExprExpression
+            (
+                unc_patchExpr
+            );
+            ListsRefWrap<CoupledPatchExpr> coupatchExprExpression
+            (
+                cou_patchExpr
+            );
+
+            // Evaluate
+
+            coupatchExprExpression.evaluate(expr, coupledID);
+            uncpatchExprExpression.evaluate(expr, uncoupledID);
+        }
+        else
+        {
+            // Patch by patch evaluation
+            for (label i = 0; i < n; ++i)
+            {
+                auto& pfld = bfld[i];
+                if (force || pfld.assignable())
+                {
+                    if (pfld.coupled())
+                    {
+                        // Get patch expression
+                        const auto patchExpr = this->coupledPatchField(i);
+
+                        if constexpr
+                        (
+                            std::is_same_v<pointMesh, typename GeoField::Mesh>
+                        )
                         {
-                            patchExpr.evaluate(const_cast<Field<Type>&>(*vp));
+                            const auto* vp = isA<FieldType>(pfld);
+                            if (vp)
+                            {
+                                patchExpr.evaluate(const_cast<FieldType&>(*vp));
+                            }
+                        }
+                        else
+                        {
+                            patchExpr.evaluate(pfld);
                         }
                     }
                     else
                     {
-                        patchExpr.evaluate(pfld);
+                        // Get patch expression
+                        const auto patchExpr = this->patchField(i);
+                        if constexpr
+                        (
+                            std::is_same_v<pointMesh, typename GeoField::Mesh>
+                        )
+                        {
+                            const auto* vp = isA<FieldType>(pfld);
+                            if (vp)
+                            {
+                                patchExpr.evaluate(const_cast<FieldType&>(*vp));
+                            }
+                        }
+                        else
+                        {
+                            patchExpr.evaluate(pfld);
+                        }
                     }
                 }
             }
@@ -719,7 +801,6 @@ public:
             w.dimensions(),
             w.oriented()
         ),
-        //elems_(std::move(w.elems_))
         elems_(w.elems_)
     {
         //Pout<< "GeometricFieldConstTmpWrap copy :" << nl
@@ -891,7 +972,7 @@ public:
         u_(u),
         v_(v)
     {
-        assert(u.size() == v.size());
+        assert(u.size() == -1 || v.size() == -1 || u.size() == v.size());
         static_assert
         (
             std::is_same_v
@@ -905,7 +986,7 @@ public:
     {
         return u_[i] + v_[i];
     }
-    auto size() const noexcept { return u_.size(); }
+    auto size() const noexcept { return Foam::max(u_.size(), v_.size()); }
 
     IntExpr internalField() const
     {
@@ -933,8 +1014,7 @@ public:
     }
 };
 template<typename E1, typename E2>
-GF_add<E1, E2>
-operator+
+auto operator+
 (
     GeometricFieldExpression
     <
@@ -959,6 +1039,89 @@ operator+
         static_cast<const E1&>(u),
         static_cast<const E2&>(v)
     );
+}
+template<typename E1,class Type,template<class> class PatchField,class GeoMesh>
+auto operator+
+(
+    GeometricFieldExpression
+    <
+        E1,
+        typename E1::IntExpr,
+        typename E1::UncoupledPatchExpr,
+        typename E1::CoupledPatchExpr,
+        typename E1::value_type
+    > const& u,
+    GeometricField<Type, PatchField, GeoMesh> const& v
+)
+{
+    typedef typename Expression::GeometricFieldConstRefWrap
+    <
+        GeometricField<Type, PatchField, GeoMesh>
+    > E2;
+
+    return GF_add(static_cast<const E1&>(u), E2(v));
+}
+template<typename E1,class Type,template<class> class PatchField,class GeoMesh>
+auto operator+
+(
+    GeometricField<Type, PatchField, GeoMesh> const& u,
+    GeometricFieldExpression
+    <
+        E1,
+        typename E1::IntExpr,
+        typename E1::UncoupledPatchExpr,
+        typename E1::CoupledPatchExpr,
+        typename E1::value_type
+    > const& v
+)
+{
+    typedef typename Expression::GeometricFieldConstRefWrap
+    <
+        GeometricField<Type, PatchField, GeoMesh>
+    > E2;
+    return GF_add(E2(u), static_cast<const E1&>(v));
+}
+template
+<class Type1, class Type2, template<class> class PatchField, class GeoMesh>
+auto operator+
+(
+    GeometricField<Type1, PatchField, GeoMesh> const& u,
+    GeometricField<Type2, PatchField, GeoMesh> const& v
+)
+{
+    typedef typename Expression::GeometricFieldConstRefWrap
+    <
+        GeometricField<Type1, PatchField, GeoMesh>
+    > E1;
+    typedef typename Expression::GeometricFieldConstRefWrap
+    <
+        GeometricField<Type2, PatchField, GeoMesh>
+    > E2;
+    return GF_add(E1(u), E2(v));
+}
+template<class Type, template<class> class PatchField, class GeoMesh>
+auto operator+
+(
+    GeometricField<Type, PatchField, GeoMesh> const& u,
+    const dimensioned<Type>& v
+)
+{
+    typedef typename Foam::GeometricField<Type, PatchField, GeoMesh> GeoField;
+    typedef typename Expression::GeometricFieldConstRefWrap<GeoField> E1;
+    typedef typename Expression::UniformGeometricFieldWrap<GeoField, Type> E2;
+    return GF_add(E1(u), E2(u, v));
+}
+template<class Type, template<class> class PatchField, class GeoMesh>
+auto operator+
+(
+    const dimensioned<Type>& u,
+    GeometricField<Type, PatchField, GeoMesh> const& v
+)
+{
+    typedef typename Foam::GeometricField<Type, PatchField, GeoMesh> GeoField;
+    typedef typename Expression::GeometricFieldConstRefWrap<GeoField> E1;
+    typedef typename Expression::UniformGeometricFieldWrap<GeoField, Type> E2;
+    return GF_add(E2(v, u), E1(v));
 }
 
 
@@ -1033,7 +1196,7 @@ public:                                                                        \
     }                                                                          \
 };                                                                             \
 template<typename E1>                                                          \
-OpFunc<E1> Func                                                                \
+auto Func                                                                      \
 (                                                                              \
     GeometricFieldExpression                                                   \
     <                                                                          \
@@ -1046,8 +1209,14 @@ OpFunc<E1> Func                                                                \
 )                                                                              \
 {                                                                              \
     return OpFunc<E1>(static_cast<const E1&>(u));                              \
+}                                                                              \
+template<class Type, template<class> class PatchField, class GeoMesh>          \
+auto Func(GeometricField<Type, PatchField, GeoMesh> const& fld)                \
+{                                                                              \
+   typedef typename Expression::GeometricFieldConstRefWrap                     \
+   <GeometricField<Type, PatchField, GeoMesh>> E1;                             \
+   return Func(E1(fld));                                                       \
 }
-
 
 #define EXPRESSION_GF_FUNCTION1(Func, BaseFunc, WrapType, OpFunc)              \
 template<typename E1>                                                          \
@@ -1120,7 +1289,7 @@ public:                                                                        \
     }                                                                          \
 };                                                                             \
 template<typename E1>                                                          \
-OpFunc<E1> Func                                                                \
+auto Func                                                                      \
 (                                                                              \
     GeometricFieldExpression                                                   \
     <                                                                          \
@@ -1133,6 +1302,13 @@ OpFunc<E1> Func                                                                \
 )                                                                              \
 {                                                                              \
     return OpFunc<E1>(static_cast<const E1&>(u));                              \
+}                                                                              \
+template<class Type, template<class> class PatchField, class GeoMesh>          \
+auto Func(GeometricField<Type, PatchField, GeoMesh> const& fld)                \
+{                                                                              \
+   typedef typename Expression::GeometricFieldConstRefWrap                     \
+   <GeometricField<Type, PatchField, GeoMesh>> E1;                             \
+   return Func(E1(fld));                                                       \
 }
 
 
@@ -1149,7 +1325,7 @@ OpFunc<E1> Func                                                                \
 //        typename E1::value_type
 //    >
 //{
-//    /* cref if leaf, copy otherwise */ 
+//    /* cref if leaf, copy otherwise */
 //    typename std::conditional<E1::is_leaf, const E1&, const E1>::type u_;
 //
 //public:
@@ -1288,13 +1464,13 @@ public:                                                                        \
                 typename E2::value_type                                        \
             > == true                                                          \
         );*/                                                                   \
-        assert(u.size() == v.size());                                          \
+        assert(u.size() == -1 || v.size() == -1 || u.size() == v.size());      \
     }                                                                          \
     auto operator[](const label i) const                                       \
     {                                                                          \
         return u_[i] Op v_[i];                                                 \
     }                                                                          \
-    auto size() const noexcept { return u_.size(); }                           \
+    auto size() const noexcept { return Foam::max(u_.size(), v_.size()); }     \
                                                                                \
     IntExpr internalField() const                                              \
     {                                                                          \
@@ -1326,8 +1502,7 @@ public:                                                                        \
     }                                                                          \
 };                                                                             \
 template<typename E1, typename E2>                                             \
-OpFunc<E1, E2>                                                                 \
-operator Op                                                                    \
+auto operator Op                                                               \
 (                                                                              \
     GeometricFieldExpression                                                   \
     <                                                                          \
@@ -1352,7 +1527,216 @@ operator Op                                                                    \
         static_cast<const E1&>(u),                                             \
         static_cast<const E2&>(v)                                              \
     );                                                                         \
-}
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    typename E1,                                                               \
+    class Type, template<class> class PatchField, class GeoMesh                \
+>                                                                              \
+auto operator Op                                                               \
+(                                                                              \
+    GeometricFieldExpression                                                   \
+    <                                                                          \
+        E1,                                                                    \
+        typename E1::IntExpr,                                                  \
+        typename E1::UncoupledPatchExpr,                                       \
+        typename E1::CoupledPatchExpr,                                         \
+        typename E1::value_type                                                \
+    > const& u,                                                                \
+    GeometricField<Type, PatchField, GeoMesh> const& fld                       \
+)                                                                              \
+{                                                                              \
+   typedef typename Expression::GeometricFieldConstRefWrap                     \
+   <GeometricField<Type, PatchField, GeoMesh>> E2;                             \
+   return operator Op(u, E2(fld));                                             \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    class Type, template<class> class PatchField, class GeoMesh,               \
+    typename E1                                                                \
+>                                                                              \
+auto operator Op                                                               \
+(                                                                              \
+    GeometricField<Type, PatchField, GeoMesh> const& fld,                      \
+    GeometricFieldExpression                                                   \
+    <                                                                          \
+        E1,                                                                    \
+        typename E1::IntExpr,                                                  \
+        typename E1::UncoupledPatchExpr,                                       \
+        typename E1::CoupledPatchExpr,                                         \
+        typename E1::value_type                                                \
+    > const& u                                                                 \
+)                                                                              \
+{                                                                              \
+   typedef typename Expression::GeometricFieldConstRefWrap                     \
+   <GeometricField<Type, PatchField, GeoMesh>> E2;                             \
+   return operator Op(E2(fld), u);                                             \
+}                                                                              \
+template                                                                       \
+<class Type1, class Type2, template<class> class PatchField, class GeoMesh>    \
+auto operator Op                                                               \
+(                                                                              \
+    GeometricField<Type1, PatchField, GeoMesh> const& u,                       \
+    GeometricField<Type2, PatchField, GeoMesh> const& v                        \
+)                                                                              \
+{                                                                              \
+   typedef typename Expression::GeometricFieldConstRefWrap                     \
+   <GeometricField<Type1, PatchField, GeoMesh>> E1;                            \
+   typedef typename Expression::GeometricFieldConstRefWrap                     \
+   <GeometricField<Type2, PatchField, GeoMesh>> E2;                            \
+   return operator Op(E1(u), E2(v));                                           \
+}                                                                              \
+/* Dimensioned types */                                                        \
+template<typename E1, class Type>                                              \
+auto operator Op                                                               \
+(                                                                              \
+    GeometricFieldExpression                                                   \
+    <                                                                          \
+        E1,                                                                    \
+        typename E1::IntExpr,                                                  \
+        typename E1::UncoupledPatchExpr,                                       \
+        typename E1::CoupledPatchExpr,                                         \
+        typename E1::value_type                                                \
+    > const& u,                                                                \
+    dimensioned<Type> const& v                                                 \
+)                                                                              \
+{                                                                              \
+   typedef typename Foam::Expression::UniformGeometricFieldWrap2<Type> E2;     \
+   return operator Op(u, E2(v));                                               \
+}                                                                              \
+template<typename E1, class Type>                                              \
+auto operator Op                                                               \
+(                                                                              \
+    dimensioned<Type> const& u,                                                \
+    GeometricFieldExpression                                                   \
+    <                                                                          \
+        E1,                                                                    \
+        typename E1::IntExpr,                                                  \
+        typename E1::UncoupledPatchExpr,                                       \
+        typename E1::CoupledPatchExpr,                                         \
+        typename E1::value_type                                                \
+    > const& v                                                                 \
+)                                                                              \
+{                                                                              \
+   typedef typename Foam::Expression::UniformGeometricFieldWrap2<Type> E2;     \
+   return operator Op(E2(u), v);                                               \
+}                                                                              \
+/* Primitive types */                                                          \
+template                                                                       \
+<                                                                              \
+    class Type1, class Type2, template<class> class PatchField, class GeoMesh, \
+    class = std::enable_if_t                                                   \
+    <                                                                          \
+        (std::is_arithmetic_v<Type2> || Foam::is_vectorspace_v<Type2>)         \
+    >                                                                          \
+>                                                                              \
+auto operator Op                                                               \
+(                                                                              \
+    GeometricField<Type1, PatchField, GeoMesh> const& u,                       \
+    Type2 const& v                                                             \
+)                                                                              \
+{                                                                              \
+    typedef typename Foam::GeometricField<Type1, PatchField, GeoMesh> GeoField;\
+    typedef typename Expression::UniformGeometricFieldWrap<GeoField, Type2> E2;\
+    return operator Op(u, E2(u, v));                                           \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    class Type1, class Type2, template<class> class PatchField, class GeoMesh, \
+    class = std::enable_if_t                                                   \
+    <                                                                          \
+        (std::is_arithmetic_v<Type2> || Foam::is_vectorspace_v<Type2>)         \
+    >                                                                          \
+>                                                                              \
+auto operator Op                                                               \
+(                                                                              \
+    Type2 const& u,                                                            \
+    GeometricField<Type1, PatchField, GeoMesh> const& v                        \
+)                                                                              \
+{                                                                              \
+    typedef typename Foam::GeometricField<Type1, PatchField, GeoMesh> GeoField;\
+    typedef typename Expression::UniformGeometricFieldWrap<GeoField, Type2> E2;\
+    return operator Op(E2(v, u), v);                                           \
+}                                                                              \
+/* GeoFields and Dimensioned types */                                          \
+template                                                                       \
+<                                                                              \
+    class Type1, class Type2, template<class> class PatchField, class GeoMesh  \
+>                                                                              \
+auto operator Op                                                               \
+(                                                                              \
+    GeometricField<Type1, PatchField, GeoMesh> const& u,                       \
+    dimensioned<Type2> const& v                                                \
+)                                                                              \
+{                                                                              \
+   typedef typename Foam::Expression::UniformGeometricFieldWrap                \
+   <GeometricField<Type1, PatchField, GeoMesh>, Type2> E2;                     \
+   return operator Op(u, E2(u, v));                                            \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    class Type1, class Type2, template<class> class PatchField, class GeoMesh  \
+>                                                                              \
+auto operator Op                                                               \
+(                                                                              \
+    dimensioned<Type2> const& u,                                               \
+    GeometricField<Type1, PatchField, GeoMesh> const& v                        \
+)                                                                              \
+{                                                                              \
+   typedef typename Foam::Expression::UniformGeometricFieldWrap                \
+   <GeometricField<Type1, PatchField, GeoMesh>, Type2> E2;                     \
+   return operator Op(E2(v, u), v);                                            \
+}                                                                              \
+/* Expressions and primitive types */                                          \
+template                                                                       \
+<                                                                              \
+    class E1, class Type2,                                                     \
+    class = std::enable_if_t                                                   \
+    <                                                                          \
+        (std::is_arithmetic_v<Type2> || Foam::is_vectorspace_v<Type2>)         \
+    >                                                                          \
+>                                                                              \
+auto operator Op                                                               \
+(                                                                              \
+    GeometricFieldExpression                                                   \
+    <                                                                          \
+        E1,                                                                    \
+        typename E1::IntExpr,                                                  \
+        typename E1::UncoupledPatchExpr,                                       \
+        typename E1::CoupledPatchExpr,                                         \
+        typename E1::value_type                                                \
+    > const& u,                                                                \
+    Type2 const& v                                                             \
+)                                                                              \
+{                                                                              \
+   typedef typename Foam::Expression::UniformGeometricFieldWrap2<Type2> E2;    \
+   return operator Op(u, E2(v));                                               \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    class E1, class Type2,                                                     \
+    class = std::enable_if_t                                                   \
+    <                                                                          \
+        (std::is_arithmetic_v<Type2> || Foam::is_vectorspace_v<Type2>)         \
+    >                                                                          \
+>                                                                              \
+auto operator Op                                                               \
+(                                                                              \
+    Type2 const& u,                                                            \
+    GeometricFieldExpression                                                   \
+    <                                                                          \
+        E1,                                                                    \
+        typename E1::IntExpr,                                                  \
+        typename E1::UncoupledPatchExpr,                                       \
+        typename E1::CoupledPatchExpr,                                         \
+        typename E1::value_type                                                \
+    > const& v                                                                 \
+)                                                                              \
+{                                                                              \
+   typedef typename Foam::Expression::UniformGeometricFieldWrap2<Type2> E2;    \
+   return operator Op(E2(u), v);                                               \
+}                                                                              \
+
 
 #define EXPRESSION_GF_FUNCTION2(Func, BaseFunc, WrapType, OpFunc)              \
 template<typename E1, typename E2>                                             \
@@ -1436,7 +1820,7 @@ public:                                                                        \
     {                                                                          \
         return BaseFunc(u_[i], v_[i]);                                         \
     }                                                                          \
-    auto size() const noexcept {return u_.size(); }                            \
+    auto size() const noexcept {return Foam::max(u_.size(), v_.size()); }      \
                                                                                \
     IntExpr internalField() const                                              \
     {                                                                          \
@@ -1468,7 +1852,7 @@ public:                                                                        \
     }                                                                          \
 };                                                                             \
 template<typename E1, typename E2>                                             \
-OpFunc<E1, E2> Func                                                            \
+auto Func                                                                      \
 (                                                                              \
     GeometricFieldExpression                                                   \
     <                                                                          \
@@ -1493,7 +1877,128 @@ OpFunc<E1, E2> Func                                                            \
         static_cast<const E1&>(u),                                             \
         static_cast<const E2&>(v)                                              \
     );                                                                         \
-}
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    typename E1,                                                               \
+    class Type, template<class> class PatchField, class GeoMesh                \
+>                                                                              \
+auto Func                                                                      \
+(                                                                              \
+    GeometricFieldExpression                                                   \
+    <                                                                          \
+        E1,                                                                    \
+        typename E1::IntExpr,                                                  \
+        typename E1::UncoupledPatchExpr,                                       \
+        typename E1::CoupledPatchExpr,                                         \
+        typename E1::value_type                                                \
+    > const& u,                                                                \
+    GeometricField<Type, PatchField, GeoMesh> const& fld                       \
+)                                                                              \
+{                                                                              \
+   typedef typename Expression::GeometricFieldConstRefWrap                     \
+   <GeometricField<Type, PatchField, GeoMesh>> E2;                             \
+   return Func(u, E2(fld));                                                    \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    class Type, template<class> class PatchField, class GeoMesh,               \
+    typename E1                                                                \
+>                                                                              \
+auto Func                                                                      \
+(                                                                              \
+    GeometricField<Type, PatchField, GeoMesh> const& fld,                      \
+    GeometricFieldExpression                                                   \
+    <                                                                          \
+        E1,                                                                    \
+        typename E1::IntExpr,                                                  \
+        typename E1::UncoupledPatchExpr,                                       \
+        typename E1::CoupledPatchExpr,                                         \
+        typename E1::value_type                                                \
+    > const& u                                                                 \
+)                                                                              \
+{                                                                              \
+   typedef typename Expression::GeometricFieldConstRefWrap                     \
+   <GeometricField<Type, PatchField, GeoMesh>> E2;                             \
+   return Func(E2(fld), u);                                                    \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    class Type, template<class> class PatchField, class GeoMesh                \
+>                                                                              \
+auto Func                                                                      \
+(                                                                              \
+    GeometricField<Type, PatchField, GeoMesh> const& u,                        \
+    GeometricField<Type, PatchField, GeoMesh> const& v                         \
+)                                                                              \
+{                                                                              \
+   typedef typename Expression::GeometricFieldConstRefWrap                     \
+   <GeometricField<Type, PatchField, GeoMesh>> E2;                             \
+   return Func(E2(u), E2(v));                                                  \
+}                                                                              \
+/* dimensioned types and geometric fields */                                   \
+template                                                                       \
+<                                                                              \
+    class Type1, class Type2, template<class> class PatchField, class GeoMesh  \
+>                                                                              \
+auto Func                                                                      \
+(                                                                              \
+    GeometricField<Type1, PatchField, GeoMesh> const& u,                       \
+    dimensioned<Type2> const& v                                                \
+)                                                                              \
+{                                                                              \
+   typedef typename Foam::Expression::UniformGeometricFieldWrap                \
+   <GeometricField<Type1, PatchField, GeoMesh>, Type2> E2;                     \
+   return Func(u, E2(u,v));                                                    \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    class Type1, class Type2, template<class> class PatchField, class GeoMesh  \
+>                                                                              \
+auto Func                                                                      \
+(                                                                              \
+    dimensioned<Type2> const& u,                                               \
+    GeometricField<Type1, PatchField, GeoMesh> const& v                        \
+)                                                                              \
+{                                                                              \
+   typedef typename Foam::Expression::UniformGeometricFieldWrap                \
+   <GeometricField<Type1, PatchField, GeoMesh>, Type2> E2;                     \
+   return Func(E2(v, u), v);                                                   \
+}                                                                              \
+template<typename E1, class Type>                                              \
+auto Func                                                                      \
+(                                                                              \
+    GeometricFieldExpression                                                   \
+    <                                                                          \
+        E1,                                                                    \
+        typename E1::IntExpr,                                                  \
+        typename E1::UncoupledPatchExpr,                                       \
+        typename E1::CoupledPatchExpr,                                         \
+        typename E1::value_type                                                \
+    > const& u,                                                                \
+    dimensioned<Type> const& v                                                 \
+)                                                                              \
+{                                                                              \
+   typedef typename Foam::Expression::UniformGeometricFieldWrap2<Type> E2;     \
+   return Func(u, E2(v));                                                      \
+}                                                                              \
+template<typename E1, class Type>                                              \
+auto Func                                                                      \
+(                                                                              \
+    dimensioned<Type> const& u,                                                \
+    GeometricFieldExpression                                                   \
+    <                                                                          \
+        E1,                                                                    \
+        typename E1::IntExpr,                                                  \
+        typename E1::UncoupledPatchExpr,                                       \
+        typename E1::CoupledPatchExpr,                                         \
+        typename E1::value_type                                                \
+    > const& v                                                                 \
+)                                                                              \
+{                                                                              \
+   typedef typename Foam::Expression::UniformGeometricFieldWrap2<Type> E2;     \
+   return Func(E2(u), v);                                                      \
+}                                                                              \
 
 
 //- GeometricField expressions.
@@ -1541,16 +2046,16 @@ EXPRESSION_GF_OPERATOR(&, List_dot, GF_dot)
 // Expressions on constants
 // ~~~~~~~~~~~~~~~~~~~~~~~~
 
-template<class GeoField>
+template<class GeoField, class Type = typename GeoField::value_type>
 class UniformGeometricFieldWrap
 :
     public GeometricFieldExpression
     <
-        UniformGeometricFieldWrap<GeoField>,
-        UniformListWrap<typename GeoField::value_type>,
-        UniformListWrap<typename GeoField::value_type>,
-        UniformListWrap<typename GeoField::value_type>,
-        typename GeoField::value_type
+        UniformGeometricFieldWrap<GeoField, Type>,
+        UniformListWrap<Type>,
+        UniformListWrap<Type>,
+        UniformListWrap<Type>,
+        Type
     >
 {
 public:
@@ -1558,7 +2063,7 @@ public:
     static constexpr bool is_leaf = false;  //true;
 
     //- Type to return for internal field
-    typedef typename GeoField::value_type value_type;
+    typedef Type value_type;
 
     //- Type to return for patchField
     typedef UniformListWrap<value_type> IntExpr;
@@ -1579,7 +2084,7 @@ public:
     :
         GeometricFieldExpression
         <
-            UniformGeometricFieldWrap<GeoField>,
+            UniformGeometricFieldWrap<GeoField, Type>,
             IntExpr,
             UncoupledPatchExpr,
             CoupledPatchExpr,
@@ -1597,12 +2102,12 @@ public:
     UniformGeometricFieldWrap
     (
         const GeoField& elems,
-        const dimensioned<value_type> val
+        const dimensioned<value_type>& val
     )
     :
         GeometricFieldExpression
         <
-            UniformGeometricFieldWrap<GeoField>,
+            UniformGeometricFieldWrap<GeoField, Type>,
             IntExpr,
             UncoupledPatchExpr,
             CoupledPatchExpr,
@@ -1649,6 +2154,112 @@ public:
     }
 };
 
+// Uniform value. Relies on size -1 being handled properly upstream.
+template<class T>
+class UniformGeometricFieldWrap2
+:
+    public GeometricFieldExpression
+    <
+        UniformGeometricFieldWrap2<T>,
+        UniformListWrap<T>,
+        UniformListWrap<T>,
+        UniformListWrap<T>,
+        T
+    >
+{
+public:
+
+    static constexpr bool is_leaf = false;  //true;
+
+    //- The value type the list contains
+    typedef T value_type;
+
+    //- Type to return for patchField
+    typedef UniformListWrap<T> IntExpr;
+    typedef UniformListWrap<T> UncoupledPatchExpr;
+    typedef UniformListWrap<T> CoupledPatchExpr;
+
+
+private:
+
+    const T val_;
+
+
+public:
+
+    // Construct from (dimensionless) value
+    UniformGeometricFieldWrap2(const T val)
+    :
+        GeometricFieldExpression
+        <
+            UniformGeometricFieldWrap2<T>,
+            IntExpr,
+            UncoupledPatchExpr,
+            CoupledPatchExpr,
+            T
+        >
+        (
+            dimless,
+            orientedType()
+        ),
+        val_(val)
+    {}
+
+    // Construct from value, dimension
+    UniformGeometricFieldWrap2
+    (
+        const dimensioned<T>& val
+    )
+    :
+        GeometricFieldExpression
+        <
+            UniformGeometricFieldWrap2<T>,
+            IntExpr,
+            UncoupledPatchExpr,
+            CoupledPatchExpr,
+            T
+        >
+        (
+            val.dimensions(),
+            orientedType()
+        ),
+        val_(val.value())
+    {}
+
+    T operator[](const label i) const
+    {
+        return val_;
+    }
+
+    auto size() const noexcept
+    {
+        // Force error if used. Requires lower levels to use max() and hope
+        // that one of the arguments has size.
+        return -1;
+    }
+
+    IntExpr internalField() const
+    {
+        return IntExpr(-1, val_);
+    }
+
+    UncoupledPatchExpr patchField(const label i) const
+    {
+        return UncoupledPatchExpr(-1, val_);
+    }
+
+    CoupledPatchExpr coupledPatchField(const label i) const
+    {
+        return CoupledPatchExpr(-1, val_);
+    }
+
+    template<class AccessOp>
+    auto access(const AccessOp& cop, const label i) const
+    {
+        // Size+value only
+        return patchField(i);
+    }
+};
 
 //- Fully self-contained constant field wrapper. Not needed?
 //template<class GeoField>

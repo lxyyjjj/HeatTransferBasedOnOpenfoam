@@ -44,6 +44,10 @@ SourceFiles
     #include <execution>
 #endif
 #include "List.H"
+#include "labelPair.H"
+#include "dimensionedType.H"
+#include "orientedType.H"
+#include "scalar.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -56,13 +60,13 @@ namespace Expression
                        Namespace Expression Declarations
 \*---------------------------------------------------------------------------*/
 
-template<typename E, typename ValType>
+template<typename E>
 class ListExpression
 {
 public:
     static constexpr bool is_leaf = false;
 
-    ValType operator[](const label i) const
+    auto operator[](const label i) const
     {
         // Delegation to the actual expression type. This avoids dynamic
         // polymorphism (a.k.a. virtual functions in C++)
@@ -72,10 +76,8 @@ public:
 
     //- Helper: assign to passed in list
     template<class Container>
-    Container& evaluate(Container& lst) const
+    Container& fill(Container& lst) const
     {
-        lst.resize_nocopy(this->size());
-
 #ifdef _OPENMP
         int loopLen = this->size();
         _Pragma("omp target teams distribute parallel for if(loopLen > 1000)")
@@ -85,21 +87,29 @@ public:
             lst[i] = *src;
         }
 #else
-    std::copy
-    (
-        #if defined(__APPLE__) && defined(__clang__)
-        // Currently not working (2025-10-06) with par_unseq. Works with
-        // sequential.
-        #elif __has_include(<execution>)
-        std::execution::par_unseq,
-        #else
-        // Execution policy not supported
-        #endif
-        static_cast<E const&>(*this).cbegin(),
-        static_cast<E const&>(*this).cend(),
-        lst.begin()
-    );
+        std::copy
+        (
+            #if defined(__APPLE__) && defined(__clang__)
+            // Currently not working (2025-10-06) with par_unseq. Works with
+            // sequential.
+            #elif __has_include(<execution>)
+            std::execution::par_unseq,
+            #else
+            // Execution policy not supported
+            #endif
+            static_cast<E const&>(*this).cbegin(),
+            static_cast<E const&>(*this).cend(),
+            lst.begin()
+        );
 #endif
+        return lst;
+    }
+    //- Helper: assign to passed in list
+    template<class Container>
+    Container& evaluate(Container& lst) const
+    {
+        lst.resize_nocopy(this->size());
+        fill(lst);
         return lst;
     }
 };
@@ -111,7 +121,7 @@ public:
 template<class T>
 class ListWrap
 :
-    public ListExpression<ListWrap<T>, T>
+    public ListExpression<ListWrap<T>>
 {
     List<T> elems_;
 
@@ -145,7 +155,7 @@ public:
 
     // Construct from ListExpression, forcing its evaluation.
     template<typename E>
-    ListWrap(const ListExpression<E, typename E::value_type>& expr)
+    ListWrap(const ListExpression<E>& expr)
     :
         elems_(expr.size())
     {
@@ -207,7 +217,7 @@ public:
 template<class T>
 class ListRefWrap
 :
-    public ListExpression<ListRefWrap<T>, T>
+    public ListExpression<ListRefWrap<T>>
 {
     List<T>& elems_;
 
@@ -243,7 +253,7 @@ public:
     ListRefWrap
     (
         List<T>& elems,
-        const ListExpression<E, typename E::value_type>& expr
+        const ListExpression<E>& expr
     )
     :
         elems_(elems)
@@ -253,7 +263,7 @@ public:
 
     //- Assignment
     template<typename E>
-    void operator=(const ListExpression<E, typename E::value_type>& expr)
+    void operator=(const ListExpression<E>& expr)
     {
         expr.evaluate(elems_);
     }
@@ -307,15 +317,15 @@ public:
 };
 
 
-// Wrap of const reference to List
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Wrap of const reference to UList
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 template<class T>
 class ListConstRefWrap
 :
-    public ListExpression<ListConstRefWrap<T>, T>
+    public ListExpression<ListConstRefWrap<T>>
 {
-    const List<T>& elems_;
+    const UList<T>& elems_;
 
 public:
 
@@ -325,7 +335,7 @@ public:
     typedef T value_type;
 
     // construct from components
-    ListConstRefWrap(const List<T>& elems)
+    ListConstRefWrap(const UList<T>& elems)
     :
         elems_(elems)
     {}
@@ -346,11 +356,11 @@ public:
         return elems_.size();
     }
 
-    //typedef typename List<T>::const_iterator const_iterator;
+    //typedef typename UList<T>::const_iterator const_iterator;
     struct const_iterator
     {
         // Minimalistic const_iter implementation
-        typedef typename List<T>::const_iterator ConstIter;
+        typedef typename UList<T>::const_iterator ConstIter;
         typedef typename std::iterator_traits<ConstIter> ConstIterTraits;
         using difference_type = typename ConstIterTraits::difference_type;
         using value_type = typename ConstIterTraits::value_type;
@@ -481,7 +491,7 @@ public:
 template<class T>
 class ListTmpWrap
 :
-    public ListExpression<ListTmpWrap<T>, typename T::value_type>
+    public ListExpression<ListTmpWrap<T>>
 {
     tmp<T> elems_;
 
@@ -509,7 +519,7 @@ public:
     ListTmpWrap
     (
         tmp<T>& elems,
-        const ListExpression<E, typename E::value_type>& expr
+        const ListExpression<E>& expr
     )
     :
         elems_(elems)
@@ -519,7 +529,7 @@ public:
 
     //- Assignment
     template<typename E>
-    void operator=(const ListExpression<E, typename E::value_type>& expr)
+    void operator=(const ListExpression<E>& expr)
     {
         expr.evaluate(elems_.ref());
     }
@@ -564,7 +574,7 @@ public:
 template<class T>
 class ListConstTmpWrap
 :
-    public ListExpression<ListConstTmpWrap<T>, typename T::value_type>
+    public ListExpression<ListConstTmpWrap<T>>
 {
     const tmp<T> elems_;
 
@@ -712,8 +722,7 @@ class IndirectConstWrap
 :
     public ListExpression
     <
-        IndirectConstWrap<E1>,
-        typename E1::value_type
+        IndirectConstWrap<E1>
     >
 {
     //- Expression for cell values
@@ -875,14 +884,17 @@ public:
 template<typename E1>                                                          \
 class OpFunc                                                                   \
 :                                                                              \
-    public ListExpression<OpFunc<E1>, typename E1::value_type>                 \
+    public ListExpression<                                                     \
+        OpFunc<E1>                                                             \
+    >                                                                          \
 {                                                                              \
     typename std::conditional<E1::is_leaf, const E1&, const E1>::type u_;      \
                                                                                \
 public:                                                                        \
     static constexpr bool is_leaf = false;                                     \
                                                                                \
-    typedef typename E1::value_type value_type;                                \
+    typedef decltype(BaseFunc(std::declval<typename E1::value_type>()))        \
+        value_type;                                                            \
                                                                                \
     OpFunc(const E1& u)                                                        \
     :                                                                          \
@@ -995,12 +1007,18 @@ public:                                                                        \
     }                                                                          \
 };                                                                             \
 template<typename E1>                                                          \
-OpFunc<E1> Func                                                                \
+auto Func                                                                      \
 (                                                                              \
-    const ListExpression<E1, typename E1::value_type>& u                       \
+    const ListExpression<E1>& u                                                \
 )                                                                              \
 {                                                                              \
     return OpFunc<E1>(static_cast<const E1&>(u));                              \
+}                                                                              \
+template<class Type>                                                           \
+auto Func(UList<Type> const& u)                                                \
+{                                                                              \
+   typedef typename Expression::ListConstRefWrap<Type> E2;                     \
+   return Func(E2(u));                                                         \
 }
 
 
@@ -1008,7 +1026,7 @@ OpFunc<E1> Func                                                                \
 template<typename E1>
 class List_negate
 :
-    public ListExpression<List_negate<E1>, typename E1::value_type>
+    public ListExpression<List_negate<E1>>
 {
     typename std::conditional<E1::is_leaf, const E1&, const E1>::type u_;
 
@@ -1130,14 +1148,16 @@ public:
     }
 };
 template<typename E1>
-List_negate<E1> operator-
-(
-    const ListExpression<E1, typename E1::value_type>& u
-)
+auto operator-(const ListExpression<E1>& u)
 {
     return List_negate<E1>(static_cast<const E1&>(u));
 }
-
+template<class Type>
+auto operator-(UList<Type> const& u)
+{
+   typedef typename Expression::ListConstRefWrap<Type> E2;
+   return List_negate(E2(u));
+}
 
 #define EXPRESSION_FUNCTION2(Func, BaseFunc, OpFunc)                           \
 template<typename E1, typename E2>                                             \
@@ -1145,8 +1165,7 @@ class OpFunc                                                                   \
 :                                                                              \
     public ListExpression                                                      \
     <                                                                          \
-        OpFunc<E1, E2>,                                                        \
-        typename E1::value_type                                                \
+        OpFunc<E1, E2>                                                         \
     >                                                                          \
 {                                                                              \
     /* cref if leaf, copy otherwise */                                         \
@@ -1163,13 +1182,13 @@ public:                                                                        \
     :                                                                          \
      u_(u), v_(v)                                                              \
     {                                                                          \
-        assert(u.size() == v.size());                                          \
+        assert(u_.size() == -1 || v_.size() == -1 || u_.size() == v_.size());  \
     }                                                                          \
     auto operator[](const label i) const                                       \
     {                                                                          \
         return BaseFunc(u_[i], v_[i]);                                         \
     }                                                                          \
-    auto size() const noexcept {return u_.size(); }                            \
+    auto size() const noexcept { return Foam::max(u_.size(), v_.size()); }     \
                                                                                \
     struct const_iterator                                                      \
     {                                                                          \
@@ -1230,17 +1249,15 @@ public:                                                                        \
     }                                                                          \
 };                                                                             \
 template<typename E1, typename E2>                                             \
-OpFunc<E1, E2> Func                                                            \
+auto Func                                                                      \
 (                                                                              \
     ListExpression                                                             \
     <                                                                          \
-        E1,                                                                    \
-        typename E1::value_type                                                \
+        E1                                                                     \
     > const& u,                                                                \
     ListExpression                                                             \
     <                                                                          \
-        E2,                                                                    \
-        typename E2::value_type                                                \
+        E2                                                                     \
     > const& v                                                                 \
 )                                                                              \
 {                                                                              \
@@ -1249,15 +1266,129 @@ OpFunc<E1, E2> Func                                                            \
         static_cast<const E1&>(u),                                             \
         static_cast<const E2&>(v)                                              \
     );                                                                         \
+}                                                                              \
+template<typename E1, class Type>                                              \
+auto Func                                                                      \
+(                                                                              \
+    ListExpression                                                             \
+    <                                                                          \
+        E1                                                                     \
+    > const& u,                                                                \
+    UList<Type> const& v                                                       \
+)                                                                              \
+{                                                                              \
+    typedef typename Expression::ListConstRefWrap<Type> E2;                    \
+    return Func(u, E2(v));                                                     \
+}                                                                              \
+template<typename E1, class Type>                                              \
+auto Func                                                                      \
+(                                                                              \
+    UList<Type> const& u,                                                      \
+    ListExpression                                                             \
+    <                                                                          \
+        E1                                                                     \
+    > const& v                                                                 \
+)                                                                              \
+{                                                                              \
+    typedef typename Expression::ListConstRefWrap<Type> E2;                    \
+    return Func(E2(u), v);                                                     \
+}                                                                              \
+template<class Type1, class Type2>                                             \
+auto Func(UList<Type1> const& u, UList<Type2> const& v)                        \
+{                                                                              \
+   typedef typename Expression::ListConstRefWrap<Type1> E1;                    \
+   typedef typename Expression::ListConstRefWrap<Type2> E2;                    \
+   return Func(E1(u), E2(v));                                                  \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    typename E1,                                                               \
+    class Type,                                                                \
+    class = std::enable_if_t                                                   \
+    <                                                                          \
+        (std::is_arithmetic_v<Type> || Foam::is_vectorspace_v<Type>)           \
+    >                                                                          \
+>                                                                              \
+auto Func                                                                      \
+(                                                                              \
+   ListExpression                                                              \
+   <                                                                           \
+       E1                                                                      \
+    > const& u,                                                                \
+    const Type& v                                                              \
+)                                                                              \
+{                                                                              \
+    typedef typename Expression::UniformListWrap<Type> E2;                     \
+    return Func(u, E2(u.size(), v));                                           \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    typename E1,                                                               \
+    class Type,                                                                \
+    class = std::enable_if_t                                                   \
+    <                                                                          \
+        (std::is_arithmetic_v<Type> || Foam::is_vectorspace_v<Type>)           \
+    >                                                                          \
+>                                                                              \
+auto Func                                                                      \
+(                                                                              \
+    const Type& u,                                                             \
+    ListExpression                                                             \
+    <                                                                          \
+        E1                                                                     \
+    > const& v                                                                 \
+)                                                                              \
+{                                                                              \
+    typedef typename Expression::UniformListWrap<Type> E2;                     \
+    return Func(E2(v.size(), u), v);                                           \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    class Type,                                                                \
+    class TypeT = Type,                                                        \
+    class = std::enable_if_t                                                   \
+    <                                                                          \
+        (std::is_arithmetic_v<TypeT> || Foam::is_vectorspace_v<TypeT>)         \
+    >                                                                          \
+>                                                                              \
+auto Func                                                                      \
+(                                                                              \
+    UList<Type> const& u,                                                      \
+    TypeT const& v                                                             \
+)                                                                              \
+{                                                                              \
+    typedef typename Expression::ListConstRefWrap<Type> E1;                    \
+    typedef typename Expression::UniformListWrap<TypeT> E2;                    \
+    return Func(E1(u), E2(u.size(), v));                                       \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    class Type,                                                                \
+    class TypeT = Type,                                                        \
+    class = std::enable_if_t                                                   \
+    <                                                                          \
+        (std::is_arithmetic_v<TypeT> || Foam::is_vectorspace_v<TypeT>)         \
+    >                                                                          \
+>                                                                              \
+auto Func                                                                      \
+(                                                                              \
+    TypeT const& u,                                                            \
+    UList<Type> const& v                                                       \
+)                                                                              \
+{                                                                              \
+    typedef typename Expression::ListConstRefWrap<Type> E1;                    \
+    typedef typename Expression::UniformListWrap<TypeT> E2;                    \
+    return Func(E2(v.size(), u), E1(v));                                       \
 }
+
+
 #define EXPRESSION_OPERATOR(Op, OpFunc)                                        \
 template<typename E1, typename E2>                                             \
 class OpFunc                                                                   \
 :                                                                              \
     public ListExpression                                                      \
     <                                                                          \
-        OpFunc<E1, E2>,                                                        \
-        typename E1::value_type                                                \
+        OpFunc<E1, E2>                                                         \
     >                                                                          \
 {                                                                              \
     /* cref if leaf, copy otherwise */                                         \
@@ -1274,13 +1405,13 @@ public:                                                                        \
     :                                                                          \
      u_(u), v_(v)                                                              \
     {                                                                          \
-        assert(u.size() == v.size());                                          \
+        assert(u_.size() == -1 || v_.size() == -1 || u_.size() == v_.size());  \
     }                                                                          \
     auto operator[](const label i) const                                       \
     {                                                                          \
         return u_[i] Op v_[i];                                                 \
     }                                                                          \
-    auto size() const noexcept { return u_.size(); }                           \
+    auto size() const noexcept { return Foam::max(u_.size(), v_.size()); }     \
                                                                                \
     struct const_iterator                                                      \
     {                                                                          \
@@ -1300,11 +1431,11 @@ public:                                                                        \
             uIter_(uIter),                                                     \
             vIter_(vIter)                                                      \
         {}                                                                     \
-        value_type operator*() const                                           \
+        auto operator*() const                                                 \
         {                                                                      \
             return *uIter_ Op *vIter_;                                         \
         }                                                                      \
-        value_type operator[](const difference_type i) const                   \
+        auto operator[](const difference_type i) const                         \
         {                                                                      \
            return uIter_[i] Op vIter_[i];                                      \
         }                                                                      \
@@ -1393,18 +1524,15 @@ public:                                                                        \
     }                                                                          \
 };                                                                             \
 template<typename E1, typename E2>                                             \
-OpFunc<E1, E2>                                                                 \
-operator Op                                                                    \
+auto operator Op                                                               \
 (                                                                              \
     ListExpression                                                             \
     <                                                                          \
-        E1,                                                                    \
-        typename E1::value_type                                                \
+        E1                                                                     \
     > const& u,                                                                \
     ListExpression                                                             \
     <                                                                          \
-        E2,                                                                    \
-        typename E2::value_type                                                \
+        E2                                                                     \
     > const& v                                                                 \
 )                                                                              \
 {                                                                              \
@@ -1413,6 +1541,119 @@ operator Op                                                                    \
         static_cast<const E1&>(u),                                             \
         static_cast<const E2&>(v)                                              \
     );                                                                         \
+}                                                                              \
+template<typename E1, class Type>                                              \
+auto operator Op                                                               \
+(                                                                              \
+    ListExpression                                                             \
+    <                                                                          \
+        E1                                                                     \
+    > const& u,                                                                \
+    UList<Type> const& v                                                       \
+)                                                                              \
+{                                                                              \
+    typedef typename Expression::ListConstRefWrap<Type> E2;                    \
+    return operator Op(u, E2(v));                                              \
+}                                                                              \
+template<typename E1, class Type>                                              \
+auto operator Op                                                               \
+(                                                                              \
+    UList<Type> const& u,                                                      \
+    ListExpression                                                             \
+    <                                                                          \
+        E1                                                                     \
+    > const& v                                                                 \
+)                                                                              \
+{                                                                              \
+    typedef typename Expression::ListConstRefWrap<Type> E2;                    \
+    return operator Op(E2(u), v);                                              \
+}                                                                              \
+template<class Type1, class Type2>                                             \
+auto operator Op(UList<Type1> const& u, UList<Type2> const& v)                 \
+{                                                                              \
+    typedef typename Expression::ListConstRefWrap<Type1> E1;                   \
+    typedef typename Expression::ListConstRefWrap<Type2> E2;                   \
+    return operator Op(E1(u), E2(v));                                          \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    typename E1,                                                               \
+    class Type,                                                                \
+    class = std::enable_if_t                                                   \
+    <                                                                          \
+        (std::is_arithmetic_v<Type> || Foam::is_vectorspace_v<Type>)           \
+    >                                                                          \
+>                                                                              \
+auto operator Op                                                               \
+(                                                                              \
+   ListExpression                                                              \
+   <                                                                           \
+       E1                                                                      \
+    > const& u,                                                                \
+    const Type& v                                                              \
+)                                                                              \
+{                                                                              \
+    typedef typename Expression::UniformListWrap<Type> E2;                     \
+    return operator Op(u, E2(u.size(), v));                                    \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    typename E1,                                                               \
+    class Type,                                                                \
+    class = std::enable_if_t                                                   \
+    <                                                                          \
+        (std::is_arithmetic_v<Type> || Foam::is_vectorspace_v<Type>)           \
+    >                                                                          \
+>                                                                              \
+auto operator Op                                                               \
+(                                                                              \
+    const Type& u,                                                             \
+    ListExpression                                                             \
+    <                                                                          \
+        E1                                                                     \
+    > const& v                                                                 \
+)                                                                              \
+{                                                                              \
+    typedef typename Expression::UniformListWrap<Type> E2;                     \
+    return operator Op(E2(v.size(), u), v);                                    \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    class Type,                                                                \
+    class TypeT = Type,                                                        \
+    class = std::enable_if_t                                                   \
+    <                                                                          \
+        (std::is_arithmetic_v<TypeT> || Foam::is_vectorspace_v<TypeT>)         \
+    >                                                                          \
+>                                                                              \
+auto operator Op                                                               \
+(                                                                              \
+    UList<Type> const& u,                                                      \
+    TypeT const& v                                                             \
+)                                                                              \
+{                                                                              \
+    typedef typename Expression::ListConstRefWrap<Type> E1;                    \
+    typedef typename Expression::UniformListWrap<TypeT> E2;                    \
+    return operator Op(E1(u), E2(u.size(), v));                                \
+}                                                                              \
+template                                                                       \
+<                                                                              \
+    class Type,                                                                \
+    class TypeT = Type,                                                        \
+    class = std::enable_if_t                                                   \
+    <                                                                          \
+        (std::is_arithmetic_v<TypeT> || Foam::is_vectorspace_v<TypeT>)         \
+    >                                                                          \
+>                                                                              \
+auto operator Op                                                               \
+(                                                                              \
+    TypeT const& u,                                                            \
+    UList<Type> const& v                                                       \
+)                                                                              \
+{                                                                              \
+    typedef typename Expression::ListConstRefWrap<Type> E1;                    \
+    typedef typename Expression::UniformListWrap<TypeT> E2;                    \
+    return operator Op(E2(v.size(), u), E1(v));                                \
 }
 
 
@@ -1471,8 +1712,7 @@ class List_interpolate
 :
     public ListExpression
     <
-        List_interpolate<E1, E2, E3>,
-        typename E1::value_type
+        List_interpolate<E1, E2, E3>
     >
 {
     //- Expression for cell values1
@@ -1508,7 +1748,7 @@ public:
     }
     label size() const
     {
-        return weight_.size();
+        return Foam::max(Foam::max(u_.size(), v_.size()), weight_.size());
     }
 
     struct const_iterator
@@ -1644,7 +1884,7 @@ public:
 template<class T>
 class UniformListWrap
 :
-    public ListExpression<UniformListWrap<T>, T>
+    public ListExpression<UniformListWrap<T>>
 {
 private:
 
@@ -1786,26 +2026,160 @@ public:
         return const_iterator(size_, val_);
     }
 };
+template<class T>
+class UniformListWrap2
+:
+    public ListExpression<UniformListWrap2<T>>
+{
+private:
+
+    const T val_;
+
+
+public:
+
+    static constexpr bool is_leaf = false;
+
+    typedef T value_type;
+
+    // construct from components
+    UniformListWrap2(const T val)
+    :
+        val_(val)
+    {}
+
+    // construct from components
+    UniformListWrap2(const dimensioned<T>& val)
+    :
+        val_(val.value())
+    {}
+
+    T operator[](const label i) const
+    {
+        return val_;
+    }
+    auto size() const noexcept
+    {
+        // Force error if used. Requires lower levels to use max() and hope
+        // that one of the arguments has size.
+        return -1;
+    }
+
+    struct const_iterator
+    {
+        // Minimalistic const_iter implementation
+        using difference_type = label;
+        using value_type = const T;
+        using pointer = const T*;
+        using reference = const T&;
+        using iterator_category = std::random_access_iterator_tag;
+
+        const T val_;
+
+        const_iterator(const T val)
+        :
+            val_(val)
+        {}
+        value_type operator*() const
+        {
+            return val_;
+        }
+        value_type operator[](const difference_type i) const
+        {
+           return val_;
+        }
+        const_iterator& operator++()
+        {
+            return *this;
+        }
+        const_iterator operator++(int)
+        {
+            const_iterator old(*this);
+            return old;
+        }
+        const_iterator& operator--()
+        {
+            return *this;
+        }
+        const_iterator operator--(int)
+        {
+            const_iterator old(*this);
+            return old;
+        }
+        const_iterator operator+(const difference_type i) const
+        {
+            return const_iterator(val_);
+        }
+        const_iterator operator-(const difference_type i) const
+        {
+            return const_iterator(val_);
+        }
+        difference_type operator-(const const_iterator& it) const
+        {
+            return 0;
+        }
+        bool operator==(const const_iterator& it) const
+        {
+            return val_ == it.val_;
+        }
+        bool operator!=(const const_iterator& it) const
+        {
+            return !operator==(it);
+        }
+        bool operator<(const const_iterator& it) const
+        {
+            return false;
+        }
+        bool operator<=(const const_iterator& it) const
+        {
+            return false;
+        }
+        bool operator>(const const_iterator& it) const
+        {
+            return false;
+        }
+        bool operator>=(const const_iterator& it) const
+        {
+            return false;
+        }
+        const_iterator& operator+=(const difference_type n)
+        {
+            return *this;
+        }
+        const_iterator& operator-=(const difference_type n)
+        {
+            return *this;
+        }
+    };
+    auto cbegin() const
+    {
+        return const_iterator(val_);
+    }
+    auto cend() const
+    {
+        return const_iterator(val_);
+    }
+};
 
 
 //- Wrapper of multiple lists (e.g. FieldField)
 template <class V>
 class ListsConstRefWrap
 :
-    public ListExpression<ListsConstRefWrap<V>, typename V::value_type>
+    public ListExpression<ListsConstRefWrap<V>>
 {
-    List<const V*> data;
-    List<size_t> offsets;
-    size_t total_size = 0;
+    List<const V*> data_;
+    List<size_t> offsets_;
+    size_t total_size_ = 0;
 
     void init()
     {
-        offsets.resize_nocopy(data.size());
-        total_size = 0;
-        for (label i = 0; i < data.size(); ++i)
+        offsets_.resize_nocopy(data_.size());
+        total_size_ = 0;
+        for (label i = 0; i < data_.size(); ++i)
         {
-            offsets[i] = total_size;
-            total_size += data[i]->size();
+            offsets_[i] = total_size_;
+            total_size_ += data_[i]->size();
         }
     }
 
@@ -1819,44 +2193,44 @@ public:
 
     ListsConstRefWrap(const UList<const V*>& d)
     :
-        data(d)
+        data_(d)
     {
         init();
     }
     ListsConstRefWrap(List<const V*>&& d)
     :
-        data(d)
+        data_(d)
     {
         init();
     }
     template<class Container>
     ListsConstRefWrap(const Container& ds)
     {
-        data.resize_nocopy(ds.size());
+        data_.resize_nocopy(ds.size());
         forAll(ds, i)
         {
             const V& vals = static_cast<const V&>(ds[i]);
-            data[i] = &vals;
+            data_[i] = &vals;
         }
         init();
     }
     template<class Container>
     ListsConstRefWrap(const Container& ds, const labelUList& elems)
     {
-        data.resize_nocopy(elems.size());
+        data_.resize_nocopy(elems.size());
         forAll(ds, i)
         {
             const V& vals = static_cast<const V&>(ds[elems[i]]);
-            data[i] = &vals;
+            data_[i] = &vals;
         }
         init();
     }
 
     void push_back(const V* vec)
     {
-        data.push_back(vec);
-        offsets.push_back(total_size);
-        total_size += vec->size();
+        data_.push_back(vec);
+        offsets_.push_back(total_size_);
+        total_size_ += vec->size();
     }
 
     value_type operator[](label i) const
@@ -1864,15 +2238,15 @@ public:
         const label vec_index =
             std::upper_bound
             (
-                offsets.begin(),
-                offsets.end(),
+                offsets_.begin(),
+                offsets_.end(),
                 i
             )
-         - offsets.begin() - 1;
-        const label elem_index = i - offsets[vec_index];
-        return (*data[vec_index])[elem_index];
+         - offsets_.begin() - 1;
+        const label elem_index = i - offsets_[vec_index];
+        return (*data_[vec_index])[elem_index];
     }
-    label size() const { return total_size; }
+    label size() const { return total_size_; }
 
 
     typedef value_type* pointer;
@@ -2014,20 +2388,20 @@ public:
 template <class V>
 class ListsRefWrap
 :
-    public ListExpression<ListsRefWrap<V>, typename V::value_type>//,T>, T>
+    public ListExpression<ListsRefWrap<V>>
 {
-    List<V*> data;
-    List<size_t> offsets;
-    size_t total_size = 0;
+    List<V*> data_;
+    List<size_t> offsets_;
+    size_t total_size_ = 0;
 
     void init()
     {
-        offsets.resize_nocopy(data.size());
-        total_size = 0;
-        for (label i = 0; i < data.size(); ++i)
+        offsets_.resize_nocopy(data_.size());
+        total_size_ = 0;
+        for (label i = 0; i < data_.size(); ++i)
         {
-            offsets[i] = total_size;
-            total_size += data[i]->size();
+            offsets_[i] = total_size_;
+            total_size_ += data_[i]->size();
         }
     }
     labelPair whichVecElem(const label i) const
@@ -2035,12 +2409,12 @@ class ListsRefWrap
         const label vec_index =
         std::upper_bound
         (
-            offsets.begin(),
-            offsets.end(),
+            offsets_.begin(),
+            offsets_.end(),
             i
         )
-        - offsets.begin() - 1;
-        const label elem_index = i - offsets[vec_index];
+        - offsets_.begin() - 1;
+        const label elem_index = i - offsets_[vec_index];
         return labelPair(vec_index, elem_index);
     }
 
@@ -2054,44 +2428,61 @@ public:
 
     ListsRefWrap(UList<V*>& d)
     :
-        data(d)
+        data_(d)
     {
         init();
     }
     ListsRefWrap(List<V*>&& d)
     :
-        data(d)
+        data_(d)
     {
         init();
     }
     template<class Container>
     ListsRefWrap(Container& ds)
     {
-        data.resize_nocopy(ds.size());
-        forAll(ds, i)
+        data_.resize_nocopy(ds.size());
+        const label n = ds.size();
+        for (label i = 0; i < n; ++i)
         {
             V& vals = static_cast<V&>(ds[i]);
-            data[i] = &vals;
+            data_[i] = &vals;
         }
         init();
     }
-    template<class Container>
-    ListsRefWrap(Container& ds, const labelUList& elems)
+    // Special constructor that only adds lists of correct type.
+    // Used to work with pointFields.
+    template<class Container, class ElemOp>
+    ListsRefWrap(Container& ds, const ElemOp& insertOp)
     {
-        data.resize_nocopy(elems.size());
-        forAll(ds, i)
+        data_.resize_nocopy(ds.size());
+        const label n = ds.size();
+        label dataIndex = 0;
+        for (label i = 0; i < n; ++i)
         {
-            V& vals = static_cast<V&>(ds[i]);
-            data[i] = &vals;
+            insertOp(data_, dataIndex, ds[i]);
         }
+        data_.setSize(dataIndex);
         init();
     }
+    // template<class Container>
+    // ListsRefWrap(Container& ds, const labelUList& elems)
+    // {
+    //     data_.resize_nocopy(elems.size());
+    //     const label n = ds.size();
+    //     for (label i = 0; i < n; ++i)
+    //     {
+    //         V& vals = static_cast<V&>(ds[i]);
+    //         data_[i] = &vals;
+    //     }
+    //     init();
+    // }
 
     void push_back(V* vec)
     {
-        data.push_back(vec);
-        offsets.push_back(total_size);
-        total_size += vec->size();
+        data_.push_back(vec);
+        offsets_.push_back(total_size_);
+        total_size_ += vec->size();
     }
 
     //- Dummy resizing so we can pass *this to
@@ -2099,8 +2490,23 @@ public:
     void resize_nocopy(const label)
     {}
     //- Assignment
+    template<typename E, class Container >
+    void evaluate(ListsRefWrap<E>& exprWarp, const Container & ds)
+    {
+        const label loop_len = this->size();
+#ifdef _OPENMP
+        _Pragma("omp target teams distribute parallel for if(loop_len > 1000)")
+#endif
+        for (label i = 0; i < loop_len; ++i)
+        {
+            auto src = (*this).cbegin() + i;
+            const auto ve(whichVecElem(i));
+            exprWarp(ds[ve.first()],ve.second()) = *src;
+        }
+    }
+
     template<typename E>
-    void operator=(const ListExpression<E, typename E::value_type>& expr)
+    void operator=(const ListExpression<E>& expr)
     {
         expr.evaluate(*this);
     }
@@ -2108,15 +2514,22 @@ public:
     value_type operator[](const label i) const
     {
         const auto ve(whichVecElem(i));
-        return (*data[ve.first()])[ve.second()];
+        return (*data_[ve.first()])[ve.second()];
     }
     value_type& operator[](const label i)
     {
         const auto ve(whichVecElem(i));
-        auto& elems = *data[ve.first()];
+        auto& elems = *data_[ve.first()];
         return elems[ve.second()];
     }
-    label size() const { return total_size; }
+
+    value_type& operator()(const label i, const label j)
+    {
+        auto& elems = *data_[i];
+        return elems[j];
+    }
+
+    label size() const { return total_size_; }
 
 
     typedef value_type* pointer;
