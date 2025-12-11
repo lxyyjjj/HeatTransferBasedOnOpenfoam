@@ -302,7 +302,7 @@ bool Foam::objectRegistry::checkIn(regIOobject* io) const
     {
         Pout<< "objectRegistry::checkIn : "
             << name() << " : checking in " << io->name()
-            << " of type " << io->type()
+            << " type=" << io->type()
             << endl;
     }
 
@@ -365,7 +365,8 @@ bool Foam::objectRegistry::checkOut(regIOobject* io) const
         {
             Pout<< "objectRegistry::checkOut : "
                 << name() << " : checking out " << io->name()
-                << " of type " << io->type()
+                << " type=" << io->type()
+                << " owned=" << io->ownedByRegistry()
                 << endl;
         }
 
@@ -593,8 +594,8 @@ bool Foam::objectRegistry::writeObject
 
             Pout<< "objectRegistry::write() : "
                 << name() << " : Considering writing object "
-                << iter.key() << " of type "
-                << obj.type() << " with writeOpt "
+                << iter.key() << " type="
+                << obj.type() << " writeOpt="
                 << static_cast<int>(obj.writeOpt())
                 << " to file " << obj.objectRelPath() << endl;
         }
