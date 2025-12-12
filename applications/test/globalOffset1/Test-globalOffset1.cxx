@@ -154,6 +154,19 @@ int main(int argc, char *argv[])
         Pout<< "  reduced: " << ranges << nl;
     }
 
+    // With globalOffset instead of OffsetRange
+    Pout<< nl;
+    {
+        List<globalOffset> ranges({ 4, 10, 12, 8 });
+
+        Info<< "  run-time reduction" << endl;
+        Pout<< "  input: " << ranges << nl;
+
+        Foam::reduceOffsets(UPstream::worldComm, ranges);
+
+        Pout<< "  reduced: " << ranges << nl;
+    }
+
     // Test mixing types (all derived from OffsetRange)
     Pout<< nl;
     {

@@ -94,7 +94,7 @@ void reduce_offsetRange
 // which avoids calling MPI repeatedly
 template
 <
-    class IntType,       // Should match OffsetRange::value_type
+    class IntType,       // Must match OffsetRange::value_type
     std::size_t... Is,
     class... OffsetRanges
 >
@@ -146,11 +146,16 @@ namespace Foam
 {
 
 //- Parallel reduction of OffsetRange (eg, GlobalOffset) on its size value to
-//- yield the globally-consistent offset and the total size across all ranks
+//- yield the globally-consistent offset and the total size across all ranks.
+//
+//  \note Only the OffsetRange::size() member is used for this reduction.
+//  It is assumed that the combined results will always start with an offset
+//  of zero on the first rank, and that ranges represent contiguous addressing
+//  across all ranks.
 template<class IntType>
 void reduceOffset
 (
-    OffsetRange<IntType>& range,
+    Foam::OffsetRange<IntType>& range,
     //! The parallel communicator
     const int communicator = UPstream::worldComm
 )
@@ -165,38 +170,47 @@ void reduceOffset
 
 
 //- Parallel reduction of multiple OffsetRange (eg, GlobalOffset) items.
-//  To avoid MPI multiple times it packs/unpacks values into a local work
-//  array.
+//  To avoid calling MPI multiple times, it packs/unpacks values into
+//  a local work array (compile-time).
+//
+//  \note Only the OffsetRange::size() member is used for this reduction.
+//  It is assumed that the combined results will always start with an offset
+//  of zero on the first rank, and that ranges represent contiguous addressing
+//  across all ranks.
 //
 //  \note OffsetRange is already restricted to integral types,
 //  but this wrapper also requires that the parameters have the same
 //  representation (ie, cannot mix int32/int64, signed/unsigned etc)
 template
 <
-    class First,
+    class OffsetRangeT,
     class... Rest,
     class = std::enable_if_t
     <
     (
-        std::is_integral_v<typename First::value_type>
+        std::is_integral_v<typename OffsetRangeT::value_type>
      && std::is_base_of_v
-        <Foam::OffsetRange<typename First::value_type>, First>
+        <Foam::OffsetRange<typename OffsetRangeT::value_type>, OffsetRangeT>
      && (std::is_base_of_v
-        <Foam::OffsetRange<typename First::value_type>, Rest> && ...)
+        <Foam::OffsetRange<typename OffsetRangeT::value_type>, Rest> && ...)
     )>
 >
 void reduceOffsets
 (
     //! The parallel communicator
     const int communicator,
-    First& first,
+    //! The first offset-range in the reduction
+    OffsetRangeT& first,
+    //! Any additional ranges
     Rest&... rest
 )
 {
+    using IntType = typename OffsetRangeT::value_type;
+
     if constexpr (sizeof...(rest) == 0)
     {
         // Single-item reduction
-        Foam::PstreamDetail::reduce_offsetRange<typename First::value_type>
+        Foam::PstreamDetail::reduce_offsetRange<IntType>
         (
             first,
             communicator
@@ -205,7 +219,7 @@ void reduceOffsets
     else
     {
         // Reduce multiple items, use pack/unpack
-        Foam::PstreamDetail::reduce_offsetRanges<typename First::value_type>
+        Foam::PstreamDetail::reduce_offsetRanges<IntType>
         (
             communicator,
             std::make_index_sequence<1 + sizeof...(rest)>{},
@@ -217,15 +231,30 @@ void reduceOffsets
 
 
 //- Parallel reduction of multiple OffsetRange (eg, GlobalOffset) items.
-//  To avoid MPI multiple times it packs/unpacks values into a local work
-//  array.
-template<class IntType>
+//  To avoid calling MPI multiple times, it packs/unpacks values into
+//  a local work array.
+//
+//  \note Only the OffsetRange::size() member is used for this reduction.
+//  It is assumed that the combined results will always start with an offset
+//  of zero on the first rank, and that ranges represent contiguous addressing
+//  across all ranks.
+template
+<
+    class OffsetRangeT,
+    class = std::enable_if_t
+    <
+    (
+        std::is_integral_v<typename OffsetRangeT::value_type>
+     && std::is_base_of_v
+        <Foam::OffsetRange<typename OffsetRangeT::value_type>, OffsetRangeT>
+    )>
+>
 void reduceOffsets
 (
     //! The parallel communicator
     const int communicator,
-    //! Note. The length must be parallel-consistent
-    UList<OffsetRange<IntType>>& ranges
+    //! The offset-ranges to reduce. List length must be parallel-consistent.
+    Foam::UList<OffsetRangeT>& ranges
 )
 {
     const auto len = ranges.size();
@@ -241,6 +270,8 @@ void reduceOffsets
     }
     else
     {
+        using IntType = typename OffsetRangeT::value_type;
+
         // Like Foam::reduceOffset()
         // but handling multiple items at once for lower communication
         List<IntType> work(len);

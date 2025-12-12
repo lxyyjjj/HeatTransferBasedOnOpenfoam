@@ -205,6 +205,9 @@ public:
             DynamicList<label>& zones
         ) const;
 
+        //- Return a list of zone sizes
+        labelList zoneSizes() const;
+
         //- Return a list of zone types
         wordList types() const;
 

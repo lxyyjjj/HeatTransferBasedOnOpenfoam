@@ -1506,10 +1506,7 @@ void Foam::polyBoundaryMesh::writeEntry
     if (!keyword.empty())
     {
         os.write(keyword);
-        if (entries.empty())
-        {
-            os << token::SPACE;
-        }
+        os << (entries.empty() ? token::SPACE : token::NL);
     }
 
     writeEntry(os);

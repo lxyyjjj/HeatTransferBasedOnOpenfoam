@@ -452,6 +452,14 @@ Foam::label Foam::ZoneMesh<ZoneType, MeshType>::whichZones
 
 
 template<class ZoneType, class MeshType>
+Foam::labelList Foam::ZoneMesh<ZoneType, MeshType>::zoneSizes() const
+{
+    return
+        PtrListOps::get<label>(*this, [](const auto& z) { return z.size(); });
+}
+
+
+template<class ZoneType, class MeshType>
 Foam::wordList Foam::ZoneMesh<ZoneType, MeshType>::types() const
 {
     return PtrListOps::get<word>(*this, typeOp<ZoneType>());
