@@ -92,6 +92,7 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include "fvCFD.H"
+#include "regionProperties.H"
 #include "pisoControl.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -139,6 +140,9 @@ int main(int argc, char *argv[])
         "withFunctionObjects",
         "Execute functionObjects"
     );
+
+    // Prevent volume BCs from triggering finite-area
+    regionModels::allowFaModels(false);
 
     #include "addRegionOption.H"
     #include "addCheckCaseOptions.H"
