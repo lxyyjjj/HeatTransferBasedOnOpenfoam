@@ -25,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "kinematicThinFilm.H"
+#include "kinematicThinFilmIBM.H"
 #include "addToRunTimeSelectionTable.H"
 #include "volFields.H"
 
@@ -40,74 +40,55 @@ namespace areaSurfaceFilmModels
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-defineTypeNameAndDebug(kinematicThinFilm, 0);
-addToRunTimeSelectionTable(liquidFilmBase, kinematicThinFilm, dictionary);
-
-
-// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
-
-Foam::tmp<Foam::faVectorMatrix> kinematicThinFilm::UEqn
-(
-    areaVectorField& U
-)
-{
-    const areaVectorField& ns = regionMesh().faceAreaNormals();
-    const areaVectorField gs(g_ - ns*(ns & g_));
-
-    return tmp<faVectorMatrix>
-    (
-        fam::ddt(h_, U)
-      + fam::div(phi2s_, U)
-      ==
-        gs*h_
-      + turbulence_->Su(U)
-      + faOptions()(h_, U, sqr(dimVelocity))
-      + forces_.correct(U)
-      + USp_
-    );
-}
-
+defineTypeNameAndDebug(kinematicThinFilmIBM, 0);
+addToRunTimeSelectionTable(liquidFilmBase, kinematicThinFilmIBM, dictionary);
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-kinematicThinFilm::kinematicThinFilm
+kinematicThinFilmIBM::kinematicThinFilmIBM
 (
     const word& modelType,
     const fvMesh& mesh,
     const dictionary& dict
 )
 :
-    liquidFilmModel(modelType, mesh, dict)
+    kinematicThinFilm(modelType, mesh, dict),
+    immersedBoundary_(primaryMesh().time(), regionMesh())
 {}
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
-void kinematicThinFilm::preEvolveRegion()
+void kinematicThinFilmIBM::preEvolveRegion()
 {
-    rhoSp_.storePrevIter();
-    USp_.storePrevIter();
-    pnSp_.storePrevIter();
+    kinematicThinFilm::preEvolveRegion();
 
-    // Update mass exchange sources
-    liquidFilmModel::preEvolveRegion();
-
-    // gas pressure map from primary region
-    ppf_ = pg();
+    // Update the IBM models
+    immersedBoundary_.correct(Uf_);
 }
 
 
-void kinematicThinFilm::evolveRegion()
+void kinematicThinFilmIBM::evolveRegion()
 {
     DebugInFunction << endl;
 
+    auto& Ustar = immersedBoundary_.Ustar();
+
     phi2s_ = fac::interpolate(h_)*phif_;
 
-    for (int oCorr=1; oCorr<=nOuterCorr_; ++oCorr)
+    for (int oCorr=1; oCorr<=nOuterCorr_; oCorr++)
     {
+        areaVectorField rhs(-fac::grad(pf_*h_)/rho_ + pf_*fac::grad(h_)/rho_);
+
+        // IBM force
+        areaVectorField f((UEqn(Ustar) - rhs) & Ustar);
+
+        // Ensure force is only applied to IBM faces
+        immersedBoundary_.zeroFilter(f);
+
         pf_.storePrevIter();
 
-        faVectorMatrix UsEqn(UEqn(Uf_));
+        faVectorMatrix UsEqn(UEqn(Uf_) == f);
 
         UsEqn.relax();
 
@@ -115,10 +96,10 @@ void kinematicThinFilm::evolveRegion()
 
         if (momentumPredictor_)
         {
-            solve(UsEqn == -fac::grad(pf_*h_)/rho_ + pf_*fac::grad(h_)/rho_);
+            solve(UsEqn == rhs);
         }
 
-        for (int corr=1; corr<=nCorr_; ++corr)
+        for (int corr=1; corr<=nCorr_; corr++)
         {
             areaScalarField UsA(UsEqn.A());
 
@@ -133,7 +114,7 @@ void kinematicThinFilm::evolveRegion()
                 + fac::interpolate(pf_/(rho_*UsA))
                 * fac::lnGrad(h_)*regionMesh().magLe();
 
-            for (int nFilm=1; nFilm<=nFilmCorr_; ++nFilm)
+            for (int nFilm=1; nFilm<=nFilmCorr_; nFilm++)
             {
                 faScalarMatrix hEqn
                 (
@@ -173,18 +154,6 @@ void kinematicThinFilm::evolveRegion()
         << "Film mag(U) min/max   = " << gMinMaxMag(Uf_) << endl;
 }
 
-
-void kinematicThinFilm::postEvolveRegion()
-{
-    // Reset sources
-    liquidFilmModel::postEvolveRegion();
-
-    // Correct thermo
-    correctThermoFields();
-
-    // Correct turbulence
-    turbulence_->correct();
-}
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
