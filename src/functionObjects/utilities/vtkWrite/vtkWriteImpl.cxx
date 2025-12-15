@@ -58,7 +58,7 @@ Foam::label Foam::functionObjects::vtkWrite::writeVolFieldsImpl
         }
 
         // Boundary
-        for (vtk::patchWriter& writer : patchWriters)
+        for (auto& writer : patchWriters)
         {
             ok = true;
             writer.write(field);
@@ -126,7 +126,7 @@ Foam::label Foam::functionObjects::vtkWrite::writeVolFieldsImpl
 
         // Boundary
         label writeri = 0;
-        for (vtk::patchWriter& writer : patchWriters)
+        for (auto& writer : patchWriters)
         {
             if (patchInterps.test(writeri))
             {

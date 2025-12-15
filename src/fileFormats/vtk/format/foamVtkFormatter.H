@@ -33,7 +33,7 @@ Description
     By default uses single-quoting for XML attributes.
 
 SourceFiles
-    foamVtkFormatter.C
+    foamVtkFormatter.cxx
     foamVtkFormatter.txx
     foamVtkFormatterI.H
 
@@ -61,6 +61,7 @@ namespace Foam
 namespace vtk
 {
 
+// Forward Declarations
 class outputOptions;
 
 /*---------------------------------------------------------------------------*\
@@ -165,7 +166,7 @@ public:
         virtual const char* encoding() const = 0;
 
         //- Change quoting char for XML attributes (default: SINGLE_QUOTE)
-        void quoting(const quoteChar quote);
+        void quoting(quoteChar quote) noexcept;
 
         //- Increase the append data offset by numbytes and sizeof(uint64_t).
         //  The additional (uint64_t) size information is consistent with

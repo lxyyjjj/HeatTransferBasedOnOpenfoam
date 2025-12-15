@@ -55,7 +55,7 @@ bool Foam::vtk::formatter::canWriteToplevel(const char* what) const
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
-void Foam::vtk::formatter::quoting(const quoteChar quote)
+void Foam::vtk::formatter::quoting(quoteChar quote) noexcept
 {
     quote_ = quote;
 }

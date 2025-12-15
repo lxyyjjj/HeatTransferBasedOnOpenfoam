@@ -63,25 +63,31 @@ Foam::label Foam::functionObjects::vtkWrite::writeAllVolFields
 {
     label count = 0;
 
+    do
     {
         #undef  doLocalCode
-        #define doLocalCode(FieldType)              \
+        #define doLocalCode(Type)                   \
+        {                                           \
+            typedef VolumeField<Type> FieldType;    \
+                                                    \
             count += writeVolFieldsImpl<FieldType>  \
             (                                       \
                 internalWriter,                     \
                 patchWriters,                       \
                 proxy,                              \
                 candidateNames                      \
-            );
+            );                                      \
+        }
 
-        doLocalCode(volScalarField);
-        doLocalCode(volVectorField);
-        doLocalCode(volSphericalTensorField);
-        doLocalCode(volSymmTensorField);
-        doLocalCode(volTensorField);
+        doLocalCode(scalar);
+        doLocalCode(vector);
+        doLocalCode(sphericalTensor);
+        doLocalCode(symmTensor);
+        doLocalCode(tensor);
 
         #undef doLocalCode
     }
+    while (false);
 
     return count;
 }
@@ -100,25 +106,31 @@ Foam::label Foam::functionObjects::vtkWrite::writeAllVolFields
 {
     label count = 0;
 
+    do
     {
         #undef  doLocalCode
-        #define doLocalCode(FieldType)              \
+        #define doLocalCode(Type)                   \
+        {                                           \
+            typedef VolumeField<Type> FieldType;    \
+                                                    \
             count += writeVolFieldsImpl<FieldType>  \
             (                                       \
                 internalWriter, pInterp,            \
                 patchWriters,   patchInterps,       \
                 proxy,                              \
                 candidateNames                      \
-            );
+            );                                      \
+        }
 
-        doLocalCode(volScalarField);
-        doLocalCode(volVectorField);
-        doLocalCode(volSphericalTensorField);
-        doLocalCode(volSymmTensorField);
-        doLocalCode(volTensorField);
+        doLocalCode(scalar);
+        doLocalCode(vector);
+        doLocalCode(sphericalTensor);
+        doLocalCode(symmTensor);
+        doLocalCode(tensor);
 
         #undef doLocalCode
     }
+    while (false);
 
     return count;
 }
@@ -270,7 +282,8 @@ bool Foam::functionObjects::vtkWrite::write()
     }
 
 
-    fileName vtkName = time_.globalCaseName();
+    // The base for naming output files
+    const fileName vtkName = time_.globalCaseName();
 
     vtk::vtmWriter vtmMultiRegion;
 
@@ -356,6 +369,8 @@ bool Foam::functionObjects::vtkWrite::write()
 
         if (doInternal_)
         {
+            typedef vtk::internalWriter writerType;
+
             if (vtuMeshCells.empty())
             {
                 // Use the appropriate mesh (baseMesh or subMesh)
@@ -370,7 +385,7 @@ bool Foam::functionObjects::vtkWrite::write()
                 }
             }
 
-            internalWriter = autoPtr<vtk::internalWriter>::New
+            auto writer = autoPtr<writerType>::New
             (
                 meshProxy.mesh(),
                 vtuMeshCells,
@@ -381,22 +396,24 @@ bool Foam::functionObjects::vtkWrite::write()
                   ? vtmOutputBase
                   : (vtmOutputBase / "internal")
                 ),
-                Pstream::parRun()
+                UPstream::parRun()
             );
 
             Info<< "    Internal  : "
-                << time_.relativePath(internalWriter->output())
-                << endl;
+                << time_.relativePath(writer->output()) << nl;
 
             // No sub-block for internal
-            vtmWriter.append_vtu
+            vtmWriter.append_ugrid
             (
                 "internal",
                 vtmOutputBase.name()/"internal"
             );
 
-            internalWriter->writeTimeValue(timeValue);
-            internalWriter->writeGeometry();
+            writer->writeTimeValue(timeValue);
+            writer->writeGeometry();
+
+            // Transfer writer to outer for later use
+            internalWriter = std::move(writer);
 
             if (interpolate_)
             {
@@ -420,7 +437,9 @@ bool Foam::functionObjects::vtkWrite::write()
 
         if (oneBoundary_ && patchIds.size())
         {
-            auto writer = autoPtr<vtk::patchWriter>::New
+            typedef vtk::patchWriter writerType;
+
+            auto writer = autoPtr<writerType>::New
             (
                 meshProxy.mesh(),
                 patchIds,
@@ -431,11 +450,11 @@ bool Foam::functionObjects::vtkWrite::write()
                   ? (outputDir_/regionDir/"boundary"/"boundary" + timeDesc)
                   : (vtmOutputBase / "boundary")
                 ),
-                Pstream::parRun()
+                UPstream::parRun()
             );
 
             // No sub-block for one-patch
-            vtmWriter.append_vtp
+            vtmWriter.append_poly
             (
                 "boundary",
                 vtmOutputBase.name()/"boundary"
@@ -457,6 +476,8 @@ bool Foam::functionObjects::vtkWrite::write()
         }
         else if (patchIds.size())
         {
+            typedef vtk::patchWriter writerType;
+
             patchWriters.resize(patchIds.size());
             if (interpolate_)
             {
@@ -465,15 +486,17 @@ bool Foam::functionObjects::vtkWrite::write()
 
             label nPatchWriters = 0;
             label nPatchInterps = 0;
+            labelList selectedPatchId(1);
 
             for (const label patchId : patchIds)
             {
                 const polyPatch& pp = patches[patchId];
+                selectedPatchId[0] = pp.index();
 
-                auto writer = autoPtr<vtk::patchWriter>::New
+                auto writer = autoPtr<writerType>::New
                 (
                     meshProxy.mesh(),
-                    labelList(one{}, pp.index()),
+                    selectedPatchId,
                     writeOpts_,
                     // Output name for patch: "boundary"/name
                     (
@@ -485,7 +508,7 @@ bool Foam::functionObjects::vtkWrite::write()
                         )
                       : (vtmOutputBase / "boundary" / pp.name())
                     ),
-                    Pstream::parRun()
+                    UPstream::parRun()
                 );
 
                 if (!nPatchWriters)
@@ -494,13 +517,13 @@ bool Foam::functionObjects::vtkWrite::write()
                     vtmBoundaries.beginBlock("boundary");
                 }
 
-                vtmWriter.append_vtp
+                vtmWriter.append_poly
                 (
                     pp.name(),
                     vtmOutputBase.name()/"boundary"/pp.name()
                 );
 
-                vtmBoundaries.append_vtp
+                vtmBoundaries.append_poly
                 (
                     pp.name(),
                     "boundary"/pp.name()
@@ -555,7 +578,7 @@ bool Foam::functionObjects::vtkWrite::write()
 
             if (nVolFields)
             {
-                for (vtk::patchWriter& writer : patchWriters)
+                for (auto& writer : patchWriters)
                 {
                     // Optionally with patchID field
                     writer.beginCellData
@@ -650,7 +673,7 @@ bool Foam::functionObjects::vtkWrite::write()
             internalWriter->close();
         }
 
-        for (vtk::patchWriter& writer : patchWriters)
+        for (auto& writer : patchWriters)
         {
             writer.close();
         }

@@ -71,16 +71,18 @@ Description
     List<wordList> procPatchNames(UPstream::nProcs());
     procPatchNames[UPstream::myProcNo()].resize(patchIds.size());
 
+    labelList selectedPatchId(1);
+
     for (const label patchId : patchIds)
     {
         const polyPatch& pp = patches[patchId];
+        selectedPatchId[0] = pp.index();
 
         auto writer = autoPtr<vtk::patchWriter>::New
         (
             meshProxy.mesh(),
-            labelList(one{}, pp.index()),
+            selectedPatchId,
             writeOpts,
-            nearCellValue,
             (
                 vtmOutputBase
               / subDirNaming(UPstream::myProcNo())
@@ -88,6 +90,11 @@ Description
             ),
             false  // This MUST be non-parallel (serial only)
         );
+
+        if (nearCellValue)
+        {
+            writer->useCellValue(nearCellValue);
+        }
 
         procPatchNames[UPstream::myProcNo()][nPatchWriters] = pp.name();
 
@@ -184,7 +191,7 @@ Description
                     ++n;
                 }
 
-                vtmBoundaries.append_vtp
+                vtmBoundaries.append_poly
                 (
                     patchName,
                     dirName/patchName

@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2017-2021 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -49,10 +49,10 @@ void Foam::vtk::internalWriter::write
             << exit(FatalError);
     }
 
-    const labelList& addPointCellLabels = vtuCells_.addPointCellLabels();
+    const labelUList& addPointCellLabels = vtuCells_.addPointCellLabels();
 
 
-    this->beginDataArray<Type>(field.name(), numberOfPoints_);
+    this->beginDataArray<Type>(field.name(), nTotalPoints());
 
     if (parallel_)
     {
@@ -125,10 +125,10 @@ void Foam::vtk::internalWriter::write
     tmp<PointFieldType> tfield = pInterp.interpolate(vfield);
     const auto& pfield = tfield();
 
-    const labelList& addPointCellLabels = vtuCells_.addPointCellLabels();
+    const labelUList& addPointCellLabels = vtuCells_.addPointCellLabels();
 
 
-    this->beginDataArray<Type>(vfield.name(), numberOfPoints_);
+    this->beginDataArray<Type>(vfield.name(), nTotalPoints());
 
     if (parallel_)
     {
@@ -176,7 +176,7 @@ void Foam::vtk::internalWriter::write
     const labelList& addPointCellLabels = vtuCells_.addPointCellLabels();
 
 
-    this->beginDataArray<Type>(vfield.name(), numberOfPoints_);
+    this->beginDataArray<Type>(vfield.name(), nTotalPoints());
 
     if (parallel_)
     {

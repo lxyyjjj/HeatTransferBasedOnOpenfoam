@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2018-2021 OpenCFD Ltd.
+    Copyright (C) 2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,50 +25,49 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "foamVtkWriteTopoSet.H"
 #include "polyMesh.H"
-#include "topoSet.H"
-#include "faceSet.H"
-#include "cellSet.H"
-#include "pointSet.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool Foam::vtk::writeTopoSet
-(
-    const polyMesh& mesh,
-    const topoSet& set,
-    const vtk::outputOptions opts,
-    const fileName& file,
-    bool parallel
-)
+template<class PointType>
+Foam::tmp<Foam::Field<PointType>>
+Foam::vtk::vtuCells::points(const polyMesh& mesh) const
 {
+    typedef Foam::Field<PointType> pointFieldType;
+
+    // Combine mesh points and any additional cellCentre points
+    // into a single field
+
+    const auto& pts = mesh.points();
+    const auto& cc = mesh.cellCentres();
+
+    // The additional cellCentre points
+    const labelUList& addPoints = addPointCellLabels();
+
+    if constexpr (std::is_same_v<Foam::point, PointType>)
     {
-        const auto* ptr = isA<pointSet>(set);
-        if (ptr)
+        if (addPoints.empty())
         {
-            return vtk::writePointSet(mesh, *ptr, opts, file, parallel);
-        }
-    }
-    {
-        const auto* ptr = isA<faceSet>(set);
-        if (ptr)
-        {
-            return vtk::writeFaceSet(mesh, *ptr, opts, file, parallel);
-        }
-    }
-    {
-        const auto* ptr = isA<cellSet>(set);
-        if (ptr)
-        {
-            return vtk::writeCellSetFaces(mesh, *ptr, opts, file, parallel);
+            // No decomposed cells etc
+            return mesh.points();
         }
     }
 
-    WarningInFunction
-        << "No VTK writer for '" << set.type() << "' topoSet" << nl << endl;
+    auto tpoints = tmp<pointFieldType>::New(pts.size() + addPoints.size());
 
-    return false;
+    auto iter = tpoints.ref().begin();
+
+    // Normal points
+    iter = std::copy(pts.begin(), pts.end(), iter);
+
+    // Cell centres
+    for (const label celli : addPoints)
+    {
+        *iter = cc[celli];
+        ++iter;
+    }
+
+    return tpoints;
 }
 
 

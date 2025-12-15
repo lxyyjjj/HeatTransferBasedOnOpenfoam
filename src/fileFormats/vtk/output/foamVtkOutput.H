@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2022 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +37,7 @@ Description
     Namespace for legacy VTK output constants and functions.
 
 SourceFiles
-    foamVtkOutput.C
+    foamVtkOutput.cxx
     foamVtkOutput.txx
     foamVtkOutputI.H
 
@@ -168,6 +168,7 @@ namespace vtk
     (
         vtk::formatter& fmt,
         const UList<label>& values,
+        //! The per-processor offset (needed on master only)
         const globalIndex& procOffset
     );
 

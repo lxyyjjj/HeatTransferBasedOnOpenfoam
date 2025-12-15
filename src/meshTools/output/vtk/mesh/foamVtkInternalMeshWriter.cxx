@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2017-2023 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,26 +39,22 @@ int Foam::vtk::internalMeshWriter::debug = 0;
 void Foam::vtk::internalMeshWriter::beginPiece()
 {
     // Basic sizes
-
-    numberOfPoints_ = vtuCells_.nFieldPoints(); // With addPointCellLabels
-    numberOfCells_  = vtuCells_.nFieldCells();  // With decomposed cells
+    pointSlab_ = vtuCells_.nFieldPoints();  // With addPointCellLabels
+    cellSlab_  = vtuCells_.nFieldCells();   // With decomposed cells
 
     if (parallel_)
     {
-        if (debug > 1)
-        {
-            PoutInFunction
-                << ": nPoints=" << numberOfPoints_
-                << " nCells=" << numberOfCells_ << nl;
-        }
-
-        reduce(numberOfPoints_, sumOp<label>());
-        reduce(numberOfCells_,  sumOp<label>());
+        Foam::reduceOffsets
+        (
+            UPstream::worldComm,
+            pointSlab_,
+            cellSlab_
+        );
     }
 
     DebugInFunction
-        << "nPoints=" << numberOfPoints_
-        << " nCells=" << numberOfCells_ << nl;
+        << "nPoints=" << nTotalPoints()
+        << " nCells=" << nTotalCells() << nl;
 
     // Nothing else to do for legacy
     if (legacy()) return;
@@ -69,8 +65,8 @@ void Foam::vtk::internalMeshWriter::beginPiece()
             .tag
             (
                 vtk::fileTag::PIECE,
-                vtk::fileAttr::NUMBER_OF_POINTS, numberOfPoints_,
-                vtk::fileAttr::NUMBER_OF_CELLS,  numberOfCells_
+                vtk::fileAttr::NUMBER_OF_POINTS, nTotalPoints(),
+                vtk::fileAttr::NUMBER_OF_CELLS,  nTotalCells()
             );
     }
 }
@@ -78,7 +74,7 @@ void Foam::vtk::internalMeshWriter::beginPiece()
 
 void Foam::vtk::internalMeshWriter::writePoints()
 {
-    this->beginPoints(numberOfPoints_);
+    this->beginPoints(nTotalPoints());
 
     if (parallel_)
     {
@@ -106,48 +102,33 @@ void Foam::vtk::internalMeshWriter::writePoints()
 }
 
 
-void Foam::vtk::internalMeshWriter::writeCellsLegacy(const label pointOffset)
+void Foam::vtk::internalMeshWriter::writeCells_legacy()
 {
-    const List<uint8_t>& cellTypes = vtuCells_.cellTypes();
-    const labelList& vertLabels = vtuCells_.vertLabels();
+    // The processor-local point offset
+    const label pointOffset = pointSlab_.start();
 
-    label nCells = cellTypes.size();
+    const UList<uint8_t>& cellTypes = vtuCells_.cellTypes();
+    const auto tvertLabels = vtuCells_.vertLabels(pointOffset);
+    const auto& vertLabels = tvertLabels();
+
     label nVerts = vertLabels.size();
 
     if (parallel_)
     {
-        reduce(nCells, sumOp<label>());
         reduce(nVerts, sumOp<label>());
     }
-
-    if (nCells != numberOfCells_)
-    {
-        FatalErrorInFunction
-            << "Expecting " << numberOfCells_
-            << " cells, but found " << nCells
-            << exit(FatalError);
-    }
-
 
     // CELLS
     {
         if (format_)
         {
             os_ << nl
-                << "CELLS " << nCells << ' ' << nVerts << nl;
+                << "CELLS " << nTotalCells() << ' ' << nVerts << nl;
         }
 
         if (parallel_)
         {
-            vtk::writeListParallel
-            (
-                format_.ref(),
-                vtk::vtuSizing::copyVertLabelsLegacy
-                (
-                    vertLabels,
-                    pointOffset
-                )
-            );
+            vtk::writeListParallel(format_.ref(), vertLabels);
         }
         else
         {
@@ -166,7 +147,7 @@ void Foam::vtk::internalMeshWriter::writeCellsLegacy(const label pointOffset)
         if (format_)
         {
             os_ << nl
-                << "CELL_TYPES " << nCells << nl;
+                << "CELL_TYPES " << nTotalCells() << nl;
         }
 
         if (parallel_)
@@ -186,16 +167,17 @@ void Foam::vtk::internalMeshWriter::writeCellsLegacy(const label pointOffset)
 }
 
 
-void Foam::vtk::internalMeshWriter::writeCellsConnectivity
-(
-    const label pointOffset
-)
+void Foam::vtk::internalMeshWriter::writeCellsConnectivity()
 {
+    // The processor-local point offset
+    const label pointOffset = pointSlab_.start();
+
     //
     // 'connectivity'
     //
     {
-        const labelList& vertLabels = vtuCells_.vertLabels();
+        const auto tvertLabels = vtuCells_.vertLabels(pointOffset);
+        const auto& vertLabels = tvertLabels();
         label nVerts = vertLabels.size();
 
         if (parallel_)
@@ -205,7 +187,8 @@ void Foam::vtk::internalMeshWriter::writeCellsConnectivity
 
         if (format_)
         {
-            const uint64_t payLoad = vtk::sizeofData<label>(nVerts);
+            const uint64_t payLoad =
+                vtk::sizeofData<label>(nVerts);
 
             format().beginDataArray<label>(vtk::dataArrayAttr::CONNECTIVITY);
             format().writeSize(payLoad);
@@ -213,15 +196,7 @@ void Foam::vtk::internalMeshWriter::writeCellsConnectivity
 
         if (parallel_)
         {
-            vtk::writeListParallel
-            (
-                format_.ref(),
-                vtk::vtuSizing::copyVertLabelsXml
-                (
-                    vertLabels,
-                    pointOffset
-                )
-            );
+            vtk::writeListParallel(format_.ref(), vertLabels);
         }
         else
         {
@@ -238,20 +213,22 @@ void Foam::vtk::internalMeshWriter::writeCellsConnectivity
 
     //
     // 'offsets'  (connectivity offsets)
+    // NOTE: in the XML format these are the end offsets only,
+    // so they won't overlap when concatenated in parallel.
     //
     {
-        const labelList& vertOffsets = vtuCells_.vertOffsets();
-        label nOffs = vertOffsets.size();
+        const labelUList& vertOffsets = vtuCells_.vertOffsets();
+        label nOffsets = vertOffsets.size();
 
         if (parallel_)
         {
-            reduce(nOffs, sumOp<label>());
+            reduce(nOffsets, sumOp<label>());
         }
 
         if (format_)
         {
             const uint64_t payLoad =
-                vtk::sizeofData<label>(nOffs);
+                vtk::sizeofData<label>(nOffsets);
 
             format().beginDataArray<label>(vtk::dataArrayAttr::OFFSETS);
             format().writeSize(payLoad);
@@ -262,7 +239,8 @@ void Foam::vtk::internalMeshWriter::writeCellsConnectivity
             // processor-local connectivity offsets
             const globalIndex procOffset
             (
-                vertOffsets.empty() ? 0 : vertOffsets.back()
+                globalIndex::gatherOnly{},
+                (vertOffsets.empty() ? 0 : vertOffsets.back())
             );
 
             vtk::writeListParallel(format_.ref(), vertOffsets, procOffset);
@@ -284,26 +262,12 @@ void Foam::vtk::internalMeshWriter::writeCellsConnectivity
     // 'types' (cell types)
     //
     {
-        const List<uint8_t>& cellTypes = vtuCells_.cellTypes();
-        label nCells = cellTypes.size();
-
-        if (parallel_)
-        {
-            reduce(nCells, sumOp<label>());
-        }
-
-        if (nCells != numberOfCells_)
-        {
-            FatalErrorInFunction
-                << "Expecting " << numberOfCells_
-                << " cells, but found " << nCells
-                << exit(FatalError);
-        }
+        const UList<uint8_t>& cellTypes = vtuCells_.cellTypes();
 
         if (format_)
         {
             const uint64_t payLoad =
-                vtk::sizeofData<uint8_t>(nCells);
+                vtk::sizeofData<uint8_t>(nTotalCells());
 
             format().beginDataArray<uint8_t>(vtk::dataArrayAttr::TYPES);
             format().writeSize(payLoad);
@@ -332,20 +296,21 @@ void Foam::vtk::internalMeshWriter::writeCellsConnectivity
 }
 
 
-void Foam::vtk::internalMeshWriter::writeCellsFaces
-(
-    const label pointOffset
-)
+void Foam::vtk::internalMeshWriter::writeCellsFaces()
 {
-    label nFaceLabels = vtuCells_.faceLabels().size();
+    // The processor-local point offset
+    const label pointOffset = pointSlab_.start();
+
+    // Slab addressing for (polyhedral) face labels
+    OffsetRange<label> facesSlab(vtuCells_.faceLabels().size());
 
     if (parallel_)
     {
-        reduce(nFaceLabels, sumOp<label>());
+        Foam::reduceOffset(facesSlab, UPstream::worldComm);
     }
 
     // Can quit now if there are NO face streams
-    if (!nFaceLabels)
+    if (!facesSlab.total())
     {
         return;
     }
@@ -355,15 +320,16 @@ void Foam::vtk::internalMeshWriter::writeCellsFaces
     //
     // 'faces' (face streams)
     //
-    const labelList& faceLabels = vtuCells_.faceLabels();
+    const auto tfaceLabels = vtuCells_.faceLabels(pointOffset);
+    const auto& faceLabels = tfaceLabels();
 
     {
-        // Already have nFaceLabels (above)
+        // Already determined the total number of faces (above)
 
         if (format_)
         {
             const uint64_t payLoad =
-                vtk::sizeofData<label>(nFaceLabels);
+                vtk::sizeofData<label>(facesSlab.total());
 
             format().beginDataArray<label>(vtk::dataArrayAttr::FACES);
             format().writeSize(payLoad);
@@ -372,15 +338,7 @@ void Foam::vtk::internalMeshWriter::writeCellsFaces
 
         if (parallel_)
         {
-            vtk::writeListParallel
-            (
-                format_.ref(),
-                vtk::vtuSizing::copyFaceLabelsXml
-                (
-                    faceLabels,
-                    pointOffset
-                )
-            );
+            vtk::writeListParallel(format_.ref(), faceLabels);
         }
         else
         {
@@ -402,56 +360,32 @@ void Foam::vtk::internalMeshWriter::writeCellsFaces
     // If the processor-local mesh has any polyhedrals, we have a list with
     // the faceoffsets and we just need to renumber.
     // If the processor-local mesh has NO polyhedrals (but others do), we
-    // need to generate a list of -1 for that processor.
+    // use a dummy list of face offsets for that processor.
     //
     // Result: A face offset value for each cell.
     {
-        const labelList& faceOffsets = vtuCells_.faceOffsets();
-        const label nLocalCells = vtuCells_.cellTypes().size();
+        // Note: have nCells offsets per rank (-1 for primitives) but the
+        // The faceoffsets themselves need to be shifted by the
+        // real number of faces per rank
 
-        label nCells = nLocalCells;
+        // Processor-local offsets are based on the number of face labels
+        const label beginOffset = facesSlab.start();
 
-        if (parallel_)
-        {
-            reduce(nCells, sumOp<label>());
-        }
+        const auto tfaceOffsets = vtuCells_.faceOffsets(beginOffset);
+        const auto& faceOffsets = tfaceOffsets();
 
         if (format_)
         {
             const uint64_t payLoad =
-                vtk::sizeofData<label>(nCells);
+                vtk::sizeofData<label>(nTotalCells());
 
             format().beginDataArray<label>(vtk::dataArrayAttr::FACEOFFSETS);
             format().writeSize(payLoad);
         }
 
-
         if (parallel_)
         {
-            const List<uint8_t>& cellTypes = vtuCells_.cellTypes();
-            const label nLocalCells = cellTypes.size();
-
-            // processor-local offsets for faceLabels
-            const label labelsOffset =
-                globalIndex::calcOffset(faceLabels.size());
-
-            labelList faceOffsetsRenumber;
-
-            if (faceOffsets.size())  // Or check faceLabels.size()
-            {
-                faceOffsetsRenumber =
-                    vtk::vtuSizing::copyFaceOffsetsXml
-                    (
-                        faceOffsets,
-                        labelsOffset
-                    );
-            }
-            else
-            {
-                faceOffsetsRenumber.resize(nLocalCells, -1);
-            }
-
-            vtk::writeListParallel(format_.ref(), faceOffsetsRenumber);
+            vtk::writeListParallel(format_.ref(), faceOffsets);
         }
         else
         {
@@ -478,11 +412,10 @@ Foam::vtk::internalMeshWriter::internalMeshWriter
 )
 :
     vtk::fileWriter(vtk::fileTag::UNSTRUCTURED_GRID, opts),
-    numberOfPoints_(0),
-    numberOfCells_(0),
-
     mesh_(mesh),
-    vtuCells_(cells)
+    vtuCells_(cells),
+    pointSlab_(0),
+    cellSlab_(0)
 {
     // We do not currently support append mode
     opts_.append(false);
@@ -522,6 +455,8 @@ Foam::vtk::internalMeshWriter::internalMeshWriter
 
 bool Foam::vtk::internalMeshWriter::beginFile(std::string title)
 {
+    const auto& runTime = mesh_.time();
+
     if (title.size())
     {
         return vtk::fileWriter::beginFile(title);
@@ -530,29 +465,27 @@ bool Foam::vtk::internalMeshWriter::beginFile(std::string title)
     // Provide default title
 
     DebugInFunction
-        << "case=" << mesh_.time().caseName()
+        << "case=" << runTime.caseName()
         << " region=" << mesh_.name()
-        << " time=" << mesh_.time().timeName()
-        << " index=" << mesh_.time().timeIndex() << endl;
-
+        << " time=" << runTime.timeName()
+        << " index=" << runTime.timeIndex() << endl;
 
     if (legacy())
     {
         return vtk::fileWriter::beginFile
         (
-            mesh_.time().globalCaseName()
+            runTime.globalCaseName()
         );
     }
-
 
     // XML (inline)
 
     return vtk::fileWriter::beginFile
     (
-        "case='" + mesh_.time().globalCaseName()
+        "case='" + runTime.globalCaseName()
       + "' region='" + mesh_.name()
-      + "' time='" + mesh_.time().timeName()
-      + "' index='" + Foam::name(mesh_.time().timeIndex())
+      + "' time='" + runTime.timeName()
+      + "' index='" + Foam::name(runTime.timeIndex())
       + "'"
     );
 }
@@ -566,15 +499,9 @@ bool Foam::vtk::internalMeshWriter::writeGeometry()
 
     writePoints();
 
-    // Include addPointCellLabels for the point offsets
-    const label pointOffset =
-    (
-        parallel_ ? globalIndex::calcOffset(vtuCells_.nFieldPoints()) : 0
-    );
-
     if (legacy())
     {
-        writeCellsLegacy(pointOffset);
+        writeCells_legacy();
         return true;
     }
 
@@ -583,8 +510,8 @@ bool Foam::vtk::internalMeshWriter::writeGeometry()
         format().tag(vtk::fileTag::CELLS);
     }
 
-    writeCellsConnectivity(pointOffset);
-    writeCellsFaces(pointOffset);
+    writeCellsConnectivity();
+    writeCellsFaces();
 
     if (format_)
     {
@@ -597,13 +524,13 @@ bool Foam::vtk::internalMeshWriter::writeGeometry()
 
 bool Foam::vtk::internalMeshWriter::beginCellData(label nFields)
 {
-    return enter_CellData(numberOfCells_, nFields);
+    return enter_CellData(nTotalCells(), nFields);
 }
 
 
 bool Foam::vtk::internalMeshWriter::beginPointData(label nFields)
 {
-    return enter_PointData(numberOfPoints_, nFields);
+    return enter_PointData(nTotalPoints(), nFields);
 }
 
 
@@ -620,15 +547,17 @@ void Foam::vtk::internalMeshWriter::writeCellIDs()
             << exit(FatalError);
     }
 
-    const labelList& cellMap = vtuCells_.cellMap();
+    const labelUList& cellMap = vtuCells_.cellMap();
 
-
-    this->beginDataArray<label>("cellID", numberOfCells_);
+    this->beginDataArray<label>("cellID", nTotalCells());
 
     if (parallel_)
     {
-        // With decomposed cells for the cell offsets
-        const globalIndex globalCellOffset(vtuCells_.nFieldCells());
+        const globalIndex globalCellOffset
+        (
+            globalIndex::gatherOnly{},
+            vtuCells_.nFieldCells()
+        );
 
         vtk::writeListParallel(format_.ref(), cellMap, globalCellOffset);
     }
@@ -667,7 +596,7 @@ void Foam::vtk::internalMeshWriter::writePointIDs()
     }
 
 
-    this->beginDataArray<label>("pointID", numberOfPoints_);
+    this->beginDataArray<label>("pointID", nTotalPoints());
 
     // Point offset for regular mesh points (without decomposed)
     const label pointOffset =
@@ -675,7 +604,7 @@ void Foam::vtk::internalMeshWriter::writePointIDs()
         parallel_ ? globalIndex::calcOffset(vtuCells_.nPoints()) : 0
     );
 
-    // Cell offset for *regular* mesh cells (without decomposed)
+    // Cell offset for regular mesh cells (without decomposed)
     const label cellOffset =
     (
         parallel_ ? globalIndex::calcOffset(vtuCells_.nCells()) : 0

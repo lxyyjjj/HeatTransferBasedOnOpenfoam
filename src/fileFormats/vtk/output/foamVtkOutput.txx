@@ -26,7 +26,6 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "globalIndex.H"
-#include "Pstream.H"
 #include "ListOps.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -39,13 +38,56 @@ inline void Foam::vtk::write
     const label n
 )
 {
-    const direction nCmpt = pTraits<Type>::nComponents;
-
-    for (label i=0; i < n; ++i)
+    if constexpr
+    (
+        std::is_same_v<Vector<float>, Type>
+     || std::is_same_v<Vector<double>, Type>
+    )
     {
-        for (direction cmpt=0; cmpt < nCmpt; ++cmpt)
+        // Vector is frequently used
+        for (label i = 0; i < n; ++i)
         {
-            fmt.write(component(val, cmpt));
+            fmt.write(val.x());
+            fmt.write(val.y());
+            fmt.write(val.z());
+        }
+    }
+    else if constexpr
+    (
+        std::is_same_v<SymmTensor<float>, Type>
+     || std::is_same_v<SymmTensor<double>, Type>
+    )
+    {
+        // VTK order is (XX, YY, ZZ, XY, YZ, XZ)
+        for (label i = 0; i < n; ++i)
+        {
+            fmt.write(val.xx());
+            fmt.write(val.yy());
+            fmt.write(val.zz());
+            fmt.write(val.xy());
+            fmt.write(val.yz());
+            fmt.write(val.xz());
+        }
+    }
+    else if constexpr (is_vectorspace_v<Type>)
+    {
+        constexpr direction nCmpt = pTraits<Type>::nComponents;
+
+        for (label i = 0; i < n; ++i)
+        {
+            for (direction cmpt = 0; cmpt < nCmpt; ++cmpt)
+            {
+                fmt.write(component(val, cmpt));
+            }
+        }
+    }
+    else
+    {
+        // label, scalar etc.
+
+        for (label i = 0; i < n; ++i)
+        {
+            fmt.write(val);
         }
     }
 }
@@ -143,7 +185,7 @@ void Foam::vtk::writeValueParallel
     const List<label> counts(UPstream::listGatherValues(count));
     const List<Type> values(UPstream::listGatherValues(val));
 
-    if (Pstream::master())
+    if (UPstream::master())
     {
         forAll(counts, i)
         {
@@ -169,24 +211,22 @@ void Foam::vtk::writeListParallel
             << Foam::exit(FatalError);
     }
 
+    // The receive sizes
+    const labelList recvSizes(globalIndex::calcRecvSizes(values.size()));
 
-    // Gather sizes (offsets irrelevant)
-    const globalIndex procAddr(globalIndex::gatherOnly{}, values.size());
-
-
-    if (Pstream::master())
+    if (UPstream::master())
     {
+        const label maxRecvSize = recvSizes[0];
+
         // Write master data
         vtk::writeList(fmt, values);
 
         // Receive and write
-        DynamicList<Type> recvData(procAddr.maxNonLocalSize());
+        DynamicList<Type> recvData(maxRecvSize);
 
-        for (const label proci : procAddr.subProcs())
+        for (const int proci : UPstream::subProcs())
         {
-            const label procSize = procAddr.localSize(proci);
-
-            if (procSize)
+            if (label procSize = recvSizes[proci]; procSize > 0)
             {
                 recvData.resize_nocopy(procSize);
                 UIPstream::read
@@ -232,28 +272,27 @@ void Foam::vtk::writeListParallel
 
 
     List<Type> sendData;
-    if (!Pstream::master())
+    if (!UPstream::master())
     {
         sendData = UIndirectList<Type>(values, addressing);
     }
 
-    // Gather sizes (offsets irrelevant)
-    const globalIndex procAddr(globalIndex::gatherOnly{}, sendData.size());
+    // The receive sizes
+    const labelList recvSizes(globalIndex::calcRecvSizes(sendData.size()));
 
-
-    if (Pstream::master())
+    if (UPstream::master())
     {
+        const label maxRecvSize = recvSizes[0];
+
         // Write master data
         vtk::writeList(fmt, values, addressing);
 
         // Receive and write
-        DynamicList<Type> recvData(procAddr.maxNonLocalSize());
+        DynamicList<Type> recvData(maxRecvSize);
 
-        for (const label proci : procAddr.subProcs())
+        for (const int proci : UPstream::subProcs())
         {
-            const label procSize = procAddr.localSize(proci);
-
-            if (procSize)
+            if (label procSize = recvSizes[proci]; procSize > 0)
             {
                 recvData.resize_nocopy(procSize);
                 UIPstream::read
@@ -299,28 +338,27 @@ void Foam::vtk::writeListParallel
 
 
     List<Type> sendData;
-    if (!Pstream::master())
+    if (!UPstream::master())
     {
         sendData = subset(selected, values);
     }
 
-    // Gather sizes (offsets irrelevant)
-    const globalIndex procAddr(globalIndex::gatherOnly{}, sendData.size());
+    // The receive sizes
+    const labelList recvSizes(globalIndex::calcRecvSizes(sendData.size()));
 
-
-    if (Pstream::master())
+    if (UPstream::master())
     {
+        const label maxRecvSize = recvSizes[0];
+
         // Write master data
         vtk::writeList(fmt, values, selected);
 
         // Receive and write
-        DynamicList<Type> recvData(procAddr.maxNonLocalSize());
+        DynamicList<Type> recvData(maxRecvSize);
 
-        for (const label proci : procAddr.subProcs())
+        for (const int proci : UPstream::subProcs())
         {
-            const label procSize = procAddr.localSize(proci);
-
-            if (procSize)
+            if (label procSize = recvSizes[proci]; procSize > 0)
             {
                 recvData.resize_nocopy(procSize);
 
@@ -366,29 +404,25 @@ void Foam::vtk::writeListsParallel
     }
 
 
-    // Gather sizes (offsets irrelevant)
-    const globalIndex procAddr1(globalIndex::gatherOnly{}, values1.size());
-    const globalIndex procAddr2(globalIndex::gatherOnly{}, values2.size());
+    // The receive sizes
+    const labelList recvSizes1(globalIndex::calcRecvSizes(values1.size()));
+    const labelList recvSizes2(globalIndex::calcRecvSizes(values2.size()));
 
-
-    if (Pstream::master())
+    if (UPstream::master())
     {
+        const label maxRecvSize = std::max(recvSizes1[0], recvSizes2[0]);
+
         // Write master data
         vtk::writeList(fmt, values1);
         vtk::writeList(fmt, values2);
 
         // Receive and write
-        DynamicList<Type> recvData
-        (
-            max(procAddr1.maxNonLocalSize(), procAddr2.maxNonLocalSize())
-        );
+        DynamicList<Type> recvData(maxRecvSize);
 
-        for (const label proci : procAddr1.subProcs())
+        for (const int proci : UPstream::subProcs())
         {
             // values1
-            label procSize = procAddr1.localSize(proci);
-
-            if (procSize)
+            if (label procSize = recvSizes1[proci]; procSize > 0)
             {
                 recvData.resize_nocopy(procSize);
                 UIPstream::read
@@ -401,9 +435,7 @@ void Foam::vtk::writeListsParallel
             }
 
             // values2
-            procSize = procAddr2.localSize(proci);
-
-            if (procSize)
+            if (label procSize = recvSizes2[proci]; procSize > 0)
             {
                 recvData.resize_nocopy(procSize);
                 UIPstream::read
@@ -460,36 +492,30 @@ void Foam::vtk::writeListsParallel
 
 
     List<Type> sendData2;
-    if (!Pstream::master())
+    if (!UPstream::master())
     {
         sendData2 = UIndirectList<Type>(values2, addressing);
     }
 
+    // The receive sizes
+    const labelList recvSizes1(globalIndex::calcRecvSizes(values1.size()));
+    const labelList recvSizes2(globalIndex::calcRecvSizes(sendData2.size()));
 
-    // Gather sizes (offsets irrelevant)
-    const globalIndex procAddr1(globalIndex::gatherOnly{}, values1.size());
-    const globalIndex procAddr2(globalIndex::gatherOnly{}, sendData2.size());
-
-
-    if (Pstream::master())
+    if (UPstream::master())
     {
-        // Write master data
+        const label maxRecvSize = std::max(recvSizes1[0], recvSizes2[0]);
 
+        // Write master data
         vtk::writeList(fmt, values1);
         vtk::writeList(fmt, values2, addressing);
 
         // Receive and write
-        DynamicList<Type> recvData
-        (
-            max(procAddr1.maxNonLocalSize(), procAddr2.maxNonLocalSize())
-        );
+        DynamicList<Type> recvData(maxRecvSize);
 
-        for (const label proci : procAddr1.subProcs())
+        for (const int proci : UPstream::subProcs())
         {
             // values1
-            label procSize = procAddr1.localSize(proci);
-
-            if (procSize)
+            if (label procSize = recvSizes1[proci]; procSize > 0)
             {
                 recvData.resize_nocopy(procSize);
                 UIPstream::read
@@ -502,9 +528,7 @@ void Foam::vtk::writeListsParallel
             }
 
             // values2
-            procSize = procAddr2.localSize(proci);
-
-            if (procSize)
+            if (label procSize = recvSizes2[proci]; procSize > 0)
             {
                 recvData.resize_nocopy(procSize);
                 UIPstream::read

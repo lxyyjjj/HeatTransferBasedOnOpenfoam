@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2017-2021 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,6 +38,7 @@ Foam::vtk::fileExtension
     { fileTag::POLY_DATA, "vtp" },
     { fileTag::UNSTRUCTURED_GRID, "vtu" },
     { fileTag::MULTI_BLOCK, "vtm" },
+    { fileTag::VTK_HDF, "vtkhdf" },
     // { fileTag::COLLECTION, "pvd" },
 });
 
@@ -51,6 +52,7 @@ Foam::vtk::fileContentVersions
     { fileTag::POLY_DATA, "0.1" },
     { fileTag::UNSTRUCTURED_GRID, "0.1" },
     { fileTag::MULTI_BLOCK, "1.0" },
+    { fileTag::VTK_HDF, "debug" },  // placeholder value
     // { fileTag::COLLECTION, "0.1" },
 });
 
@@ -78,6 +80,7 @@ Foam::vtk::fileTagNames
     { fileTag::UNSTRUCTURED_GRID, "UnstructuredGrid" },
     { fileTag::MULTI_BLOCK, "vtkMultiBlockDataSet" },
     // { fileTag::COLLECTION, "Collection" },
+    { fileTag::VTK_HDF, "VTKHDF" },
 });
 
 

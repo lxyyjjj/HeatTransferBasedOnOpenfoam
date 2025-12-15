@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2017-2019 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,80 +27,42 @@ License
 
 // VTK includes
 #include "vtkFloatArray.h"
+#include "vtkDoubleArray.h"
 #include "vtkCellData.h"
 #include "vtkPointData.h"
 #include "vtkSmartPointer.h"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-template<class Type>
-vtkSmartPointer<vtkFloatArray>
-Foam::vtk::vtuAdaptor::convertField
-(
-    const DimensionedField<Type, volMesh>& fld,
-    const vtuAdaptor& vtuData
-)
-{
-    const int nComp(pTraits<Type>::nComponents);
-    const labelUList& cellMap = vtuData.cellMap();
-
-    auto data = vtkSmartPointer<vtkFloatArray>::New();
-    data->SetName(fld.name().c_str());
-    data->SetNumberOfComponents(nComp);
-    data->SetNumberOfTuples(cellMap.size());
-
-    // DebugInfo
-    //     << "Convert field: " << fld.name()
-    //     << " size=" << cellMap.size()
-    //     << " (" << fld.size() << " + "
-    //     << (cellMap.size() - fld.size())
-    //     << ") nComp=" << nComp << endl;
-
-
-    float scratch[pTraits<Type>::nComponents];
-
-    vtkIdType celli = 0;
-    for (const label meshCelli : cellMap)
-    {
-        vtk::Tools::foamToVtkTuple(scratch, fld[meshCelli]);
-        data->SetTuple(celli++, scratch);
-    }
-
-    return data;
-}
-
-
-template<class Type>
-vtkSmartPointer<vtkFloatArray>
-Foam::vtk::vtuAdaptor::convertField
-(
-    const GeometricField<Type, fvPatchField, volMesh>& fld,
-    const vtuAdaptor& vtuData
-)
-{
-    return convertField<Type>(fld.internalField(), vtuData);
-}
-
-
-template<class Type>
-vtkSmartPointer<vtkFloatArray>
+template<class Type, class DataArrayType>
+vtkSmartPointer<DataArrayType>
 Foam::vtk::vtuAdaptor::convertField
 (
     const DimensionedField<Type, volMesh>& fld
 ) const
 {
-    return convertField<Type>(fld, *this);
+    return vtk::Tools::convertFieldToVTK<Type, DataArrayType>
+    (
+        fld.name(),
+        fld.field(),
+        this->cellMap()
+    );
 }
 
 
-template<class Type>
-vtkSmartPointer<vtkFloatArray>
+template<class Type, class DataArrayType>
+vtkSmartPointer<DataArrayType>
 Foam::vtk::vtuAdaptor::convertField
 (
     const GeometricField<Type, fvPatchField, volMesh>& fld
 ) const
 {
-    return convertField<Type>(fld, *this);
+    return vtk::Tools::convertFieldToVTK<Type, DataArrayType>
+    (
+        fld.name(),
+        fld.primitiveField(),
+        this->cellMap()
+    );
 }
 
 

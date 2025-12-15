@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2016-2023 OpenCFD Ltd.
+    Copyright (C) 2016-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,34 +31,37 @@ License
 #include "cellShape.H"
 #include "manifoldCellsMeshObject.H"
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
-template<class LabelType>
-void Foam::vtk::vtuSizing::adjustOffsets
+namespace
+{
+
+// Adjust \p vertOffset for all cells.
+// On input it contains the cell sizes, but for INTERNAL1 it also
+// contains an embedded size prefix.
+//
+// On output, the cell connectivity offsets :
+// - XML format = end-offsets
+// - INTERNAL1 = begin-offsets
+// - INTERNAL2 = begin/end-offsets
+// - HDF = begin/end-offsets
+// .
+template<class IntType>
+void adjustCellOffsets
 (
-    UList<LabelType>& vertOffset,
-    UList<LabelType>& faceOffset,
-    const enum contentType output,
-    const bool hasFaceStream
+    Foam::UList<IntType>& vertOffset,
+    const Foam::vtk::vtuSizing::contentType output
 )
 {
-    // ===========================================
-    // Adjust vertOffset for all cells
-    // A second pass is needed for several reasons.
-    // - Additional (decomposed) cells are placed out of sequence
-    // - INTERNAL1 connectivity has size prefixed
-    //
-    // Cell offsets:
-    // - XML format expects end-offsets,
-    // - INTERNAL1 expects begin-offsets
-    // - INTERNAL2 expects begin/end-offsets
+    using namespace Foam;
+    using namespace Foam::vtk;
 
     switch (output)
     {
-        case contentType::LEGACY: // Nothing to do
+        case vtuSizing::contentType::LEGACY :  // Nothing to do
             break;
 
-        case contentType::XML:
+        case vtuSizing::contentType::XML :
         {
             // Transform cell sizes (vertOffset) into begin offsets
 
@@ -67,88 +70,135 @@ void Foam::vtk::vtuSizing::adjustOffsets
             {
                 vertOffset[i] += vertOffset[i-1];
             }
-
-            // The end face offsets, leaving -1 untouched
-            if (hasFaceStream)
-            {
-                LabelType prev(0);
-
-                for (LabelType& off : faceOffset)
-                {
-                    const LabelType sz(off);
-                    if (sz > 0)
-                    {
-                        prev += sz;
-                        off = prev;
-                    }
-                }
-            }
             break;
         }
 
-        case contentType::INTERNAL1:
+        case vtuSizing::contentType::INTERNAL1 :
         {
             // Transform cell sizes (vertOffset) into begin offsets
             {
-                LabelType beg(0);
+                IntType beg(0);
 
-                for (LabelType& off : vertOffset)
+                for (IntType& off : vertOffset)
                 {
-                    const LabelType sz(off);
+                    const IntType sz(off);
                     off = beg;
                     beg += 1 + sz;  // Additional 1 to skip embedded prefix
                 }
             }
-
-            // The begin face offsets, leaving -1 untouched
-            if (hasFaceStream)
-            {
-                LabelType beg(0);
-
-                for (LabelType& off : faceOffset)
-                {
-                    const LabelType sz(off);
-                    if (sz > 0)
-                    {
-                        off = beg;
-                        beg += sz;
-                    }
-                }
-            }
             break;
         }
 
-        case contentType::INTERNAL2:
+        case vtuSizing::contentType::INTERNAL2 :
+        case vtuSizing::contentType::HDF :
         {
             // Transform cell sizes (vertOffset) into begin/end offsets
             // input    [n1, n2, n3, ..., 0]
             // becomes  [0, n1, n1+n2, n1+n2+n3, ..., nTotal]
 
-            // The last entry of vertOffset was initialized as zero and
-            // never revisited, so the following loop is OK
+            if (!vertOffset.empty())
             {
-                LabelType total(0);
+                vertOffset.back() = 0;  // safety (if uninitialized)
+                IntType total(0);
 
-                for (LabelType& off : vertOffset)
+                for (IntType& off : vertOffset)
                 {
-                    const LabelType sz(off);
+                    const IntType sz(off);
                     off = total;
                     total += sz;
                 }
             }
+            break;
+        }
+    }
+}
 
-            // The begin face offsets, leaving -1 untouched
-            if (hasFaceStream)
+
+// Adjust \p faceOffset for all polyhedral faces
+// On input it contains the face or face-stream sizes,
+// possibly with primitive cells marked as -1 placeholders
+//
+// On output, the face connectivity offsets :
+// - XML format = end-offsets, with -1 placeholders
+// - INTERNAL1 = begin-offsets, with -1 placeholders
+// - INTERNAL2 = begin/end-offsets, with -1 placeholders
+// - HDF = begin/end-offsets
+// .
+template<class IntType>
+void adjustFaceOffsets
+(
+    Foam::UList<IntType>& faceOffset,
+    const Foam::vtk::vtuSizing::contentType output
+)
+{
+    using namespace Foam;
+    using namespace Foam::vtk;
+
+    switch (output)
+    {
+        case vtuSizing::contentType::LEGACY : // Nothing to do
+            break;
+
+        case vtuSizing::contentType::XML :
+        {
+            // Transform face sizes (faceOffset) into end offsets,
+            // leaving -1 placeholders untouched
+            if (!faceOffset.empty())
             {
-                LabelType beg(0);
+                IntType total(0);
 
-                for (LabelType& off : faceOffset)
+                for (IntType& off : faceOffset)
                 {
-                    const LabelType sz(off);
-                    if (sz > 0)
+                    const IntType sz(off);
+                    if (sz >= 0)
+                    {
+                        total += sz;
+                        off = total;
+                    }
+                }
+            }
+            break;
+        }
+
+        case vtuSizing::contentType::INTERNAL1 :
+        case vtuSizing::contentType::INTERNAL2 :
+        {
+            // Transform face sizes (faceOffset) into begin locations,
+            // leaving -1 placeholders untouched
+            if (!faceOffset.empty())
+            {
+                IntType beg(0);
+
+                for (IntType& off : faceOffset)
+                {
+                    const IntType sz(off);
+                    if (sz >= 0)
                     {
                         off = beg;
                         beg += sz;
+                    }
+                }
+            }
+            break;
+        }
+
+        case vtuSizing::contentType::HDF :
+        {
+            // Transform face sizes (faceOffset) into begin/end offsets,
+            // treat any -1 placeholders like size = 0
+
+            if (!faceOffset.empty())
+            {
+                faceOffset.back() = 0;  // safety (if uninitialized)
+                IntType total(0);
+
+                for (IntType& off : faceOffset)
+                {
+                    const IntType sz(off);
+                    off = total;
+                    if (sz >= 0)
+                    {
+                        total += sz;
                     }
                 }
             }
@@ -157,6 +207,10 @@ void Foam::vtk::vtuSizing::adjustOffsets
     }
 }
 
+} // End anonymous namespace
+
+
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 template<class LabelType>
 void Foam::vtk::vtuSizing::populateArrays
@@ -169,6 +223,10 @@ void Foam::vtk::vtuSizing::populateArrays
     UList<LabelType>& vertOffset,
     UList<LabelType>& faceLabels,
     UList<LabelType>& faceOffset,
+
+    UList<LabelType>& polyFaceIds,      // HDF-only
+    UList<LabelType>& polyFaceOffsets,  // HDF-only
+
     const enum contentType output,
     labelUList& cellMap,
     labelUList& addPointsIds
@@ -190,6 +248,7 @@ void Foam::vtk::vtuSizing::populateArrays
         cellTypes.size(),
         vertLabels.size(), vertOffset.size(),
         faceLabels.size(), faceOffset.size(),
+        polyFaceIds.size(), polyFaceOffsets.size(),
 
         output,
 
@@ -209,18 +268,39 @@ void Foam::vtk::vtuSizing::populateArrays
 
 
     // Initialization
+    // ~~~~~~~~~~~~~~
 
-    faceOffset = -1;
+    // The "HDF" mode : uses face vertices/offsets, not a face-stream
+    const bool isHDFmode = (!polyFaceOffsets.empty());
 
-    // For INTERNAL2, the vertOffset is (nFieldCells+1), which means that
-    // the last entry is never visited. Set as zero now.
+    if (isHDFmode)
+    {
+        faceOffset = 0;
+    }
+    else
+    {
+        // For XML + INTERNAL formats, tag with -1 for primitives
+        faceOffset = -1;
+    }
+
+    // Some formats have begin/end offsets (eg, nFieldCells+1),
+    // which means that either end may be unvisited. Set as zero now.
 
     if (vertOffset.size())
     {
-        vertOffset.first() = 0;
-        vertOffset.last() = 0;
+        vertOffset.front() = 0;
+        vertOffset.back() = 0;
     }
 
+    // Looks strange, but we only generate HDF faces by walking
+    // each polyhedron. So the corresponding face ids are always
+    // just an identity map.
+    // Thus polyFaceIds can also be treated as demand-driven content
+    // elsewhere.
+
+    std::iota(polyFaceIds.begin(), polyFaceIds.end(), 0);
+    polyFaceOffsets = 0;
+    label nPolyFaces = 0;  // Counter into faceOffset (HDF-mode)
 
     const cellModel& tet      = cellModel::ref(cellModel::TET);
     const cellModel& pyr      = cellModel::ref(cellModel::PYR);
@@ -237,8 +317,6 @@ void Foam::vtk::vtuSizing::populateArrays
     // The face owner is needed to determine the face orientation
     const labelList& owner = mesh.faceOwner();
 
-    // Unique vertex labels per polyhedral
-    labelHashSet hashUniqId(512);
 
     // Index into vertLabels, faceLabels for normal cells
     label nVertLabels = 0;
@@ -276,6 +354,8 @@ void Foam::vtk::vtuSizing::populateArrays
     // During this stage, the vertOffset contains the *size* associated with
     // the per-cell vertLabels entries, and the faceOffset contains the *size*
     // associated with the per-cell faceLabels.
+    // Similarly, the polyFaceOffsets will contain the per-cell
+    // *number* of polyhedral faces at this stage.
 
 
     // Special treatment for mesh subsets
@@ -292,6 +372,10 @@ void Foam::vtk::vtuSizing::populateArrays
       ? cellMap.size()
       : shapes.size()
     );
+
+    // Unique vertex labels per polyhedral
+    labelHashSet hashUniqId;
+    if (!sizing.decompose()) { hashUniqId.reserve(256); }
 
 
     for
@@ -581,7 +665,10 @@ void Foam::vtk::vtuSizing::populateArrays
             hashUniqId.clear();  // unique node ids used (XML, INTERNAL)
 
             // face-stream
-            //   [nFaces, nFace0Pts, id1, id2, ..., nFace1Pts, id1, id2, ...]
+            //   [nFaces, nFace0Pts, id0,id1,..., nFace1Pts, id0,...]
+            // but HDF only stores the vertices!
+            //   [id0,id12, ..., id0,...]
+
             cellTypes[cellIndex] = vtk::cellType::VTK_POLYHEDRON;
 
             const labelList& cFaces = meshCells[celli];
@@ -594,7 +681,18 @@ void Foam::vtk::vtuSizing::populateArrays
                 ++faceIndexer;
             }
 
-            faceOutput[faceIndexer++] = cFaces.size();
+            if (isHDFmode)
+            {
+                // With separate handling of poly faces
+                // - eg, VTKHDF format
+                polyFaceOffsets[cellIndex] = cFaces.size();
+            }
+            else
+            {
+                // With embedded handling of number of poly faces
+                // - currently all formats other than VTKHDF
+                faceOutput[faceIndexer++] = cFaces.size();
+            }
 
             for (const label facei : cFaces)
             {
@@ -605,8 +703,20 @@ void Foam::vtk::vtuSizing::populateArrays
                 hashUniqId.insert(f);
 
                 // The number of labels for this face
-                faceOutput[faceIndexer++] = nFacePoints;
+                if (isHDFmode)
+                {
+                    // With separate handling of poly faces
+                    // - eg, for VTKHDF format
+                    faceOffset[nPolyFaces] = nFacePoints;
+                }
+                else
+                {
+                    // With embedded handling of poly faces
+                    faceOutput[faceIndexer++] = nFacePoints;
+                }
+                ++nPolyFaces;
 
+                // The actual face vertices:
                 faceOutput[faceIndexer++] = f[0];
                 if (isOwner)
                 {
@@ -632,8 +742,11 @@ void Foam::vtk::vtuSizing::populateArrays
             }
             else
             {
-                // Size for face stream
-                faceOffset[cellIndex] = (faceIndexer - startLabel);
+                if (!isHDFmode)
+                {
+                    // Size of the face stream
+                    faceOffset[cellIndex] = (faceIndexer - startLabel);
+                }
 
                 vertOffset[cellIndex] = hashUniqId.size();
                 if (prefix)
@@ -650,25 +763,16 @@ void Foam::vtk::vtuSizing::populateArrays
     }
 
     // ===========================================
-    // STAGE 3: Adjust vertOffset for all cells
-    // A second pass is needed for several reasons.
-    // - Additional (decomposed) cells are placed out of sequence
-    // - INTERNAL1 connectivity has size prefixed
-    //
-    // Cell offsets:
-    // - XML format expects end-offsets,
-    // - INTERNAL1 expects begin-offsets
-    // - INTERNAL2 expects begin/end-offsets
+    // STAGE 3: Adjust sizes into offsets
 
-    adjustOffsets<LabelType>
-    (
-        vertOffset,
-        faceOffset,
-        output,
-        sizing.nFaceLabels()  // hasFaceStream
-    );
+    adjustCellOffsets<LabelType>(vertOffset, output);
+
+    if (sizing.hasPolyCells())
+    {
+        adjustFaceOffsets<LabelType>(faceOffset, output);
+        adjustFaceOffsets<LabelType>(polyFaceOffsets, output);
+    }
 }
-
 
 
 // Synchronize changes here with the following:
@@ -686,6 +790,8 @@ void Foam::vtk::vtuSizing::populateArrays
     UList<LabelType>& vertOffset,
     UList<LabelType>& faceLabels,
     UList<LabelType>& faceOffset,
+    UList<LabelType>& polyFaceIds,
+    UList<LabelType>& polyFaceOffsets,
     const enum contentType output,
     labelUList& cellMap,
     labelUList& addPointsIds
@@ -708,6 +814,7 @@ void Foam::vtk::vtuSizing::populateArrays
         cellTypes.size(),
         vertLabels.size(), vertOffset.size(),
         faceLabels.size(), faceOffset.size(),
+        polyFaceIds.size(), polyFaceOffsets.size(),
 
         output,
 
@@ -727,18 +834,23 @@ void Foam::vtk::vtuSizing::populateArrays
 
 
     // Initialization
+    // ~~~~~~~~~~~~~~
 
+    // For XML + INTERNAL formats, tag with -1 for primitives
     faceOffset = -1;
 
-    // For INTERNAL2, the vertOffset is (nFieldCells+1), which means that
-    // the last entry is never visited. Set as zero now.
+    // Some formats have begin/end offsets (eg, nFieldCells+1),
+    // which means that either end may be unvisited. Set as zero now.
 
     if (vertOffset.size())
     {
-        vertOffset.first() = 0;
-        vertOffset.last() = 0;
+        vertOffset.front() = 0;
+        vertOffset.back() = 0;
     }
 
+    // Don't actually support polyhedrals, so just tag as "bad"
+    polyFaceIds = -1;
+    polyFaceOffsets = 0;
 
     const cellModel& tet      = cellModel::ref(cellModel::TET);
     const cellModel& pyr      = cellModel::ref(cellModel::PYR);
@@ -858,26 +970,19 @@ void Foam::vtk::vtuSizing::populateArrays
 
     // May have been done by caller,
     // but for additional safety set an identity mapping
-    Foam::identity(cellMap);
+    std::iota(cellMap.begin(), cellMap.end(), 0);
 
     // ===========================================
-    // Adjust vertOffset for all cells
-    // A second pass is needed for several reasons.
-    // - Additional (decomposed) cells are placed out of sequence
-    // - INTERNAL1 connectivity has size prefixed
-    //
-    // Cell offsets:
-    // - XML format expects end-offsets,
-    // - INTERNAL1 expects begin-offsets
-    // - INTERNAL2 expects begin/end-offsets
+    // Adjust sizes into offsets
 
-    adjustOffsets<LabelType>
-    (
-        vertOffset,
-        faceOffset,
-        output,
-        sizing.nFaceLabels()  // hasFaceStream
-    );
+    adjustCellOffsets<LabelType>(vertOffset, output);
+
+    // This should be a no-op for shape-based conversions
+    if (sizing.hasPolyCells())
+    {
+        adjustFaceOffsets<LabelType>(faceOffset, output);
+        adjustFaceOffsets<LabelType>(polyFaceOffsets, output);
+    }
 }
 
 

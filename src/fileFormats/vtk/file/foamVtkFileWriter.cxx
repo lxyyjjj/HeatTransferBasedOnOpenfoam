@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2018-2023 OpenCFD Ltd.
+    Copyright (C) 2018-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -52,7 +52,7 @@ Foam::vtk::fileWriter::stateNames
 void Foam::vtk::fileWriter::checkFormatterValidity() const
 {
     // In parallel can be unallocated on non-master nodes
-    if ((parallel_ ? Pstream::master() : true) && !format_)
+    if (!format_ && (!parallel_ || UPstream::master()))
     {
         FatalErrorInFunction
             << "unallocated formatter" << endl
@@ -350,7 +350,7 @@ bool Foam::vtk::fileWriter::open(const fileName& file, bool parallel)
 
 
     // Only set parallel flag if really is a parallel run.
-    parallel_ = parallel && Pstream::parRun();
+    parallel_ = parallel && UPstream::parRun();
 
     // Open a file and attach a formatter
     // - on master (always)
@@ -359,9 +359,9 @@ bool Foam::vtk::fileWriter::open(const fileName& file, bool parallel)
     // This means we can always check if format_ is defined to know if output
     // is desired on any particular process.
 
-    if (!parallel_ || Pstream::master())
+    if (!parallel_ || UPstream::master())
     {
-        mkDir(outputFile_.path());
+        Foam::mkDir(outputFile_.path());
 
         os_.open(outputFile_);
 
@@ -545,7 +545,7 @@ bool Foam::vtk::fileWriter::writeProcIDs(const label nValues)
 {
     // Write procIDs whenever running in parallel
 
-    if (!Pstream::parRun())
+    if (!UPstream::parRun())
     {
         return false;  // Non-parallel: skip
     }
@@ -572,42 +572,49 @@ bool Foam::vtk::fileWriter::writeProcIDs(const label nValues)
     }
 
 
-    const globalIndex procAddr
-    (
-        parallel_
-      ? globalIndex(globalIndex::gatherOnly{}, nValues)
-      : globalIndex(globalIndex::gatherNone{}, nValues)
-    );
-
-    const label totalCount = procAddr.totalSize();
-
-    this->beginDataArray<label>("procID", totalCount);
-
-    bool good = false;
+    // The per-rank sizes
+    labelList procSizes;
+    label totalSize(nValues);
 
     if (parallel_)
     {
-        if (Pstream::master())
+        procSizes = UPstream::listGatherValues(nValues);
+        //totalSize = std::reduce(procSizes.begin(), procSizes.end());
+
+        // Some compilers still seem to have issues with std::reduce()
+        totalSize = 0;
+        for (auto len : procSizes)
+        {
+            totalSize += len;
+        }
+    }
+
+    this->beginDataArray<label>("procID", totalSize);
+
+    bool good = true;
+
+    if (parallel_)
+    {
+        if (UPstream::master())
         {
             // Per-processor ids
-            for (const label proci : procAddr.allProcs())
+            forAll(procSizes, proci)
             {
-                vtk::write(format(), proci, procAddr.localSize(proci));
+                vtk::write(format(), proci, procSizes[proci]);
             }
-            good = true;
         }
+
+        // MPI barrier
+        Pstream::broadcast(good);
     }
     else
     {
-        vtk::write(format(), label(Pstream::myProcNo()), totalCount);
-        good = true;
+        vtk::write(format(), label(UPstream::myProcNo()), totalSize);
     }
-
 
     this->endDataArray();
 
-    // MPI barrier
-    return parallel_ ? returnReduceOr(good) : good;
+    return good;
 }
 
 

@@ -49,7 +49,7 @@ bool Foam::vtk::writePointSet
     const bool legacy = opts_.legacy();
 
     // Only allow parallel if really is a parallel run.
-    parallel = parallel && Pstream::parRun();
+    parallel = parallel && UPstream::parRun();
 
 
     std::ofstream os_;
@@ -62,9 +62,9 @@ bool Foam::vtk::writePointSet
     // This means we can always check if format_ is defined to know if output
     // is desired on any particular process.
 
-    if (Pstream::master() || !parallel)
+    if (UPstream::master() || !parallel)
     {
-        mkDir(file.path());
+        Foam::mkDir(file.path());
 
         // Extension is inappropriate. Legacy instead of xml, or vice versa.
         const word ext = vtk::fileExtension[vtk::fileTag::POLY_DATA];
@@ -206,7 +206,12 @@ bool Foam::vtk::writePointSet
 
     if (parallel)
     {
-        const globalIndex pointIdOffset(mesh.nPoints());
+        // Point offsets (needed on master only)
+        const globalIndex pointIdOffset
+        (
+            globalIndex::gatherOnly{},
+            mesh.nPoints()
+        );
 
         vtk::writeListParallel(format.ref(), pointLabels, pointIdOffset);
     }

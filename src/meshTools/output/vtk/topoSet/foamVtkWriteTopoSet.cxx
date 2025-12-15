@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2017 OpenCFD Ltd.
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,21 +25,41 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "foamVtkMeshMaps.H"
-#include "ListOps.H"
+#include "foamVtkWriteTopoSet.H"
+#include "polyMesh.H"
+#include "topoSet.H"
+#include "faceSet.H"
+#include "cellSet.H"
+#include "pointSet.H"
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-void Foam::foamVtkMeshMaps::renumberCells(const labelUList& mapping)
+bool Foam::vtk::writeTopoSet
+(
+    const polyMesh& mesh,
+    const topoSet& set,
+    const vtk::outputOptions opts,
+    const fileName& file,
+    bool parallel
+)
 {
-    inplaceRenumber(mapping, cellMap_);
-    inplaceRenumber(mapping, additionalIds_);
-}
+    if (const auto* ptr = isA<pointSet>(set); ptr)
+    {
+        return vtk::writePointSet(mesh, *ptr, opts, file, parallel);
+    }
+    if (const auto* ptr = isA<faceSet>(set); ptr)
+    {
+        return vtk::writeFaceSet(mesh, *ptr, opts, file, parallel);
+    }
+    if (const auto* ptr = isA<cellSet>(set); ptr)
+    {
+        return vtk::writeCellSetFaces(mesh, *ptr, opts, file, parallel);
+    }
 
+    WarningInFunction
+        << "No VTK writer for '" << set.type() << "' topoSet" << nl << endl;
 
-void Foam::foamVtkMeshMaps::renumberPoints(const labelUList& mapping)
-{
-    inplaceRenumber(mapping, pointMap_);
+    return false;
 }
 
 

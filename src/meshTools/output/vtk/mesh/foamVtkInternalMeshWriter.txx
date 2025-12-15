@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2017-2021 OpenCFD Ltd.
+    Copyright (C) 2017-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,15 +39,16 @@ void Foam::vtk::internalMeshWriter::writeUniform
 {
     label nValues(0);
 
+    // These are local counts - the backend does the rest
     if (isState(outputState::CELL_DATA))
     {
         ++nCellData_;
-        nValues = vtuCells_.nFieldCells();
+        nValues = cellSlab_.size();
     }
     else if (isState(outputState::POINT_DATA))
     {
         ++nPointData_;
-        nValues = vtuCells_.nFieldPoints();
+        nValues = pointSlab_.size();
     }
     else
     {
@@ -85,9 +86,9 @@ void Foam::vtk::internalMeshWriter::writeCellData
             << exit(FatalError);
     }
 
-    const labelList& cellMap = vtuCells_.cellMap();
+    const labelUList& cellMap = vtuCells_.cellMap();
 
-    this->beginDataArray<Type>(fieldName, numberOfCells_);
+    this->beginDataArray<Type>(fieldName, nTotalCells());
 
     if (parallel_)
     {
@@ -120,7 +121,7 @@ void Foam::vtk::internalMeshWriter::writePointData
             << exit(FatalError);
     }
 
-    this->beginDataArray<Type>(fieldName, numberOfPoints_);
+    this->beginDataArray<Type>(fieldName, nTotalPoints());
 
     if (parallel_)
     {

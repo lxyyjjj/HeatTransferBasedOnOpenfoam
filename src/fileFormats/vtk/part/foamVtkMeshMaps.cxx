@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2021-2022 OpenCFD Ltd.
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,36 +25,21 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "ensightOutputAreaField.H"
-#include "ensightFaMesh.H"
-#include "areaFaMesh.H"
+#include "foamVtkMeshMaps.H"
+#include "ListOps.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-template<class Type>
-bool Foam::ensightOutput::writeAreaField
-(
-    ensightOutput::floatBufferType& scratch,
-    ensightFile& os,
-    const GeometricField<Type, faPatchField, areaMesh>& fld,
-    const ensightFaMesh& ensMesh
-)
+void Foam::foamVtkMeshMaps::renumberCells(const labelUList& mapping)
 {
-    bool parallel = UPstream::parRun();
+    inplaceRenumber(mapping, cellMap_);
+    inplaceRenumber(mapping, extraIds_);
+}
 
-    // Write area part(s)
-    {
-        ensightOutput::Detail::writeFaceLocalField
-        (
-            scratch,
-            os,
-            fld,
-            ensMesh.areaPart(),
-            parallel
-        );
-    }
 
-    return true;
+void Foam::foamVtkMeshMaps::renumberPoints(const labelUList& mapping)
+{
+    inplaceRenumber(mapping, pointMap_);
 }
 
 
