@@ -28,6 +28,7 @@ usage() {
 Usage: ${0##*/} [OPTION]
 options:
   -case <dir>           case directory, default is the cwd
+  -allRegions           all mesh regions
   -region <name>        mesh region
   -dry-run | -n         report actions but do not remove
   -help                 print the usage
@@ -41,11 +42,14 @@ USAGE
 
 #------------------------------------------------------------------------------
 # Parse options
-unset caseDir regionName optDryRun
+unset caseDir regionName optAllRegions optDryRun
 
 while [ "$#" -gt 0 ]
 do
     case "$1" in
+    ('')  ;;                # Ignore empty option
+    (--)  shift; break ;;   # Stop option parsing
+
     -h | -help*)
         usage
         ;;
@@ -58,16 +62,25 @@ do
         ;;
 
     -case)
-        caseDir="$2"
         [ "$#" -ge 2 ] || usage "'$1' option requires an argument"
-        cd "$2" 2>/dev/null || usage "directory does not exist:  '$2'"
-        caseDir=$2
+        caseDir="$2"
         shift
+        ;;
+
+    -allRegions)
+        optAllRegions=true
+        unset optAllRegions
+        ;;
+
+    -region=*)
+        regionName="${1#*=}"
+        unset optAllRegions
         ;;
 
     -region)
         [ "$#" -ge 2 ] || usage "'$1' option requires an argument"
         regionName="$2"
+        unset optAllRegions
         shift
         ;;
 
@@ -77,6 +90,12 @@ do
     esac
     shift
 done
+
+if [ -n "$caseDir" ]
+then
+    cd "$caseDir" 2>/dev/null || usage "directory does not exist: '$caseDir'"
+fi
+
 
 #------------------------------------------------------------------------------
 
@@ -113,12 +132,30 @@ removeFiles()
 
 #------------------------------------------------------------------------------
 
+if [ -n "$optAllRegions" ]
+then
+    # Discover probable regions
+    for meshDir in constant/*/polyMesh
+    do
+        if [ -d "$meshDir" ]
+        then
+            removeFiles "$meshDir"
+        fi
+    done
+    unset regionName
+fi
+
 meshDir="constant/${regionName}${regionName:+/}polyMesh"
 
 if [ -d "$meshDir" ]
 then
     # [OK] has constant/<region>/polyMesh
     :
+
+elif [ -n "$optAllRegions" ]
+then
+    # No constant/polyMesh, but not an error with -allRegions
+    exit 0
 
 elif [ -n "$caseDir" ]
 then
@@ -133,7 +170,7 @@ else
     if [ -d "$other" ]
     then
         # Probably already within constant/
-        meshDir="$other}"
+        meshDir="$other"
     elif [ "${PWD##*/}" = polyMesh ] && [ -z "$regionName" ]
     then
         # Apparently already within polyMesh/

@@ -24,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::regionModels::thermalShellModels::thermalShellModel
+    Foam::regionModels::thermalShellModel
 
 Description
     Intermediate class for thermal-shell finite-area models.
@@ -34,11 +34,11 @@ Usage
     \verbatim
     <patchName>
     {
-        // Mandatory entries
-        T                     <word>;
-
         // Optional entries
         thermalShellModel     <word>;
+
+        Ts                    <word>;
+        Tprimary              <word>;
 
         // Inherited entries
         ...
@@ -47,11 +47,28 @@ Usage
 
     where the entries mean:
     \table
-      Property   | Description                       | Type  | Reqd | Deflt
-      T          | Name of operand temperature field | word  | yes  | -
-      thermalShellModel | Name of thermal-shell model <!--
+      Property  | Description                       | Type  | Reqd | Deflt
+      Ts        | Name of shell temperature field   | word  | no   | Ts(suffix)
+      Tprimary  | Name of primary temperature field | word  | no   | T
+      thermalShellModel | Name of thermalShellModel thermal-shell model <!--
                         -->                      | word | choice | -
     \endtable
+
+    Fields/variables used:
+    \table
+      Property  | Description               | Type   | Deflt
+      Ts        | Temperature               | shell  | Ts(suffix)
+      Tprimary  | Temperature               | volume | T
+    \endtable
+
+    \b Naming changes (possibly breaking) from 2506 and earlier:
+    \table
+      Keyword  | Description               | Keyword (old) | Deflt (old)
+      Ts       | Temperature (shell)       | -   | "Ts_" + regionName
+      Tprimary | Temperature (volume)      | T   | -
+    \endtable
+    If \c Tprimary is missing, will still accept the generic "T",
+    but is silently deprecated (may change in the future).
 
     The inherited entries are elaborated in:
       - \link regionFaModel.H \endlink
@@ -89,8 +106,11 @@ protected:
 
     // Protected Data
 
-        //- Name of the temperature field
-        word TName_;
+        //- Name of shell temperature field (default: "Ts"+suffix)
+        const word TName_;
+
+        //- Name of volume temperature field (default: "T")
+        const word TprimaryName_;
 
         //- Primary (volume) region temperature
         const volScalarField& Tp_;

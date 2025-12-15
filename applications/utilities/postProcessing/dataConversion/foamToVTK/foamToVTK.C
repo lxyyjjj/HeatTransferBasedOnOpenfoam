@@ -135,13 +135,13 @@ Note
 #include "emptyPolyPatch.H"
 #include "volPointInterpolation.H"
 #include "faceZoneMesh.H"
+#include "faMesh.H"
 #include "areaFields.H"
 #include "fvMeshSubsetProxy.H"
 #include "faceSet.H"
 #include "pointSet.H"
 #include "HashOps.H"
 #include "regionProperties.H"
-#include "stringListOps.H"  // For stringListOps::findMatching()
 
 #include "Cloud.H"
 #include "readFields.H"
@@ -434,6 +434,7 @@ int main(int argc, char *argv[])
     argList::addOptionCompat("one-boundary", {"allPatches", 1806});
 
     #include "addAllRegionOptions.H"
+    #include "addAllFaRegionOptions.H"
 
     argList::addOption
     (
@@ -627,8 +628,18 @@ int main(int argc, char *argv[])
     // Information for file series
     HashTable<vtk::seriesWriter, fileName> vtkSeries;
 
-    // Handle -allRegions, -regions, -region
+    // Handle volume region selections
     #include "getAllRegionOptions.H"
+
+    // Handle area region selections
+    #include "getAllFaRegionOptions.H"
+
+    if (!doFiniteArea)
+    {
+        areaRegionNames.clear();  // For consistency
+    }
+
+    // ------------------------------------------------------------------------
 
     // Names for sets and zones
     word cellSelectionName;
@@ -777,8 +788,11 @@ int main(int argc, char *argv[])
                 }
             }
 
+            // fvMesh fields
             IOobjectList objects;
-            IOobjectList faObjects;
+
+            // faMesh fields (multiple finite-area regions per volume region)
+            HashTable<IOobjectList> faObjects;
 
             if (doConvertFields)
             {
@@ -786,32 +800,48 @@ int main(int argc, char *argv[])
                 objects =
                     IOobjectList(meshProxy.baseMesh(), runTime.timeName());
 
-                // List of area mesh objects (assuming single region)
-                faObjects =
-                    IOobjectList
-                    (
-                        runTime,
-                        runTime.timeName(),
-                        faMesh::dbDir(meshProxy.baseMesh(), word::null),
-                        IOobjectOption::NO_REGISTER
-                    );
+                objects.prune_0();  // Remove restart fields
 
                 if (fieldSelector)
                 {
                     objects.filterObjects(fieldSelector);
-                    faObjects.filterObjects(fieldSelector);
                 }
-
-                // Remove "*_0" restart fields
-                objects.prune_0();
-                faObjects.prune_0();
-
                 if (!doPointValues)
                 {
                     // Prune point fields if disabled
                     objects.filterClasses(Foam::fieldTypes::is_point, true);
                 }
+
+
+                // Lists of finite-area fields
+                faObjects.reserve(areaRegionNames.size());
+
+                for (const word& areaName : areaRegionNames)
+                {
+                    // The finite-area objects for given area region.
+
+                    // finite-area : scan without yet having a mesh
+                    IOobjectList objs
+                    (
+                        faMesh::Registry(meshProxy.baseMesh()),
+                        runTime.timeName(),
+                        polyMesh::regionName(areaName),
+                        IOobjectOption::NO_REGISTER
+                    );
+
+                    objs.prune_0();  // Remove restart fields
+                    if (fieldSelector)
+                    {
+                        objs.filterObjects(fieldSelector);
+                    }
+
+                    if (!objs.empty())
+                    {
+                        faObjects.emplace_set(areaName, std::move(objs));
+                    }
+                }
             }
+
 
             if (processorFieldsOnly)
             {

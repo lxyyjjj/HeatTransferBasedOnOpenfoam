@@ -208,7 +208,7 @@ bool Foam::regIOobject::checkIn()
                     << "Failed to register: " << name() << ' '
                     << objectRelPath()
                     << " : the name already exists in the registry" << nl
-                    << "Contents:" << db().sortedToc() << endl
+                    << "Contents:" << flatOutput(db().sortedToc()) << endl
                     << abort(FatalError);
             }
             else

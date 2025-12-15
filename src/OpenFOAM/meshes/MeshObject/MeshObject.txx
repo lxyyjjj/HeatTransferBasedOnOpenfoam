@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2016 OpenFOAM Foundation
-    Copyright (C) 2018-2024 OpenCFD Ltd.
+    Copyright (C) 2018-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -153,14 +153,14 @@ std::unique_ptr<Type> Foam::MeshObject<Mesh, MeshObjectType, Type>::Release
 (
     const word& objName,
     const Mesh& mesh,
-    const bool checkout
+    bool checkout
 )
 {
+    std::unique_ptr<Type> released;
+
     Type* ptr =
         mesh.thisDb().objectRegistry::template
         getObjectPtr<Type>(objName);
-
-    std::unique_ptr<Type> released;
 
     if (ptr)
     {
@@ -206,9 +206,21 @@ bool Foam::MeshObject<Mesh, MeshObjectType, Type>::Store
 {
     bool ok = false;
 
-    if (ptr)
+    if (Type* rawPtr = ptr.get(); rawPtr)
     {
-        auto* casted = static_cast<MeshObjectType<Mesh>*>(ptr.get());
+        // Track if it needs to be re-registered.
+        // After using Release() it is no longer owned by the registry
+        // (and has likely also been removed from the registry), but still
+        // has its 'registered()' flag set.
+        // Track if we need to re-register it (as int for debugging).
+
+        int registerAgain =
+        (
+            (rawPtr->registered() || rawPtr->registerObject())
+          ? 1 : 0
+        );
+
+        auto* casted = static_cast<MeshObjectType<Mesh>*>(rawPtr);
 
         ok = casted->regIOobject::store();
 
@@ -216,12 +228,29 @@ bool Foam::MeshObject<Mesh, MeshObjectType, Type>::Store
         {
             // Took ownership
             (void) ptr.release();
+
+            if (registerAgain)
+            {
+                auto& obr = rawPtr->mesh().thisDb();
+
+                if (obr.template foundObject<Type>(rawPtr->name()))
+                {
+                    // Already in the database
+                    registerAgain = -1;
+                }
+                else
+                {
+                    // Add to the database
+                    obr.checkIn(rawPtr);
+                }
+            }
         }
 
         if (meshObject::debug)
         {
             Pout<< "MeshObject::Store() : store <" << Type::typeName
-                << ">, owned=" << ok << endl;
+                << "> owned=" << ok
+                << " reregister=" << registerAgain << endl;
         }
     }
 

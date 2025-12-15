@@ -30,7 +30,7 @@ Description
     List of finite-area options
 
 SourceFile
-    faOptionList.C
+    faOptionList.cxx
     faOptionList.txx
 
 \*---------------------------------------------------------------------------*/

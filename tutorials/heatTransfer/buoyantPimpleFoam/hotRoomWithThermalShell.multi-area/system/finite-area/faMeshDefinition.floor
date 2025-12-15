@@ -9,22 +9,44 @@ FoamFile
 {
     version     2.0;
     format      ascii;
-    class       areaScalarField;
-    object      h_ceilingShell;
+    class       dictionary;
+    object      faMeshDefinition;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-dimensions      [0 1 0 0 0 0 0];
+polyMeshPatches ( "floor.*" );
 
-internalField   uniform 1e-3;
-
-boundaryField
+boundary
 {
-    "side.*"
+    side1
     {
-        type            zeroGradient;
+        type patch;
+        neighbourPolyPatch  fixedWall1;
+    }
+
+    side2
+    {
+        type patch;
+        neighbourPolyPatch  fixedWall2;
+    }
+
+    side3
+    {
+        type patch;
+        neighbourPolyPatch  fixedWall3;
+    }
+
+    side4
+    {
+        type patch;
+        neighbourPolyPatch  fixedWall4;
     }
 }
 
+// defaultPatch
+// {
+//     type patch;
+//     name side;
+// }
 
-// ************************************************************************* //
+// ************************************************************************** //

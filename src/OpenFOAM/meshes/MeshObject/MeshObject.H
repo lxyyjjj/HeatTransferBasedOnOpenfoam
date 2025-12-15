@@ -199,8 +199,8 @@ public:
         (
             const word& objName,
             const Mesh& mesh,
-            //! optionally perform checkOut() from the registry
-            const bool checkout = false
+            //! Perform checkOut() from the registry
+            bool checkout = true
         );
 
 
@@ -209,8 +209,8 @@ public:
         static std::unique_ptr<Type> Release
         (
             const Mesh& mesh,
-            //! optionally perform checkOut() from the registry
-            const bool checkout = false
+            //! Perform checkOut() from the registry
+            bool checkout = true
         )
         {
             return Release(Type::typeName, mesh, checkout);

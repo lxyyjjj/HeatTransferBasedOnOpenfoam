@@ -104,7 +104,7 @@ Description
 
     // CellData
     {
-        for (vtk::patchWriter& writer : patchWriters)
+        for (auto& writer : patchWriters)
         {
             // Optionally with patchID, procID, neighID fields
             // - use UPstream::parRun() not writer.parallel() !!
@@ -142,7 +142,7 @@ Description
         internalWriter->close();
     }
 
-    for (vtk::patchWriter& writer : patchWriters)
+    for (auto& writer : patchWriters)
     {
         writer.close();
     }

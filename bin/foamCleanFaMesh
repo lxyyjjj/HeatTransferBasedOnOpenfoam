@@ -28,6 +28,7 @@ usage() {
 Usage: ${0##*/} [OPTION]
 options:
   -case <dir>           case directory, default is the cwd
+  -allAreas             all area regions
   -area-region <name>   area-mesh region
   -dry-run | -n         report actions but do not remove
   -help                 print the usage
@@ -41,11 +42,14 @@ USAGE
 
 #------------------------------------------------------------------------------
 # Parse options
-unset caseDir areaRegion optDryRun
+unset caseDir areaRegion optAllAreas optDryRun
 
 while [ "$#" -gt 0 ]
 do
     case "$1" in
+    ('')  ;;                # Ignore empty option
+    (--)  shift; break ;;   # Stop option parsing
+
     -h | -help*)
         usage
         ;;
@@ -59,14 +63,24 @@ do
 
     -case)
         [ "$#" -ge 2 ] || usage "'$1' option requires an argument"
-        cd "$2" 2>/dev/null || usage "directory does not exist:  '$2'"
-        caseDir=$2
+        caseDir="$2"
         shift
+        ;;
+
+    -allAreas)
+        optAllAreas=true
+        unset areaRegion
+        ;;
+
+    -area-region=*)
+        areaRegion="${1#*=}"
+        unset optAllRegions
         ;;
 
     -area-region)
         [ "$#" -ge 2 ] || usage "'$1' option requires an argument"
-        areaRegion=$2
+        areaRegion="$2"
+        unset optAllAreas
         shift
         ;;
 
@@ -76,6 +90,12 @@ do
     esac
     shift
 done
+
+if [ -n "$caseDir" ]
+then
+    cd "$caseDir" 2>/dev/null || usage "directory does not exist: '$caseDir'"
+fi
+
 
 #------------------------------------------------------------------------------
 
@@ -102,12 +122,30 @@ removeFiles()
 
 #------------------------------------------------------------------------------
 
+if [ -n "$optAllAreas" ]
+then
+    # Discover probable regions
+    for meshDir in constant/finite-area/*/faMesh
+    do
+        if [ -d "$meshDir" ]
+        then
+            removeFiles "$meshDir"
+        fi
+    done
+    unset areaRegion
+fi
+
 meshDir="constant/finite-area/${areaRegion}${areaRegion:+/}faMesh"
 
 if [ -d "$meshDir" ]
 then
-    # [OK] has constant/finite-areaRegion/<region>/faMesh
+    # [OK] has constant/finite-area/<region>/faMesh
     :
+
+elif [ -n "$optAllAreas" ]
+then
+    # No constant/finite-area/faMesh, but not an error with -allAreas
+    exit 0
 
 elif [ -n "$caseDir" ]
 then
@@ -122,7 +160,7 @@ else
     if [ -d "$other" ]
     then
         # Probably already within constant/
-        meshDir="$other}"
+        meshDir="$other"
     elif [ "${PWD##*/}" = faMesh ] && [ -z "$areaRegion" ]
     then
         # Apparently already within faMesh/

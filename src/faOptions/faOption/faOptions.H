@@ -50,7 +50,7 @@ Description
     There are no legacy locations when using multiple area regions.
 
 SourceFiles
-    faOptions.C
+    faOptions.cxx
 
 \*---------------------------------------------------------------------------*/
 

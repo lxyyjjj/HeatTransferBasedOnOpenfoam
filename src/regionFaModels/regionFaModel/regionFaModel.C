@@ -27,7 +27,6 @@ License
 
 #include "regionFaModel.H"
 #include "faMesh.H"
-#include "faMeshesRegistry.H"
 #include "Time.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -74,7 +73,7 @@ Foam::IOobject createModelIOobject
     (
         objName,
         mesh.time().constant(),
-        faMeshesRegistry::New(mesh).thisDb(),
+        faMesh::Registry(mesh),
         IOobjectOption::NO_READ,
         IOobjectOption::NO_WRITE,
         IOobjectOption::REGISTER
@@ -141,12 +140,71 @@ Foam::IOobject createPropertiesIOobject
 
 // * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
 
-void Foam::regionModels::regionFaModel::constructMeshObjects()
+void Foam::regionModels::regionFaModel::constructMeshObjects
+(
+    // Just for error reference
+    const dictionary& dict
+)
 {
+    regionMeshPtr_.reset(nullptr);
+
+    #if 1
     regionMeshPtr_.reset
     (
         new faMesh(areaName_, primaryMesh_)
     );
+
+    #else
+
+    // With try/catch and error messages
+
+    // DIY
+    // regionMeshPtr_ = faMesh::TryNew(areaName_, primaryMesh_);
+
+    // More heavy handed, but gives a better chance of locating
+    // the source of the error.
+    {
+        const bool oldThrowingError = FatalError.throwing(true);
+        const bool oldThrowingIOerr = FatalIOError.throwing(true);
+
+        try
+        {
+            regionMeshPtr_.reset
+            (
+                new faMesh(areaName_, primaryMesh_)
+            );
+        }
+        catch (const Foam::error& err)
+        {
+            Warning << err << nl << endl;
+
+            // Trickery to get original message
+            err.write(Warning, false);
+        }
+        catch (const Foam::IOerror& err)
+        {
+            Warning << err << nl << endl;
+
+            // Trickery to get original message
+            err.write(Warning, false);
+        }
+
+        FatalError.throwing(oldThrowingError);
+        FatalIOError.throwing(oldThrowingIOerr);
+    }
+
+    if (!regionMeshPtr_)
+    {
+        FatalError
+            << "Failed to create finite-area mesh [" << areaName_
+            << "] for model: "<< modelName_ << nl
+            << "A common cause is an incorrect or "
+               "missing 'area' entry in the setup" << nl
+            << ">>>>" << nl
+            << dict.relativeName() << dict << "<<<<" << endl
+            << exit(FatalError);
+    }
+    #endif
 }
 
 
@@ -234,7 +292,34 @@ Foam::regionModels::regionFaModel::regionFaModel
     regionName_(dict.get<word>("region")),
     coeffs_(dict.subOrEmptyDict(modelName + "Coeffs"))
 {
-    constructMeshObjects();
+    // Suffix hint for variable names
+    if
+    (
+        coeffs_.readIfPresent("suffixing", suffixHint_)
+     || dict.readIfPresent("suffixing", suffixHint_)
+    )
+    {
+        Switch sw = Switch::find(suffixHint_);
+
+        if (sw.good())
+        {
+            if (!sw)  // No suffix
+            {
+                suffixHint_.clear();
+            }
+        }
+        else if (suffixHint_ == "default")
+        {
+            sw = true;
+        }
+
+        if (sw)  // Default (region) suffix
+        {
+            suffixHint_ = '_' + regionName_;
+        }
+    }
+
+    constructMeshObjects(dict);
     initialise();
 
     if (readFields)
@@ -250,9 +335,14 @@ void Foam::regionModels::regionFaModel::evolve()
 {
     if (active_)
     {
-        Info<< "\nEvolving " << modelName_ << " for region "
-            << regionMesh().name() << " : "
-            << polyMesh::regionName(areaName_) << endl;
+        Info<< "\nEvolving " << modelName_
+            << " for region " << regionMesh().name();
+
+        if (!polyMesh::regionName(areaName_).empty())
+        {
+            Info<< " [" << areaName_ << "]";
+        }
+        Info<< endl;
 
         preEvolveRegion();
 
@@ -265,7 +355,7 @@ void Foam::regionModels::regionFaModel::evolve()
         {
             Info<< incrIndent;
             info();
-            Info<< endl << decrIndent;
+            Info<< decrIndent << endl;
         }
     }
 }
