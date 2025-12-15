@@ -334,7 +334,20 @@ bool Foam::OFstreamCollator::write
             maxLocalSize = Foam::max(maxLocalSize, recvSize);
         }
     }
-    Pstream::broadcasts(localComm_, totalSize, maxLocalSize);
+
+    // Broadcast the information to everyone
+    {
+        int64_t sizes[2] =
+        {
+            static_cast<int64_t>(totalSize),
+            static_cast<int64_t>(maxLocalSize)
+        };
+
+        UPstream::broadcast(sizes, 2, localComm_);
+
+        totalSize = static_cast<off_t>(sizes[0]);
+        maxLocalSize = static_cast<label>(sizes[1]);
+    }
 
 
     // Determine how things will be gathered and written...
@@ -455,8 +468,8 @@ bool Foam::OFstreamCollator::write
             {
                 const label proci = order[i];
 
-                // Ignore empty slots
-                if (recvSizes[proci] > 0)
+                // Ignore empty slots and don't try to receive from self
+                if (recvSizes[proci] > 0 && proci != UPstream::masterNo())
                 {
                     recvProcs.push_back(proci);
                 }
