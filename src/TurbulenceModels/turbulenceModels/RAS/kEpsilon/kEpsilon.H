@@ -49,18 +49,36 @@ Description
             El Tahry, S. H. (1983).
             k-epsilon equation for compressible reciprocating engine flows.
             Journal of Energy, 7(4), 345-353.
+        
+        Two-layer wall treatment to allow operation on low-Re grids:
+            Jongen, T. and Marx, Y.P. (1997) “Design of an Unconditionally 
+            Stable, Positive Scheme for the k−epsilon and Two-Layer Turbulence 
+            Models”, Computers & Fluids, 26(5), 469-487.
     \endverbatim
 
     The default model coefficients are
     \verbatim
         kEpsilonCoeffs
         {
-            Cmu         0.09;
-            C1          1.44;
-            C2          1.92;
-            C3          -0.33;
-            sigmak      1.0;
-            sigmaEps    1.3;
+            Cmu                 0.09;
+            C1                  1.44;
+            C2                  1.92;
+            C3                  -0.33;
+            sigmak              1.0;
+            sigmaEps            1.3;
+            twoLayerTreatment   false;
+            
+            // If two twoLayerTreatment = true,
+
+            // Critical turbulence Reynolds number marking the separation
+            // of inner-layer and outer-layer. Can be adjusted from 50.0
+            // (low-speed flows) to 200.0 (default value).
+            ReyStar          200.0; 
+
+            // Smoothness of transition from inner-layer to outer-layer.
+            // Typically from 0.05 (sharp transition) to 0.2 (smooth transition). 
+            // For unstable cases, prefer larger values.
+            ReyFactor        0.05;
         }
     \endverbatim
 
@@ -112,12 +130,25 @@ protected:
             dimensionedScalar C3_;
             dimensionedScalar sigmak_;
             dimensionedScalar sigmaEps_;
+        
+            // Model coefficients specific to two-layer wall treatment
+            Switch twoLayerTreatment_;
+            dimensionedScalar ClStar_;
+            dimensionedScalar Amu_;
+            dimensionedScalar Aeps_;
+            dimensionedScalar ReyStar_;
+            dimensionedScalar ReyFactor_;
 
         // Fields
 
             volScalarField k_;
             volScalarField epsilon_;
 
+            // Fields specific to two-layer wall treatment
+            volScalarField Rey_;
+            volScalarField lEps_;
+            volScalarField lambdaEps_;
+            const volScalarField& y_;
 
     // Protected Member Functions
 
