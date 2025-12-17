@@ -33,7 +33,6 @@ License
 namespace Foam
 {
     const char* const pTraits<pointConstraint>::typeName = "pointConstraint";
-
     defineCompoundTypeName(List<pointConstraint>, pointConstraintList);
     addCompoundToRunTimeSelectionTable
     (
