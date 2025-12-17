@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2024 OpenCFD Ltd.
+    Copyright (C) 2024-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -81,6 +81,7 @@ Usage
       type         | Type name: cellDecomposer          | word |  yes  | -
       libs         | Library name: fieldFunctionObjects | word |  yes  | -
       fields       | Names of operand fields            | wordRes |  yes  | -
+      cacheDecomposition | Cache the generated mesh    | bool |  no   | false
       mapRegion    | Name of region to map to           | word |  yes  | -
       decomposeType | How to decompose cells            | word |  yes  | -
       selectionMode | How to select cells (see fvOption)| word |  yes  | -
@@ -103,6 +104,15 @@ Usage
     - polyhedral : like faceDiagonalQuads but only decompose non-hex/prism/tet
                    cells in selected set. Used to convert polyhedral mesh into
                    'simple' mesh.
+
+    Note: cacheDecomposition will
+    - keep the mesh and maps
+    - not update the points on the mesh
+    It will not be correct if the selectionMode varies over time or if the
+    geometry of the mapping is used (e.g. old face areas/volumes).
+
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
 
 See also
     - Foam::functionObjects::mapFields
@@ -148,6 +158,9 @@ class cellDecomposer
 
         //- List of field names to interpolate
         wordRes fieldNames_;
+
+        //- Whether to cache the decomposition
+        bool cacheDecomposition_;
 
         //- Tet decomposer
         autoPtr<tetDecomposer> tetDecompPtr_;
