@@ -14,6 +14,14 @@ FoamFile
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+
+// Still needed for cyclicPeriodic
+OptimisationSwitches
+{
+    localAMIComm 0;
+}
+
+
 application pimpleFoam;
 
 startFrom       startTime;
