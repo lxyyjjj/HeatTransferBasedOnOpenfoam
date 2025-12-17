@@ -45,22 +45,30 @@ void kEpsilon<BasicTurbulenceModel>::correctNut()
 {
     this->nut_ = Cmu_*sqr(k_)/epsilon_;
 
-    if(twoLayerTreatment_)
+    if (twoLayerTreatment_)
     {
+        const volScalarField& y = wallDist::New(this->mesh_).y();
+
         // Using the TKE of previous time-step to freeze the turbulent Reynolds
         // number during the current time-step and hence freeze the separation
         // of inner and outer layer.
-        Rey_ = mag(y_*sqrt(k_.oldTime())/this->nu());
+        const volScalarField Rey(mag(y*sqrt(k_.oldTime())/this->nu()));
 
-        volScalarField l_mu(y_*ClStar_*(1.0 - exp(-1.0*Rey_/Amu_)));
+        const dimensionedScalar ClStar(0.41*pow(Cmu_, -0.75));
+        auto& lEps = *lEpsPtr_;
+        lEps = y*ClStar*(1.0 - exp(-1.0*Rey/(2*ClStar)));
 
-        lEps_ = y_*ClStar_*(1.0 - exp(-1.0*Rey_/Aeps_));
+        const dimensionedScalar A(ReyFactor_*ReyStar_/atanh(0.98));
+        auto& lambdaEps = *lambdaEpsPtr_;
+        lambdaEps = 0.5*(1.0 + tanh((Rey - ReyStar_)/A));
 
-        dimensionedScalar A = ReyFactor_*ReyStar_/atanh(0.98);
-        lambdaEps_ = 0.5*(1.0 + tanh((Rey_ - ReyStar_)/A)); 
+        // High-Re part
+        this->nut_ *= lambdaEps;
 
-        this->nut_ *= lambdaEps_;   // high-Re part
-        this->nut_ += (1.0-lambdaEps_)*Cmu_*l_mu*sqrt(k_);  // low-Re part
+        // Low-Re part
+        const scalar Amu = 70.0;
+        const volScalarField lMu(y*ClStar*(1.0 - exp(-1.0*Rey/Amu)));
+        this->nut_ += (1.0-lambdaEps)*Cmu_*lMu*sqrt(k_);
     }
 
     this->nut_.correctBoundaryConditions();
@@ -73,6 +81,25 @@ void kEpsilon<BasicTurbulenceModel>::correctNut()
 template<class BasicTurbulenceModel>
 tmp<fvScalarMatrix> kEpsilon<BasicTurbulenceModel>::kSource() const
 {
+    // Source term for k equation (added to RHS)
+
+    if (twoLayerTreatment_)
+    {
+        // Local references
+        const alphaField& alpha = this->alpha_;
+        const rhoField& rho = this->rho_;
+        const volScalarField::Internal& lEps = *lEpsPtr_;
+        const volScalarField& lambdaEps = *lambdaEpsPtr_;
+
+        return
+           -fvm::Sp
+            (
+                alpha()*rho()*(1.0-lambdaEps())
+               *(sqrt(k_())/lEps - epsilon_()/k_()),
+                k_
+            );
+    }
+
     return tmp<fvScalarMatrix>::New
     (
         k_,
@@ -173,36 +200,6 @@ kEpsilon<BasicTurbulenceModel>::kEpsilon
             1.3
         )
     ),
-    twoLayerTreatment_
-    (
-        Switch::getOrAddToDict
-        (
-            "twoLayerTreatment",
-            this->coeffDict_,
-            false
-        )
-    ),        
-    ClStar_(0.41*pow(0.09, -0.75)),
-    Amu_(70.0),
-    Aeps_(2*ClStar_),
-    ReyStar_
-    (
-        dimensioned<scalar>::getOrAddToDict
-        (
-            "ReyStar",
-            this->coeffDict_,
-            200.0
-        )
-    ),
-    ReyFactor_
-    (
-        dimensioned<scalar>::getOrAddToDict
-        (
-            "ReyFactor",
-            this->coeffDict_,
-            0.05
-        )
-    ),
     k_
     (
         IOobject
@@ -227,63 +224,67 @@ kEpsilon<BasicTurbulenceModel>::kEpsilon
         ),
         this->mesh_
     ),
-    Rey_
+    twoLayerTreatment_
     (
-        IOobject
+        Switch::getOrAddToDict
         (
-            "Rey",
-            this->runTime_.name(),
-            this->mesh_,
-            IOobject::NO_READ,
-            IOobject::AUTO_WRITE
-        ),
-        this->mesh_,
-        dimensionedScalar
+            "twoLayerTreatment",
+            this->coeffDict_,
+            false
+        )
+    ),
+    ReyStar_
+    (
+        dimensioned<scalar>::getOrAddToDict
         (
-            "Rey",
-            dimless,
+            "ReyStar",
+            this->coeffDict_,
             200.0
         )
     ),
-    lEps_
+    ReyFactor_
     (
-        IOobject
+        dimensioned<scalar>::getOrAddToDict
         (
-            "lEps",
-            this->runTime_.name(),
-            this->mesh_,
-            IOobject::NO_READ,
-            IOobject::NO_WRITE
-        ),
-        this->mesh_,
-        dimensionedScalar
-        (
-            "lEps",
-            dimLength,
-            0.0
+            "ReyFactor",
+            this->coeffDict_,
+            0.05
         )
-    ),
-    lambdaEps_
-    (
-        IOobject
-        (
-            "lambdaEps",
-            this->runTime_.name(),
-            this->mesh_,
-            IOobject::NO_READ,
-            IOobject::AUTO_WRITE
-        ),
-        this->mesh_,
-        dimensionedScalar
-        (
-            "lambdaEps",
-            dimless,
-            1.0
-        )
-    ),
-    y_(wallDist::New(this->mesh_).y())
-
+    )
 {
+    if (twoLayerTreatment_)
+    {
+        Info<< "Two-layer wall treatment activated" << endl;
+
+        lEpsPtr_ = std::make_unique<volScalarField::Internal>
+        (
+            IOobject
+            (
+                "lEps",
+                this->runTime_.name(),
+                this->mesh_,
+                IOobject::READ_IF_PRESENT,
+                IOobject::AUTO_WRITE
+            ),
+            this->mesh_,
+            dimensionedScalar(dimLength, Zero)
+        );
+
+        lambdaEpsPtr_ = std::make_unique<volScalarField>
+        (
+            IOobject
+            (
+                "lambdaEps",
+                this->runTime_.name(),
+                this->mesh_,
+                IOobject::READ_IF_PRESENT,
+                IOobject::AUTO_WRITE
+            ),
+            this->mesh_,
+            dimensionedScalar("lambdaEps", dimless, 1.0)
+        );
+    }
+
     bound(k_, this->kMin_);
     bound(epsilon_, this->epsilonMin_);
 
@@ -307,6 +308,11 @@ bool kEpsilon<BasicTurbulenceModel>::read()
         C3_.readIfPresent(this->coeffDict());
         sigmak_.readIfPresent(this->coeffDict());
         sigmaEps_.readIfPresent(this->coeffDict());
+
+        // Two-layer wall treatment
+        // Note: these are the only parameters that can be changed at runtime
+        ReyStar_.readIfPresent(this->coeffDict());
+        ReyFactor_.readIfPresent(this->coeffDict());
 
         return true;
     }
@@ -383,15 +389,7 @@ void kEpsilon<BasicTurbulenceModel>::correct()
      ==
         alpha()*rho()*G
       - fvm::SuSp((2.0/3.0)*alpha()*rho()*divU, k_)
-      - (
-            twoLayerTreatment_ ?
-            (
-                fvm::Sp(alpha()*rho()*lambdaEps_()*epsilon_()/k_(), k_) + 
-                fvm::Sp(alpha()*rho()*
-                    (1.0-lambdaEps_())*sqrt(k_())/lEps_(), k_)
-            )
-          : fvm::Sp(alpha()*rho()*epsilon_()/k_(), k_)
-        )
+      - fvm::Sp(alpha()*rho()*epsilon_()/k_(), k_)
       + kSource()
       + fvOptions(alpha, rho, k_)
     );
