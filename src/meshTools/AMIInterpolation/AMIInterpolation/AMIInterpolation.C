@@ -61,11 +61,26 @@ registerOptSwitch
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
+void Foam::AMIInterpolation::addToCache(const point& refPt)
+{
+    DebugInfo<< "-- addToCache" << endl;
+
+    cache_.addToCache(*this, refPt);
+}
+
+
+bool Foam::AMIInterpolation::restoreCache(const point& refPt)
+{
+    DebugInfo<< "-- restoreCache" << endl;
+
+    upToDate_ = cache_.restoreCache(refPt);
+
+    return upToDate_;
+}
+
+
 Foam::autoPtr<Foam::indexedOctree<Foam::AMIInterpolation::treeType>>
-Foam::AMIInterpolation::createTree
-(
-    const primitivePatch& patch
-) const
+Foam::AMIInterpolation::createTree(const primitivePatch &patch) const
 {
     treeBoundBox bb(patch.points(), patch.meshPoints());
     bb.inflate(0.01);
@@ -700,7 +715,8 @@ Foam::AMIInterpolation::AMIInterpolation
     tgtWeightsSum_(),
     tgtCentroids_(),
     tgtMapPtr_(nullptr),
-    upToDate_(false)
+    upToDate_(false),
+    cache_(dict)
 {}
 
 
@@ -730,7 +746,8 @@ Foam::AMIInterpolation::AMIInterpolation
     tgtCentroids_(),
     tgtPatchPts_(),
     tgtMapPtr_(nullptr),
-    upToDate_(false)
+    upToDate_(false),
+    cache_()
 {}
 
 
@@ -743,7 +760,7 @@ Foam::AMIInterpolation::AMIInterpolation
 :
     requireMatch_(fineAMI.requireMatch_),
     reverseTarget_(fineAMI.reverseTarget_),
-    lowWeightCorrection_(-1.0),
+    lowWeightCorrection_(-1.0), // Deactivated?
     singlePatchProc_(fineAMI.singlePatchProc_),
     comm_(fineAMI.comm()),  // use fineAMI geomComm if present, comm otherwise
     geomComm_(),
@@ -759,16 +776,23 @@ Foam::AMIInterpolation::AMIInterpolation
     tgtWeightsSum_(),
     tgtPatchPts_(),
     tgtMapPtr_(nullptr),
-    upToDate_(false)
+    upToDate_(false),
+    cache_
+    (
+        fineAMI.cache(),
+        fineAMI,
+        sourceRestrictAddressing,
+        targetRestrictAddressing
+    )
 {
-    label sourceCoarseSize =
+    const label sourceCoarseSize =
     (
         sourceRestrictAddressing.size()
       ? max(sourceRestrictAddressing)+1
       : 0
     );
 
-    label neighbourCoarseSize =
+    const label neighbourCoarseSize =
     (
         targetRestrictAddressing.size()
       ? max(targetRestrictAddressing)+1
@@ -895,14 +919,15 @@ Foam::AMIInterpolation::AMIInterpolation(const AMIInterpolation& ami)
     srcWeights_(ami.srcWeights_),
     srcWeightsSum_(ami.srcWeightsSum_),
     srcCentroids_(ami.srcCentroids_),
-    srcMapPtr_(nullptr),
+    srcMapPtr_(ami.srcMapPtr_.clone()),
     tgtMagSf_(ami.tgtMagSf_),
     tgtAddress_(ami.tgtAddress_),
     tgtWeights_(ami.tgtWeights_),
     tgtWeightsSum_(ami.tgtWeightsSum_),
     tgtCentroids_(ami.tgtCentroids_),
-    tgtMapPtr_(nullptr),
-    upToDate_(false)
+    tgtMapPtr_(ami.tgtMapPtr_.clone()),
+    upToDate_(ami.upToDate_),
+    cache_(ami.cache_)
 {}
 
 
@@ -930,7 +955,9 @@ Foam::AMIInterpolation::AMIInterpolation(Istream& is)
     //tgtPatchPts_(is),
     tgtMapPtr_(nullptr),
 
-    upToDate_(readBool(is))
+    upToDate_(readBool(is)),
+
+    cache_(is)
 {
     // Hopefully no need to stream geomComm_ since only used in processor
     // agglomeration?
@@ -1112,7 +1139,10 @@ void Foam::AMIInterpolation::append
     addProfiling(ami, "AMIInterpolation::append");
 
     // Create a new interpolation
+    // Note: set upToDate to false to force the cloned AMI to recalculate
     auto newPtr = clone();
+    newPtr->upToDate(false);
+
     newPtr->calculate(srcPatch, tgtPatch);
 
     // If parallel then combine the mapDistribution and re-index
@@ -1361,7 +1391,6 @@ const
         }
         else if (ray.distance() < nearest.distance())
         {
-
             nearest = ray;
             nearestFacei = srcFacei;
         }
@@ -1539,6 +1568,8 @@ void Foam::AMIInterpolation::write(Ostream& os) const
     {
         os.writeEntry("lowWeightCorrection", lowWeightCorrection_);
     }
+
+    cache_.write(os);
 }
 
 
@@ -1563,6 +1594,8 @@ bool Foam::AMIInterpolation::writeData(Ostream& os) const
         << token::SPACE<< tgtCentroids_
 
         << token::SPACE<< upToDate();
+
+    cache_.writeData(os);
 
     if (distributed() && comm() != -1)
     {

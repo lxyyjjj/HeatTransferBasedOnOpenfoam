@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2017 OpenFOAM Foundation
-    Copyright (C) 2015-2023 OpenCFD Ltd.
+    Copyright (C) 2015-2025 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -83,18 +83,19 @@ void Foam::AMIInterpolation::weightedSum
 template<class Type>
 void Foam::AMIInterpolation::weightedSum
 (
-    const bool interpolateToSource,
+    const bool toSource,
     const UList<Type>& fld,
     List<Type>& result,
     const UList<Type>& defaultValues
 ) const
 {
+    // Note: using non-caching AMI
     weightedSum
     (
         lowWeightCorrection_,
-        (interpolateToSource ? srcAddress_ : tgtAddress_),
-        (interpolateToSource ? srcWeights_ : tgtWeights_),
-        (interpolateToSource ? srcWeightsSum_ : tgtWeightsSum_),
+        (toSource ? srcAddress_ : tgtAddress_),
+        (toSource ? srcWeights_ : tgtWeights_),
+        (toSource ? srcWeightsSum_ : tgtWeightsSum_),
         fld,
         multiplyWeightedOp<Type, plusEqOp<Type>>(plusEqOp<Type>()),
         result,
@@ -103,6 +104,231 @@ void Foam::AMIInterpolation::weightedSum
 }
 
 
+template<class Type, class CombineOp, class InterpolateOp>
+void Foam::AMIInterpolation::interpolate
+(
+    const bool toSource,
+    const UList<Type>& fld,
+    const CombineOp& cop,
+    const InterpolateOp& iop,
+    List<Type>& result,
+    const UList<Type>& defaultValues
+) const
+{
+    // Note
+    // - behaves as old AMIInterpolation::interpolateToSource if toSource=true
+    // - `result` should be preallocated to correct size and initialized to
+    //   an appropriate value (e.g. Zero)
+
+    // Get data locally and do a weighted sum
+
+    addProfiling(ami, "AMIInterpolation::interpolate");
+
+    cache_.setDirection(toSource);
+
+    auto checkSizes = [&](
+        const UList<Type>& fld,
+        const labelListList& srcAddr,
+        const labelListList& tgtAddr,
+        const UList<Type>& defVals,
+        const List<Type>& result
+    )
+    {
+        if (fld.size() != tgtAddr.size())
+        {
+            FatalErrorInFunction
+                << "Supplied field size is not equal to "
+                << (toSource ? "target" : "source") << " patch size" << nl
+                << "    source patch   = " << srcAddr.size() << nl
+                << "    target patch   = " << tgtAddr.size() << nl
+                << "    supplied field = " << fld.size()
+                << abort(FatalError);
+        }
+
+        if (result.size() != srcAddr.size())
+        {
+            FatalErrorInFunction
+                << "Result field size is not equal to "
+                << (toSource ? "target" : "source") << " patch size" << nl
+                << "    source patch   = " << srcAddr.size() << nl
+                << "    target patch   = " << tgtAddr.size() << nl
+                << "    result field   = " << result.size()
+                << abort(FatalError);
+        }
+
+        if ((lowWeightCorrection_ > 0) && (defVals.size() != srcAddr.size()))
+        {
+            FatalErrorInFunction
+                << "Employing default values when sum of weights falls below "
+                << lowWeightCorrection_
+                << " but number of default values is not equal to "
+                << (toSource ? "source" : "target") << " patch size" << nl
+                << "    default values = " << defVals.size() << nl
+                << "    source patch   = " << srcAddr.size() << nl
+                << abort(FatalError);
+        }
+    };
+
+    // Work space for if distributed
+    List<Type> work;
+
+    List<Type> result0;
+    if (cache_.index0() != -1)
+    {
+        result0 = result;
+
+        const auto& srcAddress = cache_.cSrcAddress0();
+        const auto& srcWeights = cache_.cSrcWeights0();
+        const auto& srcWeightsSum = cache_.cSrcWeightsSum0();
+        const auto& tgtAddress = cache_.cTgtAddress0();
+
+        checkSizes(fld, srcAddress, tgtAddress, defaultValues, result0);
+
+        if (distributed() && cache_.cTgtMapPtr0())
+        {
+            const mapDistribute& map = cache_.cTgtMapPtr0()();
+
+            if (map.comm() == -1)
+            {
+                return;
+            }
+
+            work.resize_nocopy(map.constructSize());
+            SubList<Type>(work, fld.size()) = fld;  // deep copy
+            map.distribute(work);
+        }
+
+        // if constexpr (is_contiguous_scalar<Type>::value)
+        // {
+        //     result0 = Zero;
+        // }
+
+        weightedSum
+        (
+            lowWeightCorrection_,
+            srcAddress,
+            srcWeights,
+            srcWeightsSum,
+            (distributed() ? work : fld),
+            cop,
+            result0,
+            defaultValues
+        );
+    }
+
+    List<Type> result1;
+    if (cache_.index1() != -1)
+    {
+        result1 = result;
+
+        const auto& srcAddress = cache_.cSrcAddress1();
+        const auto& srcWeights = cache_.cSrcWeights1();
+        const auto& srcWeightsSum = cache_.cSrcWeightsSum1();
+        const auto& tgtAddress = cache_.cTgtAddress1();
+
+        checkSizes(fld, srcAddress, tgtAddress, defaultValues, result1);
+
+        if (distributed() && cache_.cTgtMapPtr1())
+        {
+            const mapDistribute& map = cache_.cTgtMapPtr1()();
+
+            if (map.comm() == -1)
+            {
+                return;
+            }
+
+            work.resize_nocopy(map.constructSize());
+            SubList<Type>(work, fld.size()) = fld;  // deep copy
+            map.distribute(work);
+        }
+
+        // if constexpr (is_contiguous_scalar<Type>::value)
+        // {
+        //     result1 = Zero;
+        // }
+
+        weightedSum
+        (
+            lowWeightCorrection_,
+            srcAddress,
+            srcWeights,
+            srcWeightsSum,
+            (distributed() ? work : fld),
+            cop,
+            result1,
+            defaultValues
+        );
+    }
+
+    if (cache_.applyLower())
+    {
+        result = result0;
+    }
+    else if (cache_.applyUpper())
+    {
+        result = result1;
+    }
+    else if (cache_.applyInterpolate())
+    {
+        forAll(result, i)
+        {
+            iop(result[i], i, i, result0[i], i, result1[i], cache_.weight());
+        }
+    }
+    else
+    {
+        // No cache - evaluate the AMI
+
+        const auto& srcAddress = (toSource ? srcAddress_ : tgtAddress_);
+        const auto& srcWeights = (toSource ? srcWeights_ : tgtWeights_);
+        const auto& srcWeightsSum =
+            (toSource ? srcWeightsSum_ : tgtWeightsSum_);
+        const auto& tgtAddress = (toSource ? tgtAddress_ : srcAddress_);
+
+        checkSizes(fld, srcAddress, tgtAddress, defaultValues, result);
+
+        if (distributed() && tgtMapPtr_)
+        {
+            const mapDistribute& map =
+            (
+                toSource
+              ? tgtMapPtr_()
+              : srcMapPtr_()
+            );
+
+            if (map.comm() == -1)
+            {
+                return;
+            }
+
+            work.resize_nocopy(map.constructSize());
+            SubList<Type>(work, fld.size()) = fld;  // deep copy
+            map.distribute(work);
+        }
+
+        // result.resize_nocopy(srcAddress.size());
+
+        // if constexpr (is_contiguous_scalar<Type>::value)
+        // {
+        //     result = Zero;
+        // }
+
+        weightedSum
+        (
+            lowWeightCorrection_,
+            srcAddress,
+            srcWeights,
+            srcWeightsSum,
+            (distributed() ? work : fld),
+            cop,
+            result,
+            defaultValues
+        );
+    }
+}
+
+
+// Leave API intact below!
 template<class Type, class CombineOp>
 void Foam::AMIInterpolation::interpolateToTarget
 (
@@ -112,58 +338,31 @@ void Foam::AMIInterpolation::interpolateToTarget
     const UList<Type>& defaultValues
 ) const
 {
+    // In-place interpolation
+
     addProfiling(ami, "AMIInterpolation::interpolateToTarget");
 
-    if (fld.size() != srcAddress_.size())
-    {
-        FatalErrorInFunction
-            << "Supplied field size is not equal to source patch size" << nl
-            << "    source patch   = " << srcAddress_.size() << nl
-            << "    target patch   = " << tgtAddress_.size() << nl
-            << "    supplied field = " << fld.size()
-            << abort(FatalError);
-    }
-    else if
+    // Wrap lerp operator to operate inplace
+    auto iop = [&]
     (
-        (lowWeightCorrection_ > 0)
-     && (defaultValues.size() != tgtAddress_.size())
+        Type& res,
+        const label i,
+        const label ia,
+        const Type& a,
+        const label ib,
+        const Type& b,
+        const scalar w
     )
     {
-        FatalErrorInFunction
-            << "Employing default values when sum of weights falls below "
-            << lowWeightCorrection_
-            << " but supplied default field size is not equal to target "
-            << "patch size" << nl
-            << "    default values = " << defaultValues.size() << nl
-            << "    target patch   = " << tgtAddress_.size() << nl
-            << abort(FatalError);
-    }
+        res = lerp(a, b, w);
+    };
 
-    result.setSize(tgtAddress_.size());
-    List<Type> work;
-
-    if (distributed() && srcMapPtr_)
-    {
-        const mapDistribute& map = srcMapPtr_();
-
-        if (map.comm() == -1)
-        {
-            return;
-        }
-
-        work.resize_nocopy(map.constructSize());
-        SubList<Type>(work, fld.size()) = fld;  // deep copy
-        map.distribute(work);
-    }
-
-    weightedSum
+    interpolate
     (
-        lowWeightCorrection_,
-        tgtAddress_,
-        tgtWeights_,
-        tgtWeightsSum_,
-        (distributed() ? work : fld),
+        false,                  // interpolate to target
+        fld,
         cop,
+        iop,
         result,
         defaultValues
     );
@@ -179,58 +378,32 @@ void Foam::AMIInterpolation::interpolateToSource
     const UList<Type>& defaultValues
 ) const
 {
+    // In-place interpolation
+
     addProfiling(ami, "AMIInterpolation::interpolateToSource");
 
-    if (fld.size() != tgtAddress_.size())
-    {
-        FatalErrorInFunction
-            << "Supplied field size is not equal to target patch size" << nl
-            << "    source patch   = " << srcAddress_.size() << nl
-            << "    target patch   = " << tgtAddress_.size() << nl
-            << "    supplied field = " << fld.size()
-            << abort(FatalError);
-    }
-    else if
+    // Wrap lerp operator to operate inplace
+    auto iop = [&]
     (
-        (lowWeightCorrection_ > 0)
-     && (defaultValues.size() != srcAddress_.size())
+        Type& res,
+        const label i,
+        const label ia,
+        const Type& a,
+        const label ib,
+        const Type& b,
+        const scalar w
     )
     {
-        FatalErrorInFunction
-            << "Employing default values when sum of weights falls below "
-            << lowWeightCorrection_
-            << " but number of default values is not equal to source "
-            << "patch size" << nl
-            << "    default values = " << defaultValues.size() << nl
-            << "    source patch   = " << srcAddress_.size() << nl
-            << abort(FatalError);
-    }
+        res = lerp(a, b, w);
+    };
 
-    result.setSize(srcAddress_.size());
-    List<Type> work;
 
-    if (distributed() && tgtMapPtr_)
-    {
-        const mapDistribute& map = tgtMapPtr_();
-
-        if (map.comm() == -1)
-        {
-            return;
-        }
-
-        work.resize_nocopy(map.constructSize());
-        SubList<Type>(work, fld.size()) = fld;  // deep copy
-        map.distribute(work);
-    }
-
-    weightedSum
+    interpolate
     (
-        lowWeightCorrection_,
-        srcAddress_,
-        srcWeights_,
-        srcWeightsSum_,
-        (distributed() ? work : fld),
+        true,                   // toSource,
+        fld,
         cop,
+        iop,
         result,
         defaultValues
     );

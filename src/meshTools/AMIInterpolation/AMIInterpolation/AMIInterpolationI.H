@@ -123,6 +123,12 @@ inline Foam::label Foam::AMIInterpolation::comm(label communicator) noexcept
 }
 
 
+inline bool Foam::AMIInterpolation::cacheActive() const
+{
+    return cache_.active();
+}
+
+
 inline const Foam::List<Foam::scalar>& Foam::AMIInterpolation::srcMagSf() const
 {
     return srcMagSf_;
