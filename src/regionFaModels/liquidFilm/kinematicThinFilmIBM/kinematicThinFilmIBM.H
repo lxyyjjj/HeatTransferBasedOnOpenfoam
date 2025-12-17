@@ -24,17 +24,17 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::regionModels::areaSurfaceFilmModels::kinematicThinFilm
+    Foam::regionModels::areaSurfaceFilmModels::kinematicThinFilmIBM
 
 Description
-    Thin film model.
+    Thin film model with support for immersed boundary method (IBM)
 
 Usage
     Example of the boundary condition specification:
     \verbatim
     {
         // Mandatory entries
-        liquidFilmModel         kinematicThinFilm;
+        liquidFilmModel         kinematicThinFilmIBM;
 
         // Inherited entries
         ...
@@ -43,23 +43,23 @@ Usage
 
     where the entries mean:
     \table
-      Property   | Description                        | Type  | Reqd | Deflt
-      liquidFilmModel  | Type name: kinematicThinFilm | dict  | yes  | -
+      Property   | Description                           | Type  | Reqd | Deflt
+      liquidFilmModel  | Type name: kinematicThinFilmIBM | dict  | yes  | -
     \endtable
 
     The inherited entries are elaborated in:
       - \link liquidFilmModel.H \endlink
 
 SourceFiles
-    kinematicThinFilm.C
+    kinematicThinFilmIBM.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef areaSurfaceFilmModels_kinematicThinFilm_H
-#define areaSurfaceFilmModels_kinematicThinFilm_H
+#ifndef areaSurfaceFilmModels_kinematicThinFilmIBM_H
+#define areaSurfaceFilmModels_kinematicThinFilmIBM_H
 
-#include "volFieldsFwd.H"
-#include "liquidFilmModel.H"
+#include "kinematicThinFilm.H"
+#include "regionFaIBMList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -71,31 +71,31 @@ namespace areaSurfaceFilmModels
 {
 
 /*---------------------------------------------------------------------------*\
-                      Class kinematicThinFilm Declaration
+                    Class kinematicThinFilmIBM Declaration
 \*---------------------------------------------------------------------------*/
 
-class kinematicThinFilm
+class kinematicThinFilmIBM
 :
-    public liquidFilmModel
+    public kinematicThinFilm
 {
 protected:
 
-    // Protected Member Functions
+    // Protected Data
 
-        //- Construct a momentum equation
-        tmp<faVectorMatrix> UEqn(areaVectorField& U);
+        //- Immersed boundaries
+        regionFaIBMList immersedBoundary_;
 
 
 public:
 
     //- Runtime type information
-    TypeName("kinematicThinFilm");
+    TypeName("kinematicThinFilmIBM");
 
 
     // Constructors
 
         //- Construct from components and dict
-        kinematicThinFilm
+        kinematicThinFilmIBM
         (
             const word& modelType,
             const fvMesh& mesh,
@@ -103,14 +103,14 @@ public:
         );
 
         //- No copy construct
-        kinematicThinFilm(const kinematicThinFilm&) = delete;
+        kinematicThinFilmIBM(const kinematicThinFilmIBM&) = delete;
 
         //- No copy assignment
-        void operator=(const kinematicThinFilm&) = delete;
+        void operator=(const kinematicThinFilmIBM&) = delete;
 
 
     //- Destructor
-    virtual ~kinematicThinFilm() = default;
+    virtual ~kinematicThinFilmIBM() = default;
 
 
     // Member Functions
@@ -122,9 +122,6 @@ public:
 
             //- Evolve the film
             virtual void evolveRegion();
-
-            //- Post-evolve film
-            virtual void postEvolveRegion();
 };
 
 
