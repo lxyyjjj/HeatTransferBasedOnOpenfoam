@@ -143,7 +143,12 @@ search_hdf5()
             "$prefix/include/$mpiName/$incName" \
             "$prefix/include/${mpiName}-$(uname -m)/$incName" \
         )
-        # library search : delay
+        # Search for library at same level as include
+        if [ -n "$header" ]
+        then
+            library="${header%/include/*}"
+            library=$(findLibrary -prefix="$library" -name="$libName")
+        fi
     elif isSystem "$prefix"
     then
         # Always prefer MPI-specific files

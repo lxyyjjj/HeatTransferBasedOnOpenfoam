@@ -101,6 +101,7 @@ Components versions (ThirdParty)
   -cgal VER           specify 'cgal_version'
   -cmake VER          specify 'cmake_version'
   -fftw VER           specify 'fffw_version'
+  -hdf5 VER           specify 'hdf5_version'
   -kahip VER          specify 'KAHIP_VERSION'
   -metis VER          specify 'METIS_VERSION'
   -petsc VER          specify 'petsc_version'
@@ -117,6 +118,7 @@ Components specified by absolute path
   -cgal-path DIR      Path for 'CGAL_ARCH_PATH'   (overrides -cgal)
   -cmake-path DIR     Path for 'CMAKE_ARCH_PATH'  (overrides -cmake)
   -fftw-path DIR      Path for 'FFTW_ARCH_PATH'   (overrides -fftw)
+  -hdf5-path DIR      Path for 'HDF5_ARCH_PATH'   (overrides -hdf5)
   -kahip-path DIR     Path for 'KAHIP_ARCH_PATH'  (overrides -kahip)
   -metis-path DIR     Path for 'METIS_ARCH_PATH'  (overrides -metis)
   -petsc-path DIR     Path for 'PETSC_ARCH_PATH'  (overrides -petsc)
@@ -128,8 +130,8 @@ Components specified by absolute path
 
 Components specified by homebrew (treat like system locations)
 Sets version as system, path from brew --prefix
-  -adios-brew, -adios2-brew, -boost-brew, -cgal-brew,
-  -fftw-brew, -kahip-brew, -metis-brew, -readline-brew -scotch-brew
+  -adios-brew, -adios2-brew, -boost-brew, -cgal-brew, -fftw-brew,
+  -hdf5-brew, -kahip-brew, -metis-brew, -readline-brew -scotch-brew
 
   -with-homebrew      Shortcut for selecting all the above
 
@@ -499,6 +501,7 @@ then
         -boost-brew \
         -cgal-brew \
         -fftw-brew \
+        -hdf5-brew \
         -kahip-brew \
         -metis-brew \
         -readline-brew \
@@ -986,6 +989,32 @@ CONFIG_CSH
         ;;
 
 
+    -cmake)
+        # Replace cmake_version=...
+        getOptionValue "$@"; shift "${nOptArgs:-0}"
+
+        if [ -n "$optValue" ]
+        then
+            replaceEtc  config.sh/cmake   cmake_version "$optValue"
+            adjusted=true
+        else
+            : "${adjusted:=empty}"
+        fi
+        ;;
+
+    -cmake-path)
+        # Replace CMAKE_ARCH_PATH=...
+        getOptionValue "$@"; shift "${nOptArgs:-0}"
+
+        if [ -n "$optValue" ]
+        then
+            replaceEtc  config.sh/cmake   CMAKE_ARCH_PATH "$optValue"
+            adjusted=true
+        else
+            : "${adjusted:=empty}"
+        fi
+        ;;
+
     -fftw)
         # Replace fftw_version=...
         getOptionValue "$@"; shift "${nOptArgs:-0}"
@@ -1034,30 +1063,52 @@ CONFIG_CSH
         adjusted=true
         ;;
 
-    -cmake)
-        # Replace cmake_version=...
+    -hdf5)
+        # Replace hdf5_version=...
         getOptionValue "$@"; shift "${nOptArgs:-0}"
 
+        # config.sh/hdf5
+        cfgName=hdf5; _foamEtc -q config.sh/"$cfgName"
         if [ -n "$optValue" ]
         then
-            replaceEtc  config.sh/cmake   cmake_version "$optValue"
+            replaceEtc  config.sh/"$cfgName"   hdf5_version "$optValue"
+            ##replaceEtc  config.csh/"$cfgName"  hdf5_version "$optValue"
             adjusted=true
         else
             : "${adjusted:=empty}"
         fi
         ;;
 
-    -cmake-path)
-        # Replace CMAKE_ARCH_PATH=...
+    -hdf5-path)
+        # Replace HDF5_ARCH_PATH=...
         getOptionValue "$@"; shift "${nOptArgs:-0}"
 
+        # config.sh/hdf5
+        cfgName=hdf5; _foamEtc -q config.sh/"$cfgName"
         if [ -n "$optValue" ]
         then
-            replaceEtc  config.sh/cmake   CMAKE_ARCH_PATH "$optValue"
+            replaceEtc     config.sh/"$cfgName"  HDF5_ARCH_PATH "\"$optValue\""
+            ##replaceEtcCsh  config.csh/"$cfgName" HDF5_ARCH_PATH "\"$optValue\""
             adjusted=true
         else
             : "${adjusted:=empty}"
         fi
+        ;;
+
+    -hdf5-brew)
+        brewName=hdf5-mpi; optValue="${brewName}-system"
+
+        # (config is hdf5)
+        cfgName=hdf5; _foamEtc -q config.sh/"$cfgName"
+
+        # Replace hdf5_version=...
+        replaceEtc  config.sh/"$cfgName"   hdf5_version "$optValue"
+        ##replaceEtc  config.csh/"$cfgName"  hdf5_version "$optValue"
+
+        # Replace HDF5_ARCH_PATH=...
+        replaceBrewEtc     config.sh/"$cfgName"  HDF5_ARCH_PATH "$brewName"
+        ##replaceBrewEtcCsh  config.csh/"$cfgName" HDF5_ARCH_PATH "$brewName"
+        adjusted=true
         ;;
 
     -kahip)
