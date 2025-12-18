@@ -25,8 +25,8 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Namespace
-    Foam::ListExpression
+InNamespace
+    Foam::Expression
 
 Description
     Expression templates for List
@@ -40,9 +40,15 @@ SourceFiles
 #define Foam_ListExpression_H
 
 #include <cassert>
-#if __has_include(<execution>)
+
+// Parallel execution
+#if defined(_WIN32) || (defined(FOAM_REAL_GNUC) && (FOAM_REAL_GNUC < 10))
+// Ignore on mingw (needs tbb, which is less likely to be installed)
+// - older gcc also gives problems (has execution, but not everything...)
+#elif __has_include(<execution>)
     #include <execution>
 #endif
+
 #include "List.H"
 #include "labelPair.H"
 #include "dimensionedType.H"
@@ -57,9 +63,10 @@ namespace Expression
 {
 
 /*---------------------------------------------------------------------------*\
-                       Namespace Expression Declarations
+                       Class ListExpression Declaration
 \*---------------------------------------------------------------------------*/
 
+//- Expression templates for List
 template<typename E>
 class ListExpression
 {
@@ -89,10 +96,10 @@ public:
 #else
         std::copy
         (
-            #if defined(__APPLE__) && defined(__clang__)
+            #if (defined(__APPLE__) && defined(__clang__)) || defined(_WIN32)
             // Currently not working (2025-10-06) with par_unseq. Works with
             // sequential.
-            #elif __has_include(<execution>)
+            #elif (__cpp_lib_execution >= 201902L)
             std::execution::par_unseq,
             #else
             // Execution policy not supported
@@ -115,9 +122,11 @@ public:
 };
 
 
-// Wrap of List
-// ~~~~~~~~~~~~
+/*---------------------------------------------------------------------------*\
+                          Class ListWrap Declaration
+\*---------------------------------------------------------------------------*/
 
+//- Expression wrap of a List
 template<class T>
 class ListWrap
 :
@@ -142,7 +151,7 @@ public:
         elems_(std::move(elems.data()))
     {}
 
-    // Construct from initializer list
+    //- Construct from initializer list
     ListWrap(std::initializer_list<T> elems)
     :
         elems_(elems)
@@ -211,9 +220,11 @@ public:
 };
 
 
-// Wrap of non-const reference to List
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/*---------------------------------------------------------------------------*\
+                         Class ListRefWrap Declaration
+\*---------------------------------------------------------------------------*/
 
+//- Expression wrap of non-const reference to List
 template<class T>
 class ListRefWrap
 :
@@ -317,9 +328,11 @@ public:
 };
 
 
-// Wrap of const reference to UList
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/*---------------------------------------------------------------------------*\
+                      Class ListConstRefWrap Declaration
+\*---------------------------------------------------------------------------*/
 
+//- Expression wrap of const reference to UList
 template<class T>
 class ListConstRefWrap
 :
@@ -485,9 +498,11 @@ public:
 };
 
 
-// Wrap of tmp to List
-// ~~~~~~~~~~~~~~~~~~~
+/*---------------------------------------------------------------------------*\
+                         Class ListTmpWrap Declaration
+\*---------------------------------------------------------------------------*/
 
+//- Expression wrap of tmp to List
 template<class T>
 class ListTmpWrap
 :
@@ -571,6 +586,11 @@ public:
 };
 
 
+/*---------------------------------------------------------------------------*\
+                      Class ListConstTmpWrap Declaration
+\*---------------------------------------------------------------------------*/
+
+//- Expression wrap of const tmp to List
 template<class T>
 class ListConstTmpWrap
 :
@@ -713,10 +733,13 @@ public:
 };
 
 
-// Wrap of indirection
-// ~~~~~~~~~~~~~~~~~~~
+/*---------------------------------------------------------------------------*\
+                      Class IndirectConstWrap Declaration
+\*---------------------------------------------------------------------------*/
 
-// E1 : expression to get value of element i
+//- Expression wrap of indirection
+//
+// \tparam E1 : expression to get value of element i
 template<typename E1>
 class IndirectConstWrap
 :
@@ -877,10 +900,14 @@ public:
 };
 
 
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
 // Expresssions on List
 // ~~~~~~~~~~~~~~~~~~~~
 
+#undef  EXPRESSION_FUNCTION1
 #define EXPRESSION_FUNCTION1(Func, BaseFunc, OpFunc)                           \
+/*! \brief Expression wrapping function for unary \c Func function */          \
 template<typename E1>                                                          \
 class OpFunc                                                                   \
 :                                                                              \
@@ -1022,6 +1049,7 @@ auto Func(UList<Type> const& u)                                                \
 }
 
 
+//- List negation
 // Do '-' separately until we work out macro expansion...
 template<typename E1>
 class List_negate
@@ -1159,7 +1187,9 @@ auto operator-(UList<Type> const& u)
    return List_negate(E2(u));
 }
 
+#undef  EXPRESSION_FUNCTION2
 #define EXPRESSION_FUNCTION2(Func, BaseFunc, OpFunc)                           \
+/*! \brief Expression wrapping function for binary \c Func function */         \
 template<typename E1, typename E2>                                             \
 class OpFunc                                                                   \
 :                                                                              \
@@ -1382,6 +1412,7 @@ auto Func                                                                      \
 }
 
 
+#undef  EXPRESSION_OPERATOR
 #define EXPRESSION_OPERATOR(Op, OpFunc)                                        \
 template<typename E1, typename E2>                                             \
 class OpFunc                                                                   \
@@ -1657,11 +1688,13 @@ auto operator Op                                                               \
 }
 
 
-//- List functions
+// List functions
+// ~~~~~~~~~~~~~~
 // macro arguments:
-//  - 'sin' : name of new function (in ListExpression namespace)
+//  - 'sin' : name of new function (in Expression namespace)
 //  - '::sin' : per-element function to call
 //  - 'List_sin' : generated expression helper class
+
 EXPRESSION_FUNCTION1(sin, ::sin, List_sin)
 EXPRESSION_FUNCTION1(cos, ::cos, List_cos)
 EXPRESSION_FUNCTION1(tan, ::tan, List_tan)
@@ -1881,6 +1914,7 @@ public:
 // Expressions on constants
 // ~~~~~~~~~~~~~~~~~~~~~~~~
 
+//- Expression wrap of a List with a uniform value
 template<class T>
 class UniformListWrap
 :
@@ -2026,6 +2060,8 @@ public:
         return const_iterator(size_, val_);
     }
 };
+
+//- Expression wrap of a uniform value without a List size
 template<class T>
 class UniformListWrap2
 :
@@ -2162,7 +2198,7 @@ public:
 };
 
 
-//- Wrapper of multiple lists (e.g. FieldField)
+//- Expression wrap of multiple lists (e.g. FieldField)
 template <class V>
 class ListsConstRefWrap
 :
@@ -2385,6 +2421,7 @@ public:
 };
 
 
+//- Expression wrap of multiple lists
 template <class V>
 class ListsRefWrap
 :
@@ -2816,10 +2853,9 @@ public:
 };
 
 
-} // End namespace Expression
-
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+} // End namespace Expression
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
