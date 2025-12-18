@@ -24,13 +24,10 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Namespace
-    Foam::GenericExpression
+    Foam::Expression
 
 Description
-    Expression templates.
-
-SourceFiles
-    GenericExpression.H
+    A namespace for expression templates
 
 \*---------------------------------------------------------------------------*/
 
@@ -47,7 +44,7 @@ namespace Expression
 {
 
 /*---------------------------------------------------------------------------*\
-                     Class GenericExpression Declarations
+                     Class GenericExpression Declaration
 \*---------------------------------------------------------------------------*/
 
 template<typename E>
@@ -68,6 +65,7 @@ public:
 // Macros
 // ~~~~~~
 
+#undef  EXPRESSION_FUNCTION1
 #define EXPRESSION_FUNCTION1(BaseClass, Func, BaseFunc, OpFunc)                \
 template<typename E1>                                                          \
 class OpFunc                                                                   \
@@ -99,6 +97,7 @@ OpFunc<E1> Func                                                                \
 }
 
 
+#undef  EXPRESSION_FUNCTION2
 #define EXPRESSION_FUNCTION2(BaseClass, Func, BaseFunc, OpFunc)                \
 template<typename E1, typename E2>                                             \
 class OpFunc                                                                   \
@@ -135,6 +134,7 @@ OpFunc<E1, E2> Func                                                            \
 }
 
 
+#undef  EXPRESSION_OPERATOR
 #define EXPRESSION_OPERATOR(BaseClass, Op, BaseOp, OpFunc)                     \
 template<typename E1, typename E2>                                             \
 class OpFunc                                                                   \
@@ -239,10 +239,9 @@ EXPRESSION_OPERATOR(GenericExpression, ^, ^, g_xor)
 
 #undef EXPRESSION_OPERATOR
 
-} // End namespace Expression
-
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+} // End namespace Expression
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

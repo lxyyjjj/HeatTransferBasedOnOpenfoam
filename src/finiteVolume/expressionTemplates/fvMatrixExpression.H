@@ -23,7 +23,7 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Namespace
+InNamespace
     Foam::Expression
 
 Description
@@ -34,7 +34,7 @@ Description
     - lduMatrix::lowerCSR ?
 
 SourceFiles
-    fvMatrixExpression.C
+    fvMatrixExpression.H
 
 \*---------------------------------------------------------------------------*/
 
@@ -55,11 +55,11 @@ namespace Expression
 {
 
 /*---------------------------------------------------------------------------*\
-                   Namespace Expression Declarations
+                     Class fvMatrixExpression Declaration
 \*---------------------------------------------------------------------------*/
 
-// Expression of fvMatrix
-// ~~~~~~~~~~~~~~~~~~~~~~
+//- Expression of fvMatrix
+//
 // Bit different:
 // - immediately stores state (hasDiag, hasUpper etc.)
 // - delays execution of building coefficients
@@ -274,6 +274,11 @@ public:
 };
 
 
+/*---------------------------------------------------------------------------*\
+                       Class fvMatrixRefWrap Declaration
+\*---------------------------------------------------------------------------*/
+
+//- Expression wrap of non-const reference to fvMatrix
 template<class Matrix>
 class fvMatrixRefWrap
 :
@@ -536,6 +541,11 @@ public:
 };
 
 
+/*---------------------------------------------------------------------------*\
+                    Class fvMatrixConstRefWrap Declaration
+\*---------------------------------------------------------------------------*/
+
+//- Expression wrap of const reference to fvMatrix
 template<class Matrix>
 class fvMatrixConstRefWrap
 :
@@ -656,6 +666,8 @@ public:
         }
 };
 
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 // Expressions on fvMatrices
 // ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1734,10 +1746,9 @@ void fvmLaplacianUncorrected
 }
 
 
-} // End namespace Expression
-
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+} // End namespace Expression
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

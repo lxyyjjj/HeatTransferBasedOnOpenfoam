@@ -18,6 +18,8 @@ EXE_INC = \
 LIB_LIBS = \
     -lfiniteVolume \
     -lfiniteArea \
+    -lfileFormats \
+    -lsurfMesh \
     -lmeshTools \
     -lfluidThermophysicalModels \
     -lincompressibleTransportModels -lcompressibleTransportModels \

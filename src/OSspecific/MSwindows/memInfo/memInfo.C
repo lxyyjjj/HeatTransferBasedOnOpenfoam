@@ -50,6 +50,7 @@ bool Foam::memInfo::supported()
     return true;
     #else
     return false;
+    #endif
 }
 
 

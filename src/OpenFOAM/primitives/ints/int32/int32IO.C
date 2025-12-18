@@ -187,6 +187,7 @@ Foam::Istream& Foam::operator>>(Istream& is, long& val)
     int32_t ival;
     is >> ival;
     val = static_cast<long>(ival);
+    return is;
 }
 
 Foam::Ostream& Foam::operator<<(Ostream& os, const long val)

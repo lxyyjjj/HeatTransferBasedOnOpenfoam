@@ -23,8 +23,8 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Namespace
-    Foam::boolExpression
+InNamespace
+    Foam::Expression
 
 Description
     Expression templates for bool
@@ -47,12 +47,10 @@ namespace Expression
 {
 
 /*---------------------------------------------------------------------------*\
-                       Namespace Expression Declarations
+                          Class boolWrap Declaration
 \*---------------------------------------------------------------------------*/
 
-// Wrap of non-const bool
-// ~~~~~~~~~~~~~~~~~~~~~~
-
+//- Expression wrap of non-const bool
 class boolWrap
 :
     public GenericExpression<boolWrap>
@@ -105,9 +103,11 @@ public:
 };
 
 
-// Wrap of const bool
-// ~~~~~~~~~~~~~~~~~~
+/*---------------------------------------------------------------------------*\
+                        Class boolConstWrap Declaration
+\*---------------------------------------------------------------------------*/
 
+//- Expression wrap of const bool
 class boolConstWrap
 :
     public GenericExpression<boolConstWrap>
@@ -119,7 +119,7 @@ public:
     // ! Store as copy (since holds reference)
     static constexpr bool is_leaf = false;
 
-    // construct from components
+    //- Construct from components
     boolConstWrap(const bool elems)
     :
         elems_(elems)
@@ -132,10 +132,9 @@ public:
 };
 
 
-} // End namespace Expression
-
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+} // End namespace Expression
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

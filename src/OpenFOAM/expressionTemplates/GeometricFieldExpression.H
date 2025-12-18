@@ -24,14 +24,14 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Namespace
+InNamespace
     Foam::Expression
 
 Description
     Expression templates for GeometricFields
 
 SourceFiles
-    GeometricFieldExpression.C
+    GeometricFieldExpression.H
 
 \*---------------------------------------------------------------------------*/
 
@@ -53,16 +53,14 @@ namespace Foam
 namespace Expression
 {
 
-/*---------------------------------------------------------------------------*\
-                   Namespace Expression Declarations
-\*---------------------------------------------------------------------------*/
-
+// Forward Declarations
 template<class GeoField> class UniformGeometricFieldWrap2;
 
+/*---------------------------------------------------------------------------*\
+                  Class GeometricFieldExpression Declaration
+\*---------------------------------------------------------------------------*/
 
-// Expression of GeometricField
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+//- Expression of GeometricField
 template
 <
     typename E,
@@ -309,6 +307,11 @@ public:
 };
 
 
+/*---------------------------------------------------------------------------*\
+                    Class GeometricFieldRefWrap Declaration
+\*---------------------------------------------------------------------------*/
+
+//- Expression wrap of non-const reference to GeometricField
 template<class GeoField>
 class GeometricFieldRefWrap
 :
@@ -591,6 +594,11 @@ public:
 };
 
 
+/*---------------------------------------------------------------------------*\
+                 Class GeometricFieldConstRefWrap Declaration
+\*---------------------------------------------------------------------------*/
+
+//- Expression wrap of const reference to GeometricField
 template<class GeoField>
 class GeometricFieldConstRefWrap
 :
@@ -722,6 +730,11 @@ public:
 };
 
 
+/*---------------------------------------------------------------------------*\
+                 Class GeometricFieldConstTmpWrap Declaration
+\*---------------------------------------------------------------------------*/
+
+//- Expression wrap of const tmp to GeometricField
 template<class GeoField>
 class GeometricFieldConstTmpWrap
 :
@@ -899,6 +912,8 @@ public:
     }
 };
 
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 // Expressions on GeometricFields
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1125,6 +1140,7 @@ auto operator+
 }
 
 
+#undef  EXPRESSION_GF_FUNCTION1_DIMLESS
 #define EXPRESSION_GF_FUNCTION1_DIMLESS(Func, BaseFunc, WrapType, OpFunc)      \
 template<typename E1>                                                          \
 class OpFunc                                                                   \
@@ -1218,6 +1234,7 @@ auto Func(GeometricField<Type, PatchField, GeoMesh> const& fld)                \
    return Func(E1(fld));                                                       \
 }
 
+#undef  EXPRESSION_GF_FUNCTION1
 #define EXPRESSION_GF_FUNCTION1(Func, BaseFunc, WrapType, OpFunc)              \
 template<typename E1>                                                          \
 class OpFunc                                                                   \
@@ -1387,6 +1404,7 @@ auto Func(GeometricField<Type, PatchField, GeoMesh> const& fld)                \
 //    return GeometricFieldNegate<E1>(static_cast<const E1&>(u));
 //}
 
+#undef  EXPRESSION_GF_OPERATOR
 #define EXPRESSION_GF_OPERATOR(Op, WrapType, OpFunc)                           \
 template<typename E1, typename E2>                                             \
 class OpFunc                                                                   \
@@ -1738,6 +1756,7 @@ auto operator Op                                                               \
 }                                                                              \
 
 
+#undef  EXPRESSION_GF_FUNCTION2
 #define EXPRESSION_GF_FUNCTION2(Func, BaseFunc, WrapType, OpFunc)              \
 template<typename E1, typename E2>                                             \
 class OpFunc                                                                   \

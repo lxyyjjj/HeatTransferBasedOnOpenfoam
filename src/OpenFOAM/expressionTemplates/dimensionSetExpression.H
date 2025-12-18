@@ -23,8 +23,8 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Namespace
-    Foam::dimensionSetExpression
+InNamespace
+    Foam::Expression
 
 Description
     Expression templates for dimensionSet
@@ -47,12 +47,10 @@ namespace Expression
 {
 
 /*---------------------------------------------------------------------------*\
-                       Namespace Expression Declarations
+                     Class dimensionSetRefWrap Declaration
 \*---------------------------------------------------------------------------*/
 
-// Wrap of non-const reference to dimensionSet
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+//- Expression wrap of non-const reference to dimensionSet
 class dimensionSetRefWrap
 :
     public GenericExpression<dimensionSetRefWrap>
@@ -108,9 +106,11 @@ public:
 };
 
 
-// Wrap of const reference to dimensionSet
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/*---------------------------------------------------------------------------*\
+                  Class dimensionSetConstRefWrap Declaration
+\*---------------------------------------------------------------------------*/
 
+//- Expression wrap of const reference to dimensionSet
 class dimensionSetConstRefWrap
 :
     public GenericExpression<dimensionSetConstRefWrap>
@@ -122,7 +122,7 @@ public:
     // ! Store as copy (since holds reference)
     static constexpr bool is_leaf = false;
 
-    // construct from components
+    //- Construct from components
     dimensionSetConstRefWrap(const dimensionSet& elems)
     :
         elems_(elems)
@@ -135,10 +135,9 @@ public:
 };
 
 
-} // End namespace Expression
-
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+} // End namespace Expression
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
