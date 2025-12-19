@@ -7,7 +7,8 @@ targetType=libo                                     # Preferred library type
 
 if [ -f /usr/include/FlexLexer.h ] && [ ! -f FlexLexer.h ]
 then
-    echo "Adding FlexLexer.h link to ${PWD##*/} for cross-compilation"
+    echo "Adding FlexLexer.h link to ${PWD##*/} for cross-compilation" 1>&2
+
     ln -sf /usr/include/FlexLexer.h FlexLexer.h
 
     if [ -d lnInclude ]

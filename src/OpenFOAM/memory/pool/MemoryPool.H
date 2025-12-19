@@ -51,7 +51,7 @@ Description
 #ifndef Foam_MemoryPool_H
 #define Foam_MemoryPool_H
 
-#include <cstdint>  // For size_t
+#include <cstddef>  // For std::size_t
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
