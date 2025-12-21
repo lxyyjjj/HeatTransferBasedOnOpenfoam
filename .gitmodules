@@ -23,3 +23,6 @@
 [submodule "plugins/data-community"]
 	path = plugins/data-community
 	url = https://gitlab.com/openfoam/community/sig-data-modelling/data-community.git
+[submodule "plugins/research"]
+	path = plugins/research
+	url = https://gitlab.com/openfoam/community/research.git
