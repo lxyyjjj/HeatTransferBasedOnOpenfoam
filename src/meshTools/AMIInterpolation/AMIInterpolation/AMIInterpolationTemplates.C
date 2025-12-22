@@ -354,7 +354,8 @@ void Foam::AMIInterpolation::interpolateToTarget
         const scalar w
     )
     {
-        res = lerp(a, b, w);
+        // res = lerp(a, b, w);
+        res = (scalar{1}-w)*a + w*b;
     };
 
     interpolate
@@ -394,7 +395,8 @@ void Foam::AMIInterpolation::interpolateToSource
         const scalar w
     )
     {
-        res = lerp(a, b, w);
+        // res = lerp(a, b, w);
+        res = (scalar{1}-w)*a + w*b;
     };
 
 

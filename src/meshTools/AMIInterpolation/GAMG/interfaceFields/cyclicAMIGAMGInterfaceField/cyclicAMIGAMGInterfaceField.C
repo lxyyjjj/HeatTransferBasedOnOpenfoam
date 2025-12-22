@@ -298,7 +298,7 @@ void Foam::cyclicAMIGAMGInterfaceField::updateInterfaceMatrix
     const Pstream::commsTypes commsType
 ) const
 {
-    typedef multiplyWeightedOp<scalar, plusEqOp<scalar>> opType;
+    typedef multiplyWeightedOp<solveScalar, plusEqOp<solveScalar>> opType;
 
     const labelUList& faceCells = lduAddr.patchAddr(patchId);
 
@@ -404,7 +404,7 @@ void Foam::cyclicAMIGAMGInterfaceField::updateInterfaceMatrix
                     cache.cSrcWeights0(),
                     cache.cSrcWeightsSum0(),
                     work,
-                    opType(plusEqOp<scalar>()),
+                    opType(plusEqOp<solveScalar>()),
                     pnf,
                     defaultValues
                 );
@@ -439,7 +439,7 @@ void Foam::cyclicAMIGAMGInterfaceField::updateInterfaceMatrix
                     cache.cSrcWeights1(),
                     cache.cSrcWeightsSum1(),
                     work,
-                    opType(plusEqOp<scalar>()),
+                    opType(plusEqOp<solveScalar>()),
                     pnf,
                     defaultValues
                 );
@@ -492,7 +492,7 @@ void Foam::cyclicAMIGAMGInterfaceField::updateInterfaceMatrix
                     cache.cSrcWeights0(),
                     cache.cSrcWeightsSum0(),
                     work,
-                    opType(plusEqOp<scalar>()),
+                    opType(plusEqOp<solveScalar>()),
                     pnf,
                     defaultValues
                 );
@@ -513,7 +513,7 @@ void Foam::cyclicAMIGAMGInterfaceField::updateInterfaceMatrix
                     cache.cSrcWeights1(),
                     cache.cSrcWeightsSum1(),
                     work,
-                    opType(plusEqOp<scalar>()),
+                    opType(plusEqOp<solveScalar>()),
                     pnf,
                     defaultValues
                 );
