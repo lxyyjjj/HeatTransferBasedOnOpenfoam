@@ -189,8 +189,8 @@ void Foam::vtk::writeValueParallel
     {
         forAll(counts, i)
         {
-            // Write [count, value] tuple
-            vtk::write(fmt, counts[i], values[i]);
+            // Write [value, count] tuple
+            vtk::write(fmt, values[i], counts[i]);
         }
     }
 }
