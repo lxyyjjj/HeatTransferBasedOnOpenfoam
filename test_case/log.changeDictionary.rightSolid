@@ -1,0 +1,98 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2512                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : 3a9ac426ea-20260109 OPENFOAM=2512 version=v2512
+Arch   : "LSB;label=32;scalar=64"
+Exec   : changeDictionary -region rightSolid
+Date   : Jan 20 2026
+Time   : 15:05:05
+Host   : DESKTOP-U4MQDU3
+PID    : 1446973
+I/O    : uncollated
+Case   : /home/wywlxy/openfoam_0120_eraseTun/openfoam/test_case
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+memory pool : not available
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+Create mesh rightSolid for time = 0
+
+Read dictionary changeDictionaryDict with replacements for dictionaries 2(boundary T)
+Reading polyMesh/boundary file to extract patch names
+Loaded dictionary boundary with entries 6(maxX minZ maxZ rightSolid_to_bottomWater rightSolid_to_topAir rightSolid_to_heater)
+Extracted patch groups:
+    group wall with patches 5(minZ maxZ rightSolid_to_bottomWater rightSolid_to_topAir rightSolid_to_heater)
+Replacing entries in dictionary boundary
+Special handling of boundary as polyMesh/boundary file.
+Merging entries from 2(minZ maxZ)
+fieldDict:
+{
+    maxX
+    {
+        type            patch;
+        nFaces          10;
+        startFace       237;
+    }
+    minZ
+    {
+        type            patch;
+        inGroups        1 ( wall );
+        nFaces          13;
+        startFace       247;
+    }
+    maxZ
+    {
+        type            patch;
+        inGroups        1 ( wall );
+        nFaces          13;
+        startFace       260;
+    }
+    rightSolid_to_bottomWater
+    {
+        type            mappedWall;
+        inGroups        1 ( wall );
+        nFaces          130;
+        startFace       273;
+        sampleMode      nearestPatchFace;
+        sampleRegion    bottomWater;
+        samplePatch     bottomWater_to_rightSolid;
+    }
+    rightSolid_to_topAir
+    {
+        type            mappedWall;
+        inGroups        1 ( wall );
+        nFaces          130;
+        startFace       403;
+        sampleMode      nearestPatchFace;
+        sampleRegion    topAir;
+        samplePatch     topAir_to_rightSolid;
+    }
+    rightSolid_to_heater
+    {
+        type            mappedWall;
+        inGroups        1 ( wall );
+        nFaces          10;
+        startFace       533;
+        sampleMode      nearestPatchFace;
+        sampleRegion    heater;
+        samplePatch     heater_to_rightSolid;
+    }
+}
+
+Writing modified boundary
+Replacing entries in dictionary T
+Loading dictionary T
+Loaded dictionary T with entries 3(dimensions internalField boundaryField)
+Merging entries from 2(internalField boundaryField)
+Writing modified fieldDict T
+
+End
+

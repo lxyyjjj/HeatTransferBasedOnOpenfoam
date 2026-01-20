@@ -83,3 +83,7 @@ doc/Doxygen/DTAGS
 
 # Ignore the test directory
 /tutorialsTest
+
+# Custom ignores
+/ThirdParty/
+.trae/
